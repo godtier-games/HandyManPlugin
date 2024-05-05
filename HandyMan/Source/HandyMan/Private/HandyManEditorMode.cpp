@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HandyManEditorMode.h"
+
+#include "EditorModelingObjectsCreationAPI.h"
 #include "HandyManEditorModeToolkit.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
@@ -23,7 +25,11 @@
 #include "ScriptableToolSet.h"
 
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
+#include "ModelingModeAssetUtils.h"
 #include "ToolContextInterfaces.h"
+#include "Components/BrushComponent.h"
+#include "Selection/StaticMeshSelector.h"
+#include "Selection/VolumeSelector.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -161,6 +167,49 @@ void UHandyManEditorMode::Enter()
 
 	// enable realtime viewport override
 	ConfigureRealTimeViewportsOverride(true);
+
+	// register object creation api
+	UEditorModelingObjectsCreationAPI* ModelCreationAPI = UEditorModelingObjectsCreationAPI::Register(GetInteractiveToolsContext());
+	if (ModelCreationAPI)
+	{
+		ModelCreationAPI->GetNewAssetPathNameCallback.BindLambda([](const FString& BaseName, const UWorld* TargetWorld, FString SuggestedFolder)
+		{
+			return UE::Modeling::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
+		});
+		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([this](const FCreateMeshObjectResult& CreatedInfo) 
+		{
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+				// If we are creating a new asset or component, it should be initially unlocked in the Selection system.
+				// Currently have no generic way to do this, the Selection Manager does not necessarily support Static Meshes
+				// or Brush Components. So doing it here...
+				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CreatedInfo.NewAsset))
+				{
+					FStaticMeshSelector::SetAssetUnlockedOnCreation(StaticMesh);
+				}
+			}
+			if ( UBrushComponent* BrushComponent = Cast<UBrushComponent>(CreatedInfo.NewComponent) )
+			{
+				FVolumeSelector::SetComponentUnlockedOnCreation(BrushComponent);
+			}
+		});
+		TextureCreatedEventHandle = ModelCreationAPI->OnModelingTextureCreated.AddLambda([](const FCreateTextureObjectResult& CreatedInfo)
+		{
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			}
+		});
+		MaterialCreatedEventHandle = ModelCreationAPI->OnModelingMaterialCreated.AddLambda([](const FCreateMaterialObjectResult& CreatedInfo)
+		{
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			}
+		});
+	}
+
 
 
 	ScriptableTools = NewObject<UHandyManScriptableToolSet>(this);

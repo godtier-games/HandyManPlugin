@@ -87,6 +87,14 @@ protected:
 	void OnBlueprintCompiled();
 	FDelegateHandle BlueprintCompiledHandle;
 
+	FDelegateHandle MeshCreatedEventHandle;
+	FDelegateHandle TextureCreatedEventHandle;
+	FDelegateHandle MaterialCreatedEventHandle;
+	FDelegateHandle SelectionModifiedEventHandle;
+
+	FDelegateHandle EditorClosedEventHandle;
+	void OnEditorClosed();
+
 protected:
 	UPROPERTY()
 	TObjectPtr<UHandyManScriptableToolSet> ScriptableTools;

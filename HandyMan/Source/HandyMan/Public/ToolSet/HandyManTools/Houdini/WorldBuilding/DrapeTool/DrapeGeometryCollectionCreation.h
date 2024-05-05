@@ -77,17 +77,17 @@ public:
 
 	/** Allow freehand drawn polygons to self-intersect */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon,
-		meta = (DisplayName ="Self-Intersections", EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::Freehand"))
+		meta = (DisplayName ="Self-Intersections", EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode_Drape::Freehand"))
 	bool bAllowSelfIntersections = false;
 
 	/** Size of secondary features, e.g. the rounded corners of a rounded rectangle, as fraction of the overall shape size */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
-		EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring"))
+		EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode_Drape::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode_Drape::Ring"))
 	float FeatureSizeRatio = .25;
 
 	/** Number of radial subdivisions in round features, e.g. circles or rounded corners */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
-		EditCondition =	"PolygonDrawMode == EDrawPolygonDrawMode::Circle || PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring"))
+		EditCondition =	"PolygonDrawMode == EDrawPolygonDrawMode_Drape::Circle || PolygonDrawMode == EDrawPolygonDrawMode_Drape::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode_Drape::Ring"))
 	int RadialSlices = 16;
 
 	/** Distance between the last clicked point and the current point  */
