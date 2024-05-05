@@ -6,6 +6,7 @@
 #include "ScriptableInteractiveTool.h"
 #include "ScriptableToolBuilder.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "ToolSet/HandyManBaseClasses/HandyManInteractiveTool.h"
 
 void UHandyManScriptableToolSet::ReinitializeCustomScriptableTools()
 {
@@ -70,6 +71,10 @@ void UHandyManScriptableToolSet::ReinitializeCustomScriptableTools()
 			ToolInfo.ToolCDO = Class->GetDefaultObject<UScriptableInteractiveTool>();
 
 			UBaseScriptableToolBuilder* ToolBuilder = nullptr;
+			if (Cast<UHandyManInteractiveTool>(ToolInfo.ToolCDO.Get()))
+			{
+				ToolBuilder = Cast<UHandyManInteractiveTool>(ToolInfo.ToolCDO.Get())->GetNewCustomToolBuilderInstance(this);
+			}
 			if (ToolBuilder == nullptr)
 			{
 				ToolBuilder = NewObject<UBaseScriptableToolBuilder>(this);

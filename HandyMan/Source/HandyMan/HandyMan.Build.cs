@@ -44,14 +44,19 @@ public class HandyMan : ModuleRules
 				"RenderCore",
 
 				"GeometryCore",
+				"GeometryAlgorithms",
+				"GeometryScriptingCore",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"ScriptableToolsFramework",
 				"EditorScriptableToolsFramework",
+				"InteractiveToolsFramework",
 
 				"ModelingComponents",
 				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime"
+				"HoudiniEngineRuntime",
+				"Landscape",
+				"MeshModelingTools"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -62,7 +67,41 @@ public class HandyMan : ModuleRules
 			{
 				"Engine", 
 				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime"
+				"HoudiniEngineRuntime",
+				"CoreUObject",
+				"Slate",
+				"SlateCore",
+				"Engine",
+				"InputCore",
+				"EditorFramework",
+				"UnrealEd",
+				"ContentBrowserData",
+				"StatusBar",
+				"Projects",
+				"TypedElementRuntime",
+				"InteractiveToolsFramework",
+				"EditorInteractiveToolsFramework",
+				"GeometryFramework",
+				"GeometryCore",
+				"GeometryProcessingInterfaces",
+				"DynamicMesh",
+				"ModelingComponents",
+				"ModelingComponentsEditorOnly",
+				"MeshModelingTools",
+				"MeshModelingToolsExp",
+				"MeshModelingToolsEditorOnly",
+				"MeshModelingToolsEditorOnlyExp",
+				"MeshLODToolset",
+				"ToolWidgets",
+				"EditorWidgets",
+				"WidgetRegistration",
+				"DeveloperSettings",
+				"PropertyEditor",
+				"ToolMenus",
+				"EditorConfig",
+				"ToolPresetAsset",
+				"ToolPresetEditor",
+				"EditorConfig",
 			}
 			);
 		

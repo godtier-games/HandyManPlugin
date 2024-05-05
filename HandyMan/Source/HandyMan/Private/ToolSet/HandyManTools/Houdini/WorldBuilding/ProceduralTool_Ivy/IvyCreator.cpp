@@ -5,6 +5,7 @@
 #include "Selection.h"
 #include "HoudiniPublicAPI.h"
 #include "HoudiniPublicAPIAssetWrapper.h"
+#include "Landscape.h"
 #include "Engine/TriggerVolume.h"
 
 
@@ -19,6 +20,8 @@ UIvyCreator::UIvyCreator():PropertySet(nullptr)
 void UIvyCreator::Setup()
 {
 	Super::Setup();
+
+	GEditor->GetSelectedActors()->DeselectAll();
 
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
 	PropertySet = Cast<UIvyCreator_PropertySet>(AddPropertySetOfType(UIvyCreator_PropertySet::StaticClass(), "Settings", PropertyCreationOutcome));
@@ -91,6 +94,7 @@ void UIvyCreator::Shutdown(EToolShutdownType ShutdownType)
 		UE_LOG(LogTemp, Warning, TEXT("Ivy Creator Tool Accepted"));
 		break;
 	case EToolShutdownType::Cancel:
+		HandleCancel();
 		UE_LOG(LogTemp, Warning, TEXT("Ivy Creator Tool Cancelled"));
 		break;
 	}
@@ -122,47 +126,244 @@ bool UIvyCreator::HasCancel() const
 
 void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult)
 {
-	if (SelectedActors.Contains(HitResult.GetActor()))
+	if (Modifiers.bShiftDown)
 	{
-		if (SelectedActors.FindRef(HitResult.GetActor()))
+		// I want to add this to a group
+
+		// If its the first item of the group, then create a new group
+
+		// Change highlight color to green g = group
+
+		if (CurrentInstance != nullptr)
 		{
-			if (bShouldEditSelection) {SelectedActors.FindRef(HitResult.GetActor())->DeleteInstantiatedAsset(); SelectedActors.Remove(HitResult.GetActor());}
+			auto FoundObjects = SelectedActors.FindRef(CurrentInstance);
+			if (SelectedActors.Contains(CurrentInstance) && !SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
+			{
+				GEditor->SelectActor(HitResult.GetActor(), true, false);
+				if(bShouldEditSelection) SelectedActors[CurrentInstance].Selected.Add(HitResult.GetActor());
+
+				// Remove from duplicate selections
+				for (auto& Item : SelectedActors)
+				{
+					if (!Item.Value.Selected.Contains(HitResult.GetActor()) || Item.Key == CurrentInstance) continue;
+					
+					if(bShouldEditSelection) Item.Value.Selected.Remove(HitResult.GetActor());
+					GEditor->SelectActor(HitResult.GetActor(), false, false);
+				}
+			}
 		}
 		else
 		{
-			if (bShouldEditSelection) SelectedActors.Add(HitResult.GetActor(), SpawnHDAInstance());
+			for (auto& FindEmpty : SelectedActors)
+			{
+				if (FindEmpty.Value.Selected.Num() == 0)
+				{
+					FindEmpty.Value.Selected.Add(HitResult.GetActor());
+					CurrentInstance = FindEmpty.Key;
+					GEditor->SelectActor(HitResult.GetActor(), true, false);
+				}
+				else
+				{
+					CurrentInstance = SpawnHDAInstance();
+					SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+					GEditor->SelectActor(HitResult.GetActor(), true, false);
+				}
+			}
+		}
+	}
+	else if (Modifiers.bCtrlDown)
+	{
+		// I want to remove this from a group
+		// If its not apart of a group then this will just delect the item
+		// if its apart of a group it will remove from group but remain selected (add new instance and add this to that instances selected objects)
+		// Change highlight color to blue
+
+		if (CurrentInstance != nullptr)
+		{
+			bool bHasSolvedSelection = false;
+			if (SelectedActors.Contains(CurrentInstance) && SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
+			{
+				if(bShouldEditSelection)
+				{
+					SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
+					
+					for (auto& FindEmpty : SelectedActors)
+					{
+						if (FindEmpty.Value.Selected.Num() == 0)
+						{
+							FindEmpty.Value.Selected.Add(HitResult.GetActor());
+							CurrentInstance = FindEmpty.Key;
+							bHasSolvedSelection = true;
+						}
+					}
+
+					if(!bHasSolvedSelection)
+					{
+						SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
+						CurrentInstance = SpawnHDAInstance();
+						SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+					}
+					
+				}
+				
+			}
+			else
+			{
+				for (auto& Item : SelectedActors)
+				{
+					if (!Item.Value.Selected.Contains(HitResult.GetActor())) continue;
+					if(bShouldEditSelection && Item.Value.Selected.Num() > 1)
+					{
+						for (auto& FindEmpty : SelectedActors)
+						{
+							if (FindEmpty.Value.Selected.Num() == 0)
+							{
+								Item.Value.Selected.Remove(HitResult.GetActor());
+								FindEmpty.Value.Selected.Add(HitResult.GetActor());
+								CurrentInstance = FindEmpty.Key;
+								bHasSolvedSelection = true;
+							}
+						}
+
+						if (!bHasSolvedSelection)
+						{
+						
+							Item.Value.Selected.Remove(HitResult.GetActor());
+							CurrentInstance = SpawnHDAInstance();
+							SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+							
+						}
+
+						
+
+						
+					}
+					
+				}
+			}
+
+			if (!bHasSolvedSelection)
+			{
+				/*CurrentInstance = SpawnHDAInstance();
+				SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));*/
+			}
 		}
 	}
 	else
 	{
-		if (bShouldEditSelection) SelectedActors.Add(HitResult.GetActor(), SpawnHDAInstance());
-	}
+		// If I'm just clicking on an object, then I want to select it
+		// If its already selected, then I want to deselect it
+		// Change its color to yellow.
 
-	for (auto Item : SelectedActors)
-	{
-		if (Item.Key && Item.Value)
+		TArray<UHoudiniPublicAPIAssetWrapper*> OutKeys;
+		SelectedActors.GetKeys(OutKeys);
+
+		// this instance we are on is in the selected actors list check if this actor we are selecting is in the list
+		if (CurrentInstance != nullptr)
 		{
-			GEditor->SelectActor((AActor*)Item.Key, true, false);
+			bool bHasSolvedSelection = false;
+			if (SelectedActors.Contains(CurrentInstance) && SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
+			{
+				GEditor->SelectActor(HitResult.GetActor(), false, false);
+				if(bShouldEditSelection) SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
+				bHasSolvedSelection = true;
+			}
+			else
+			{
+				for (auto& Item : SelectedActors)
+				{
+					if (!Item.Value.Selected.Contains(HitResult.GetActor())) continue;
+					
+					GEditor->SelectActor(HitResult.GetActor(), false, false);
+					if(bShouldEditSelection) Item.Value.Selected.Remove(HitResult.GetActor());
+					CurrentInstance = Item.Key;
+					bHasSolvedSelection = true;
+				}
+			}
+
+			if (!bHasSolvedSelection)
+			{
+				for (auto& FindEmpty : SelectedActors)
+				{
+					if (FindEmpty.Value.Selected.Num() == 0)
+					{
+						FindEmpty.Value.Selected.Add(HitResult.GetActor());
+						CurrentInstance = FindEmpty.Key;
+						GEditor->SelectActor(HitResult.GetActor(), true, false);
+						bHasSolvedSelection = true;
+					}
+				}
+
+				if (!bHasSolvedSelection)
+				{
+					CurrentInstance = SpawnHDAInstance();
+					SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+					GEditor->SelectActor(HitResult.GetActor(), true, false);
+				}
+				
+				
+			}
+		}
+		else
+		{
+			CurrentInstance = SpawnHDAInstance();
+			SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+			GEditor->SelectActor(HitResult.GetActor(), true, false);
 		}
 	}
+
+	for (auto Highlight : SelectedActors)
+	{
+		for (int i = 0; i < Highlight.Value.Selected.Num(); i++)
+		{
+			if (Highlight.Value.Selected[i] == nullptr)
+			{
+				Highlight.Value.Selected.RemoveAt(i);
+				continue;
+			}
+			GEditor->SelectActor((AActor*)Highlight.Value.Selected[i], true, false);
+		};
+	}
+	
 }
 
 void UIvyCreator::HandleAccept()
 {
 	for (auto Item : SelectedActors)
 	{
-		if (Item.Key && Item.Value)
+		if (Item.Key)
 		{
-			UHoudiniPublicAPIWorldInput* InputGeo = Cast<UHoudiniPublicAPIWorldInput>(Item.Value->CreateEmptyInput(UHoudiniPublicAPIWorldInput::StaticClass()));
+			if(Item.Value.Selected.Num() == 0) {Item.Key->DeleteInstantiatedAsset(); continue;} 
+			UHoudiniPublicAPIWorldInput* InputGeo = Cast<UHoudiniPublicAPIWorldInput>(Item.Key->CreateEmptyInput(UHoudiniPublicAPIWorldInput::StaticClass()));
 
-			TArray<UObject*> InputObjects {Item.Key};
+			TArray<UObject*> InputObjects;
+			for (auto Object : Item.Value.Selected)
+			{
+				InputObjects.Add(Object);
+			}
+			
 			InputGeo->SetInputObjects(InputObjects);
-			Item.Value->SetInputAtIndex(0, InputGeo);
-			Item.Value->Recook();
-			Item.Value->SetAutoCookingEnabled(true);
+			Item.Key->SetInputAtIndex(0, InputGeo);
+			Item.Key->Recook();
+			Item.Key->SetAutoCookingEnabled(true);
+		}
+		
+
+		
+	}
+}
+
+void UIvyCreator::HandleCancel()
+{
+	for (auto Item : SelectedActors)
+	{
+		if (Item.Key)
+		{
+			Item.Key->DeleteInstantiatedAsset();
 		}
 	}
-	
+
+	SelectedActors.Empty();
 }
 
 void UIvyCreator::HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection)
@@ -172,9 +373,9 @@ void UIvyCreator::HighlightActors(FInputDeviceRay ClickPos, const FScriptableToo
 		const TEnumAsByte<ECollisionChannel> ChannelToTrace = PropertySet->bUseCustomTraceChannel ? PropertySet->CustomTraceChannel : TEnumAsByte<ECollisionChannel>(ECC_Visibility);
 		// Do something with the property set
 		FHitResult HitResult;
-		if (GetWorld()->LineTraceSingleByChannel(HitResult, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction * 10000.0f, ChannelToTrace))
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * 10000.0f, ChannelToTrace))
 		{
-			if (!HitResult.GetComponent() || !HitResult.GetComponent()->IsVisible() || HitResult.GetComponent()->IsA(AVolume::StaticClass()))
+			if (!HitResult.GetComponent() || !HitResult.GetComponent()->IsVisible() || HitResult.GetComponent()->IsA(AVolume::StaticClass()) || HitResult.GetComponent()->IsA(APartitionActor::StaticClass()))
 			{
 				return;
 			}

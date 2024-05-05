@@ -16,4 +16,6 @@ class HANDYMAN_API UHandyManScriptableToolSet : public UScriptableToolSet
 
 public:
 	void ReinitializeCustomScriptableTools();
+
+	
 };
