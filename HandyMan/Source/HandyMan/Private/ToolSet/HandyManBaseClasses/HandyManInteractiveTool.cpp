@@ -2,3 +2,9 @@
 
 
 #include "ToolSet/HandyManBaseClasses/HandyManInteractiveTool.h"
+
+void UHandyManInteractiveTool::Setup()
+{
+	Super::Setup();
+	HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
+}

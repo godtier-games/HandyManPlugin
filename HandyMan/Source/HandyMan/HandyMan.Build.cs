@@ -32,6 +32,7 @@ public class HandyMan : ModuleRules
 				"InputCore",
 				"UnrealEd",
 				"EditorFramework",
+				"EditorSubsystem",
 				"ToolWidgets",
 				"EditorWidgets",
 				"DeveloperSettings",

@@ -13,52 +13,16 @@
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
 #define RootToContentDir StyleSet->RootToContentDir
 
-void UHandyManSingleClickTool::CacheHoudiniAPI()
-{
-	if (!HoudiniPublicAPI)
-	{
-		HoudiniPublicAPI = NewObject<UHoudiniPublicAPI>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-	}
-}
-
-void UHandyManSingleClickTool::InitHoudiniDigitalAsset()
-{
-	if (HDAFileName.IsEmpty() == false)
-	{
-		if (UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>())
-		{
-			FString FilePath = HDA(HDAFileName);
-			auto Asset = EditorAssetSubsystem->LoadAsset(FilePath);
-			if (!Asset)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Failed to load HDA"));
-				return;
-			}
-
-			HDA = Cast<UHoudiniAsset>(Asset);
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("HDA File Path is empty"));
-	}
-		
-
-
-}
-
 void UHandyManSingleClickTool::Setup()
 {
 	Super::Setup();
-	CacheHoudiniAPI();
-	//InitHoudiniDigitalAsset();
+	HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
 }
 
 void UHandyManSingleClickTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	HandyManAPI = nullptr;
 	Super::Shutdown(ShutdownType);
-
-	HoudiniPublicAPI = nullptr;
 }
 
 

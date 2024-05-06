@@ -7,6 +7,7 @@
 #include "HoudiniPublicAPIAssetWrapper.h"
 #include "Landscape.h"
 #include "Engine/TriggerVolume.h"
+#include "ToolSet/Core/HandyManSubsystem.h"
 
 
 UIvyCreator::UIvyCreator():PropertySet(nullptr)
@@ -25,15 +26,6 @@ void UIvyCreator::Setup()
 
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
 	PropertySet = Cast<UIvyCreator_PropertySet>(AddPropertySetOfType(UIvyCreator_PropertySet::StaticClass(), "Settings", PropertyCreationOutcome));
-
-	if (GetHoudiniAPI())
-	{
-		if (!GetHoudiniAPI()->IsSessionValid())
-		{
-			GetMutableAPI()->CreateSession();
-		}
-	}
-
 	
 }
 
@@ -414,16 +406,18 @@ UIvyCreator_PropertySet::UIvyCreator_PropertySet()
 UHoudiniPublicAPIAssetWrapper* UIvyCreator::SpawnHDAInstance()
 {
 	UHoudiniPublicAPIAssetWrapper* returnObj = nullptr;
-	if (PropertySet)
+	
+	if (PropertySet && GetHandyManAPI())
 	{
-		returnObj = GetMutableAPI()->InstantiateAsset(
-				GetHoudiniDigitalAsset(),
+		returnObj = GetHandyManAPI()->GetMutableHoudiniAPI()->InstantiateAsset
+		(
+				GetHandyManAPI()->GetHoudiniDigitalAsset(FName("IvyTool")),
 				FTransform::Identity,
-nullptr,
-nullptr,
-false,
-false, PropertySet->AssetSaveLocation.FilePath, PropertySet->BakeType, !PropertySet->bKeepProceduralAssets);
-		
+				nullptr,
+				nullptr,
+				false,
+				false, PropertySet->AssetSaveLocation.FilePath, PropertySet->BakeType, !PropertySet->bKeepProceduralAssets
+		);
 	}
 	
 	return returnObj;

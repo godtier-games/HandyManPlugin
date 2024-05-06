@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ScriptableInteractiveTool.h"
+#include "ToolSet/Core/HandyManSubsystem.h"
 #include "HandyManInteractiveTool.generated.h"
 
 /**
@@ -16,5 +17,15 @@ class HANDYMAN_API UHandyManInteractiveTool : public UScriptableInteractiveTool
 
 public:
 
+	const UHandyManSubsystem* GetHandyManAPI_Safe() const {return HandyManAPI;}
+	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
+
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override {return nullptr;};
+
+	virtual void Setup() override;
+
+
+private:
+	UPROPERTY()
+	UHandyManSubsystem* HandyManAPI;
 };

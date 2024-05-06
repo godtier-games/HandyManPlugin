@@ -9,6 +9,7 @@
 #include "HandyManEditorModeCommands.h"
 
 #include "EdModeInteractiveToolsContext.h"
+#include "HandyManAssetUtils.h"
 #include "Modules/ModuleManager.h"
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
@@ -30,6 +31,7 @@
 #include "Components/BrushComponent.h"
 #include "Selection/StaticMeshSelector.h"
 #include "Selection/VolumeSelector.h"
+#include "ToolSet/Core/HandyManSubsystem.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -146,6 +148,17 @@ void UHandyManEditorMode::Enter()
 {
 	UEdMode::Enter();
 
+	UHandyManSubsystem* HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
+
+	if (!HandyManAPI)
+	{
+		UE_LOG(LogTemp, Error, TEXT("HandyManAPI is null"));
+		Exit();
+		return;
+	}
+
+	HandyManAPI->InitializeHoudiniApi();
+
 	// listen to post-build
 	GetToolManager()->OnToolPostBuild.AddUObject(this, &UHandyManEditorMode::OnToolPostBuild);
 
@@ -174,13 +187,13 @@ void UHandyManEditorMode::Enter()
 	{
 		ModelCreationAPI->GetNewAssetPathNameCallback.BindLambda([](const FString& BaseName, const UWorld* TargetWorld, FString SuggestedFolder)
 		{
-			return UE::Modeling::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
+			return GG::HandyMan::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
 		});
 		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([this](const FCreateMeshObjectResult& CreatedInfo) 
 		{
 			if (CreatedInfo.NewAsset != nullptr)
 			{
-				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+				GG::HandyMan::OnNewAssetCreated(CreatedInfo.NewAsset);
 				// If we are creating a new asset or component, it should be initially unlocked in the Selection system.
 				// Currently have no generic way to do this, the Selection Manager does not necessarily support Static Meshes
 				// or Brush Components. So doing it here...
@@ -198,14 +211,14 @@ void UHandyManEditorMode::Enter()
 		{
 			if (CreatedInfo.NewAsset != nullptr)
 			{
-				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+				GG::HandyMan::OnNewAssetCreated(CreatedInfo.NewAsset);
 			}
 		});
 		MaterialCreatedEventHandle = ModelCreationAPI->OnModelingMaterialCreated.AddLambda([](const FCreateMaterialObjectResult& CreatedInfo)
 		{
 			if (CreatedInfo.NewAsset != nullptr)
 			{
-				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+				GG::HandyMan::OnNewAssetCreated(CreatedInfo.NewAsset);
 			}
 		});
 	}
@@ -263,6 +276,10 @@ void UHandyManEditorMode::Exit()
 {
 	GEditor->OnBlueprintPreCompile().Remove(BlueprintPreCompileHandle);
 
+	UHandyManSubsystem* HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
+
+	
+
 	// exit any exclusive active tools w/ cancel
 	if (UInteractiveTool* ActiveTool = GetToolManager()->GetActiveTool(EToolSide::Left))
 	{
@@ -282,8 +299,19 @@ void UHandyManEditorMode::Exit()
 	// clear realtime viewport override
 	ConfigureRealTimeViewportsOverride(false);
 
+	if (!HandyManAPI)
+	{
+		UE_LOG(LogTemp, Error, TEXT("HandyManAPI is null"));
+		UEdMode::Exit();
+		return;
+	}
+
+	HandyManAPI->CleanUp();
+
 	// Call base Exit method to ensure proper cleanup
 	UEdMode::Exit();
+
+	
 }
 
 void UHandyManEditorMode::OnToolsContextRender(IToolsContextRenderAPI* RenderAPI)

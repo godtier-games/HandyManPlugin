@@ -6,6 +6,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "HandyManSettings.generated.h"
 
+class UHoudiniAssetWrapper;
+class UHoudiniAsset;
 struct FCollectionReference;
 
 
@@ -70,8 +72,14 @@ public:
 	virtual FText GetSectionText() const override;
 	virtual FText GetSectionDescription() const override;
 
-protected:
+	UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
 
+protected:
+	
+	// Global HDA Library asset to use.
+	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
+	FSoftObjectPath DigitalAssetLibrary = FSoftObjectPath(TEXT("/HandyMan/Data/HDA_Library.HDA_Library"));
+	
 	/** Enable/Disable the options to emit Dynamic Mesh Actors in Modeling Mode Tools */
 	UPROPERTY()
 	bool bEnableDynamicMeshActors = false;
