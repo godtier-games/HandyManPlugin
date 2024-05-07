@@ -59,6 +59,7 @@ enum class EHandyManToolName
 	None UMETA(Hidden),
 	IvyTool UMETA(DisplayName = "Ivy Tool"),
 	DrapeTool UMETA(DisplayName = "Drape Tool"),
+	FenceTool_Smooth UMETA(DisplayName = "Smooth Fence Tool"),
 };
 
 

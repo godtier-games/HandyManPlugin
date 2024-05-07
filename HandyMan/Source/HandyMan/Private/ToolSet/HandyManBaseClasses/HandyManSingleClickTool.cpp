@@ -21,7 +21,6 @@ void UHandyManSingleClickTool::Setup()
 
 void UHandyManSingleClickTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	HandyManAPI = nullptr;
 	Super::Shutdown(ShutdownType);
 }
 
