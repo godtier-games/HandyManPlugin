@@ -11,9 +11,12 @@
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "ToolSet/Core/HandyManToolBuilder.h"
+#include "ToolSet/DataTypes/HandyManDataTypes.h"
 #include "ToolSet/HandyManBaseClasses/HandyManInteractiveTool.h"
 #include "DrapeGeometryCollectionCreation.generated.h"
 
+class UHoudiniPublicAPIAssetWrapper;
+class UDrapeGeometryCollectionCreation;
 class UConstructionPlaneMechanic;
 class UCombinedTransformGizmo;
 class UDragAlignmentMechanic;
@@ -59,6 +62,36 @@ enum class EDrawPolygonExtrudeMode_Drape : uint8
 	Interactive,
 };
 
+UENUM()
+enum class EDrapeToolStage
+{
+	Beginning,
+	Collision,
+	Drape,
+	Pin,
+	Finish
+};
+
+UCLASS()
+class HANDYMAN_API UDrapeToolActions : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	TWeakObjectPtr<UDrapeGeometryCollectionCreation> ParentTool;
+
+	void Initialize(UDrapeGeometryCollectionCreation* ParentToolIn) { ParentTool = ParentToolIn; }
+
+	void PostAction(EDrapeToolStage Action);
+
+	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayPriority = 1))
+	void StartDrawing() { PostAction(EDrapeToolStage::Drape); }
+
+	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayPriority = 2))
+	void FinishedDrawing() { PostAction(EDrapeToolStage::Finish); }
+	
+};
+
 
 
 
@@ -100,12 +133,16 @@ public:
 
 	/** If and how the drawn polygon gets extruded */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Extrude)
-	EDrawPolygonExtrudeMode_Drape ExtrudeMode = EDrawPolygonExtrudeMode_Drape::Interactive;
+	EDrawPolygonExtrudeMode_Drape ExtrudeMode = EDrawPolygonExtrudeMode_Drape::Flat;
 
 	/** Extrude distance when using the Fixed extrude mode */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Extrude, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
-		EditCondition = "ExtrudeMode == EDrawPolygonExtrudeMode::Fixed"))
+		EditCondition = "ExtrudeMode == EDrawPolygonExtrudeMode_Drape::Fixed"))
 	float ExtrudeHeight = 100.0f;
+
+	/** Extrude distance when using the Fixed extrude mode */
+	UPROPERTY(BlueprintReadOnly, NonTransactional, Category = Extrude)
+	int32 LastStageIndex = 0;
 };
 
 UCLASS()
@@ -148,9 +185,6 @@ public:
 	float SnapToSurfacesOffset = 0.0f;
 };
 
-/**
- *
- */
 UCLASS()
 class HANDYMAN_API UDrapeToolBuilder : public UHandyManToolBuilder
 {
@@ -174,22 +208,23 @@ class HANDYMAN_API UDrapeGeometryCollectionCreation : public UHandyManInteractiv
 	UDrapeGeometryCollectionCreation();
 
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
-	friend class UHandyManScriptableToolSet;
 
+	virtual void RequestAction(EDrapeToolStage ActionType);
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
 
 	virtual void Setup() override;
+	void SetupDrawingStage();
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	virtual bool HasCancel() const override { return false; }
-	virtual bool HasAccept() const override { return false; }
-	virtual bool CanAccept() const override { return false; }
+	virtual bool HasCancel() const override { return true; }
+	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override { return bFinishedWithTool || CurrentCollectionIndex >= 2; }
 
 	// IClickSequenceBehaviorTarget implementation
 
@@ -214,11 +249,21 @@ class HANDYMAN_API UDrapeGeometryCollectionCreation : public UHandyManInteractiv
 
 	virtual void ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 
+	void HighlightActors(const FInputDeviceRay& ClickPos);
+	void HighlightSelectedActor(const FHitResult& HitResult);
+
+
+
 
 protected:
 	// flags used to identify modifier keys/buttons
 	static constexpr int IgnoreSnappingModifier = 1;
 	static constexpr int AngleSnapModifier = 2;
+
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	TObjectPtr<UDrapeToolActions> ToolActions;
+
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
@@ -259,6 +304,7 @@ protected:
 	// polygon drawing
 
 	bool bAbortActivePolygonDraw;
+	bool bFinishedWithTool = false;
 
 	bool bInFixedPolygonMode = false;
 	TArray<FVector3d> FixedPolygonClickPoints;
@@ -314,6 +360,18 @@ protected:
 	int32 CurrentCurveTimestamp = 1;
 	void UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 	bool CheckInCurve(int32 Timestamp) const { return CurrentCurveTimestamp == Timestamp; }
+
+private:
+
+	void InstantiateTheHoudiniAsset();
+	
+	int32 CurrentCollectionIndex = 0;
+
+	UPROPERTY()
+	TMap<EDrapeToolStage, FObjectSelection> GeometryCollection;
+
+	UPROPERTY()
+	UHoudiniPublicAPIAssetWrapper* HoudiniAssetInstance;
 };
 
 

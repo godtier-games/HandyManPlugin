@@ -9,6 +9,10 @@
 #define LOCTEXT_NAMESPACE "HandyManModeSettings"
 
 
+UHandyManSettings::UHandyManSettings()
+{
+}
+
 FText UHandyManSettings::GetSectionText() const 
 { 
 	return LOCTEXT("HandyManSettingsName", "Handy Man"); 

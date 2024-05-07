@@ -2,6 +2,8 @@
 
 
 #include "ToolSet/HandyManTools/Houdini/WorldBuilding/ProceduralTool_Ivy/IvyCreator.h"
+
+#include "HandyManSettings.h"
 #include "Selection.h"
 #include "HoudiniPublicAPI.h"
 #include "HoudiniPublicAPIAssetWrapper.h"
@@ -362,7 +364,7 @@ void UIvyCreator::HighlightActors(FInputDeviceRay ClickPos, const FScriptableToo
 {
 	if (PropertySet)
 	{
-		const TEnumAsByte<ECollisionChannel> ChannelToTrace = PropertySet->bUseCustomTraceChannel ? PropertySet->CustomTraceChannel : TEnumAsByte<ECollisionChannel>(ECC_Visibility);
+		const TEnumAsByte<ECollisionChannel> ChannelToTrace = PropertySet->bUseCustomTraceChannel ? PropertySet->CustomTraceChannel : TEnumAsByte<ECollisionChannel>(ECC_WorldStatic);
 		// Do something with the property set
 		FHitResult HitResult;
 		if (GetWorld()->LineTraceSingleByChannel(HitResult, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * 10000.0f, ChannelToTrace))
@@ -411,7 +413,7 @@ UHoudiniPublicAPIAssetWrapper* UIvyCreator::SpawnHDAInstance()
 	{
 		returnObj = GetHandyManAPI()->GetMutableHoudiniAPI()->InstantiateAsset
 		(
-				GetHandyManAPI()->GetHoudiniDigitalAsset(FName("IvyTool")),
+				GetHandyManAPI()->GetHoudiniDigitalAsset(EHandyManToolName::IvyTool),
 				FTransform::Identity,
 				nullptr,
 				nullptr,

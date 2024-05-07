@@ -8,6 +8,7 @@
 #include "HoudiniAssetWrapper.generated.h"
 
 
+enum class EHandyManToolName;
 /**
  * 
  */
@@ -19,5 +20,5 @@ class HANDYMAN_API UHoudiniAssetWrapper : public UPrimaryDataAsset
 public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Houdini")
-	TMap<FName,TSoftObjectPtr<UHoudiniAsset> > DigitalAssets;
+	TMap<EHandyManToolName,TSoftObjectPtr<UHoudiniAsset> > DigitalAssets;
 };

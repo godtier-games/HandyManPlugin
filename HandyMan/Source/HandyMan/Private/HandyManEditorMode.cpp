@@ -189,7 +189,7 @@ void UHandyManEditorMode::Enter()
 		{
 			return GG::HandyMan::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
 		});
-		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([this](const FCreateMeshObjectResult& CreatedInfo) 
+		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([&, this](const FCreateMeshObjectResult& CreatedInfo) 
 		{
 			if (CreatedInfo.NewAsset != nullptr)
 			{
@@ -200,6 +200,11 @@ void UHandyManEditorMode::Enter()
 				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CreatedInfo.NewAsset))
 				{
 					FStaticMeshSelector::SetAssetUnlockedOnCreation(StaticMesh);
+				}
+
+				if (HandyManAPI)
+				{
+					HandyManAPI->OnHandyManMeshCreated.Broadcast(CreatedInfo.NewAsset);
 				}
 			}
 			if ( UBrushComponent* BrushComponent = Cast<UBrushComponent>(CreatedInfo.NewComponent) )

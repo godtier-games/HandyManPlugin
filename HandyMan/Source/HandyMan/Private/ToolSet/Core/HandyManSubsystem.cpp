@@ -12,9 +12,9 @@ void UHandyManSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 }
 
-UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const FName& ToolName) const
+UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const
 {
-	if (UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
+	if (const UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
 	{
 		if (UHoudiniAssetWrapper* DigitalAssetLibrary = HandyManSettings->GetDigitalAssetLibrary())
 		{

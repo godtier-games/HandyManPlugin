@@ -10,6 +10,8 @@
 #include "HandyManEditorMode.generated.h"
 
 
+
+
 /**
  * This class provides an example of how to extend a UEdMode to add some simple tools
  * using the InteractiveTools framework. The various UEdMode input event handlers (see UEdMode.h)
@@ -17,6 +19,7 @@
  * has all the logic for interacting with the InputRouter, ToolManager, etc.
  * The functions provided here are the minimum to get started inserting some custom behavior.
  * Take a look at the UEdMode markup for more extensibility options.
+ 
  */
 UCLASS()
 class UHandyManEditorMode : public UBaseLegacyWidgetEdMode
@@ -46,6 +49,7 @@ public:
 	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const override;
 
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
+
 
 	/*
 	 * focus events

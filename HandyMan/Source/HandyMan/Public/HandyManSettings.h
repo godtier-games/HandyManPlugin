@@ -53,6 +53,14 @@ enum class EHandyManAssetGenerationLocation
 	CurrentAssetBrowserPathIfAvailable
 };
 
+UENUM()
+enum class EHandyManToolName
+{
+	None UMETA(Hidden),
+	IvyTool UMETA(DisplayName = "Ivy Tool"),
+	DrapeTool UMETA(DisplayName = "Drape Tool"),
+};
+
 
 /**
  * 
@@ -63,6 +71,7 @@ class HANDYMAN_API UHandyManSettings : public UDeveloperSettings
 	GENERATED_BODY()
 public:
 
+	UHandyManSettings();
 	// UDeveloperSettings overrides
 
 	virtual FName GetContainerName() const override { return FName("Project"); }
@@ -73,12 +82,17 @@ public:
 	virtual FText GetSectionDescription() const override;
 
 	UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
+	TArray<EHandyManToolName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }
 
 protected:
 	
 	// Global HDA Library asset to use.
 	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
 	FSoftObjectPath DigitalAssetLibrary = FSoftObjectPath(TEXT("/HandyMan/Data/HDA_Library.HDA_Library"));
+
+	/** List of Tool Names that should be blocked from showing dialog windows */
+	UPROPERTY(EditAnywhere, config, Category = "Pop Ups")
+	TArray<EHandyManToolName> BlockedDialogsArray;
 	
 	/** Enable/Disable the options to emit Dynamic Mesh Actors in Modeling Mode Tools */
 	UPROPERTY()

@@ -6,9 +6,13 @@
 #include "Arrangement2d.h"
 #include "ConstrainedDelaunay2.h"
 #include "DynamicMeshEditor.h"
+#include "HandyManEditorMode.h"
+#include "HandyManSettings.h"
+#include "HoudiniPublicAPI.h"
 #include "Polygon2.h"
 #include "ScriptableToolBuilder.h"
 #include "ToolSetupUtil.h"
+#include "ActorPartition/PartitionActor.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Curve/GeneralPolygon2.h"
@@ -32,6 +36,15 @@ using namespace UE::Geometry;
 constexpr int StartPointSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 1;
 constexpr int CurrentSceneSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 2;
 constexpr int CurrentGridSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 3;
+
+void UDrapeToolActions::PostAction(EDrapeToolStage Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
+}
+
 
 bool UDrapeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
@@ -66,6 +79,25 @@ UBaseScriptableToolBuilder* UDrapeGeometryCollectionCreation::GetNewCustomToolBu
 	return Cast<UBaseScriptableToolBuilder>(NewObject<UDrapeToolBuilder>(Outer));
 }
 
+void UDrapeGeometryCollectionCreation::RequestAction(EDrapeToolStage ActionType)
+{
+	switch (ActionType) {
+	case EDrapeToolStage::Beginning:
+		break;
+	case EDrapeToolStage::Collision:
+		break;
+	case EDrapeToolStage::Drape:
+		CurrentCollectionIndex++;
+		SetupDrawingStage();
+		break;
+	case EDrapeToolStage::Pin:
+		break;
+	case EDrapeToolStage::Finish:
+		bFinishedWithTool = true;
+		break;
+	}
+}
+
 void UDrapeGeometryCollectionCreation::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -73,14 +105,47 @@ void UDrapeGeometryCollectionCreation::SetWorld(UWorld* World)
 
 void UDrapeGeometryCollectionCreation::Setup()
 {
+	ToolShutdownType = EScriptableToolShutdownType::AcceptCancel;
 	Super::Setup();
+	if (GetHandyManAPI())
+	{
+		GetHandyManAPI()->OnHandyManMeshCreated.AddLambda([this] (UObject* Object)
+		{
+			switch (CurrentCollectionIndex)
+			{
+			case 1 :
+				{
 
-	// add default button input behaviors for devices
-	UMultiClickSequenceInputBehavior* MouseBehavior = NewObject<UMultiClickSequenceInputBehavior>();
-	MouseBehavior->Initialize(this);
-	MouseBehavior->Modifiers.RegisterModifier(IgnoreSnappingModifier, FInputDeviceState::IsShiftKeyDown);
-	AddInputBehavior(MouseBehavior);
+					CurrentCollectionIndex++;
+					GeometryCollection.Add(EDrapeToolStage::Drape, Object);
+					break;
+				}
 
+			case 2 :
+				{
+					if (!GeometryCollection.Contains(EDrapeToolStage::Pin))
+					{
+						GeometryCollection.Add(EDrapeToolStage::Drape, Object);
+						break;
+
+					}
+
+					if (GeometryCollection.Contains(EDrapeToolStage::Pin))
+					{
+						GeometryCollection[EDrapeToolStage::Pin].Selected.Add(Object);
+					}
+				}
+	
+			}
+		});
+	}
+	
+	CurrentCollectionIndex = 0;
+	
+
+	ToolActions = NewObject<UDrapeToolActions>(this);
+	ToolActions->Initialize(this);
+	AddToolPropertySource(ToolActions);
 	
 	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
 	OutputTypeProperties->RestoreProperties(this);
@@ -89,23 +154,54 @@ void UDrapeGeometryCollectionCreation::Setup()
 
 	PolygonProperties = NewObject<UDrapeToolStandardProperties>(this);
 	PolygonProperties->RestoreProperties(this);
-	PolygonProperties->WatchProperty(PolygonProperties->bShowGridGizmo,
-	                                 [this](bool bNewValue) { PlaneMechanic->PlaneTransformGizmo->SetVisibility(bNewValue); });
+	
 
+	SnapProperties = NewObject<UDrapeToolSnapProperties>(this);
+	SnapProperties->RestoreProperties(this);
+	SnapProperties->bSnapToWorldGrid = GetToolManager()->GetContextQueriesAPI()->GetCurrentSnappingSettings().bEnablePositionGridSnapping;
+
+	// initialize material properties for new objects
+	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
+	MaterialProperties->RestoreProperties(this);
+	MaterialProperties->bShowExtendedOptions = true;
+
+	// register tool properties
+	if (OutputTypeProperties->ShouldShowPropertySet())
+	{
+		AddToolPropertySource(OutputTypeProperties);
+	}
+	AddToolPropertySource(PolygonProperties);
+	AddToolPropertySource(SnapProperties);
+	AddToolPropertySource(MaterialProperties);
+
+	ShowStartupMessage();
+
+	
+}
+
+void UDrapeGeometryCollectionCreation::SetupDrawingStage()
+{
+	// add default button input behaviors for devices
+	UMultiClickSequenceInputBehavior* MouseBehavior = NewObject<UMultiClickSequenceInputBehavior>();
+	MouseBehavior->Initialize(this);
+	MouseBehavior->Modifiers.RegisterModifier(IgnoreSnappingModifier, FInputDeviceState::IsShiftKeyDown);
+	AddInputBehavior(MouseBehavior);
+
+	
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
 	PlaneMechanic->CanUpdatePlaneFunc = [this]() { return AllowDrawPlaneUpdates(); };
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() { SnapEngine.Plane = PlaneMechanic->Plane; });	// Keep SnapEngine plane up to date with PlaneMechanic's plane
 	PlaneMechanic->Initialize(TargetWorld, FFrame3d());
+
+	PolygonProperties->WatchProperty(PolygonProperties->bShowGridGizmo,
+	[this](bool bNewValue) { PlaneMechanic->PlaneTransformGizmo->SetVisibility(bNewValue); });
 	
 	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
 	DragAlignmentMechanic->Setup(this);
 	DragAlignmentMechanic->AddToGizmo(PlaneMechanic->PlaneTransformGizmo);
 	
-	// initialize material properties for new objects
-	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
-	MaterialProperties->RestoreProperties(this);
-	MaterialProperties->bShowExtendedOptions = true;
+	
 
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this);
@@ -128,20 +224,7 @@ void UDrapeGeometryCollectionCreation::Setup()
 		return ToolSceneQueriesUtil::CalculateNormalizedViewVisualAngleD(this->CameraState, Position1, Position2);
 	};
 	SnapEngine.Plane = PlaneMechanic->Plane;
-
-	SnapProperties = NewObject<UDrapeToolSnapProperties>(this);
-	SnapProperties->RestoreProperties(this);
-	SnapProperties->bSnapToWorldGrid = GetToolManager()->GetContextQueriesAPI()->GetCurrentSnappingSettings().bEnablePositionGridSnapping;
-
-	// register tool properties
-	if (OutputTypeProperties->ShouldShowPropertySet())
-	{
-		AddToolPropertySource(OutputTypeProperties);
-	}
-	AddToolPropertySource(PolygonProperties);
-	AddToolPropertySource(SnapProperties);
-	AddToolPropertySource(MaterialProperties);
-
+	
 	ShowStartupMessage();
 }
 
@@ -152,6 +235,40 @@ void UDrapeGeometryCollectionCreation::Shutdown(EToolShutdownType ShutdownType)
 	{
 		PolygonProperties->ExtrudeHeight = SavedExtrudeHeight;
 		bHasSavedExtrudeHeight = false;
+	}
+
+	if(ShutdownType == EToolShutdownType::Cancel)
+	{
+		if (PreviewMesh)
+		{
+			PreviewMesh->Disconnect();
+			PreviewMesh = nullptr;
+		}
+
+		if (DragAlignmentMechanic)
+		{
+			DragAlignmentMechanic->Shutdown();
+		}
+
+		if (PlaneMechanic)
+		{
+			PlaneMechanic->Shutdown();
+			PlaneMechanic = nullptr;
+		}
+
+		if (Gizmos.Num() > 0)
+		{
+			GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+
+		}
+		
+		OutputTypeProperties->SaveProperties(this);
+		PolygonProperties->SaveProperties(this);
+		SnapProperties->SaveProperties(this);
+		MaterialProperties->SaveProperties(this);
+
+		Super::Shutdown(ShutdownType);
+		return;
 	}
 
 	PreviewMesh->Disconnect();
@@ -216,12 +333,57 @@ void UDrapeGeometryCollectionCreation::ApplyUndoPoints(const TArray<FVector3d>& 
 	}
 }
 
+void UDrapeGeometryCollectionCreation::HighlightActors(const FInputDeviceRay& ClickPos)
+{
+	
+		// Do something with the property set
+		FHitResult HitResult;
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * 10000.0f, ECC_WorldStatic))
+		{
+			if (!HitResult.GetComponent() || !HitResult.GetComponent()->IsVisible() || HitResult.GetComponent()->IsA(AVolume::StaticClass()) || HitResult.GetComponent()->IsA(APartitionActor::StaticClass()))
+			{
+				return;
+			}
 
+			HighlightSelectedActor(HitResult);
+			
+		}
+	
+}
+
+void UDrapeGeometryCollectionCreation::HighlightSelectedActor(const FHitResult& HitResult)
+{
+
+		// TODO : VISLOG : Selections Should Be Color Coordinated
+		// this instance we are on is in the selected actors list check if this actor we are selecting is in the list
+		if (CurrentCollectionIndex == 0)
+		{
+			bool bHasSolvedSelection = false;
+			if (GeometryCollection.Contains(EDrapeToolStage::Collision) && GeometryCollection[EDrapeToolStage::Collision].Selected.Contains(HitResult.GetActor()))
+			{
+				GEditor->SelectActor(HitResult.GetActor(), false, false);
+				GeometryCollection[EDrapeToolStage::Collision].Selected.Remove(HitResult.GetActor());
+				bHasSolvedSelection = true;
+			}
+			else
+			{
+				GeometryCollection.Add(EDrapeToolStage::Collision, FObjectSelection(HitResult.GetActor()));
+				GEditor->SelectActor(HitResult.GetActor(), true, false);
+				bHasSolvedSelection = true;
+			}
+		}
+	
+
+	for (const auto Highlight : GeometryCollection.FindRef(EDrapeToolStage::Collision).Selected)
+	{
+		GEditor->SelectActor((AActor*)Highlight, true, false);
+	}
+}
 
 
 void UDrapeGeometryCollectionCreation::OnTick(float DeltaTime)
 {
-	if (SnapProperties)
+	if (SnapProperties && CurrentCollectionIndex > 0)
 	{
 		bool bSnappingEnabledInViewport = GetToolManager()->GetContextQueriesAPI()
 			->GetCurrentSnappingSettings().bEnablePositionGridSnapping;
@@ -254,6 +416,8 @@ void DrawEdgeTicks(FPrimitiveDrawInterface* PDI,
 
 void UDrapeGeometryCollectionCreation::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	if (CurrentCollectionIndex == 0 || !PlaneMechanic.Get()) { return; }
+	
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	// Cache here for usage during interaction, should probably happen in ::Tick() or elsewhere
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
@@ -443,16 +607,19 @@ void UDrapeGeometryCollectionCreation::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-
 void UDrapeGeometryCollectionCreation::ResetPolygon()
 {
-	PolygonVertices.Reset();
-	PolygonHolesVertices.Reset();
-	SnapEngine.Reset();
-	bHaveSurfaceHit = false;
-	bInFixedPolygonMode = false;
-	bHaveSelfIntersection = false;
-	CurrentCurveTimestamp++;
+	if (CurrentCollectionIndex > 0)
+	{
+		PolygonVertices.Reset();
+		PolygonHolesVertices.Reset();
+		SnapEngine.Reset();
+		bHaveSurfaceHit = false;
+		bInFixedPolygonMode = false;
+		bHaveSelfIntersection = false;
+		CurrentCurveTimestamp++;
+		ShowStartupMessage();
+	}
 }
 
 void UDrapeGeometryCollectionCreation::UpdatePreviewVertex(const FVector3d& PreviewVertexIn)
@@ -618,11 +785,14 @@ bool UDrapeGeometryCollectionCreation::FindDrawPlaneHitPoint(const FInputDeviceR
 
 void UDrapeGeometryCollectionCreation::OnBeginSequencePreview(const FInputDeviceRay& DevicePos)
 {
-	// just update snapped point preview
-	FVector3d HitPos;
-	if (FindDrawPlaneHitPoint(DevicePos, HitPos))
+	if (CurrentCollectionIndex > 0)
 	{
-		PreviewVertex = HitPos;
+		// just update snapped point preview
+		FVector3d HitPos;
+		if (FindDrawPlaneHitPoint(DevicePos, HitPos))
+		{
+			PreviewVertex = HitPos;
+		}
 	}
 	
 }
@@ -634,31 +804,39 @@ bool UDrapeGeometryCollectionCreation::CanBeginClickSequence(const FInputDeviceR
 
 void UDrapeGeometryCollectionCreation::OnBeginClickSequence(const FInputDeviceRay& ClickPos)
 {
-	ResetPolygon();
+	if (CurrentCollectionIndex > 0)
+	{
+		ResetPolygon();
 	
-	FVector3d HitPos;
-	bool bHit = FindDrawPlaneHitPoint(ClickPos, HitPos);
-	if (bHit == false)
-	{
-		bAbortActivePolygonDraw = true;
-		return;
+		FVector3d HitPos;
+		bool bHit = FindDrawPlaneHitPoint(ClickPos, HitPos);
+		if (bHit == false)
+		{
+			bAbortActivePolygonDraw = true;
+			return;
+		}
+		if (ToolSceneQueriesUtil::IsPointVisible(CameraState, HitPos) == false)
+		{
+			bAbortActivePolygonDraw = true;
+			return;		// cannot start a poly an a point that is not visible, this is almost certainly an error due to draw plane
+		}
+
+		UpdatePreviewVertex(HitPos);
+
+		bInFixedPolygonMode = (PolygonProperties->PolygonDrawMode != EDrawPolygonDrawMode_Drape::Freehand);
+		FixedPolygonClickPoints.Reset();
+
+		// Actually process the click.
+		// TODO: This slightly awkward organization is a reflection of an earlier time when
+		// MultiClickSequenceInputBehavior issued a duplicate OnNextSequenceClick() call 
+		// immediately after OnBeginClickSequence(). The code could be cleaned up.
+		OnNextSequenceClick(ClickPos);
 	}
-	if (ToolSceneQueriesUtil::IsPointVisible(CameraState, HitPos) == false)
+	else
 	{
-		bAbortActivePolygonDraw = true;
-		return;		// cannot start a poly an a point that is not visible, this is almost certainly an error due to draw plane
+		HighlightActors(ClickPos);
 	}
-
-	UpdatePreviewVertex(HitPos);
-
-	bInFixedPolygonMode = (PolygonProperties->PolygonDrawMode != EDrawPolygonDrawMode_Drape::Freehand);
-	FixedPolygonClickPoints.Reset();
-
-	// Actually process the click.
-	// TODO: This slightly awkward organization is a reflection of an earlier time when
-	// MultiClickSequenceInputBehavior issued a duplicate OnNextSequenceClick() call 
-	// immediately after OnBeginClickSequence(). The code could be cleaned up.
-	OnNextSequenceClick(ClickPos);
+	
 }
 
 void UDrapeGeometryCollectionCreation::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
@@ -695,110 +873,115 @@ void UDrapeGeometryCollectionCreation::OnNextSequencePreview(const FInputDeviceR
 
 bool UDrapeGeometryCollectionCreation::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 {
-	if (bInInteractiveExtrude)
+	if (CurrentCollectionIndex > 0)
 	{
-		EndInteractiveExtrude();
-		return false;
-	}
-
-	FVector3d HitPos;
-	bool bHit = FindDrawPlaneHitPoint(ClickPos, HitPos);
-	if (bHit == false)
-	{
-		return true;  // ignore click but continue accepting clicks
-	}
-
-	// Construct the change now for the undo queue so it reflects the current state.  We might not do anything, in which
-	// case we will not emit the change
-	TUniquePtr<FDrawDrapeGeoStateChange> Change =
-		MakeUnique<FDrawDrapeGeoStateChange>(CurrentCurveTimestamp, FixedPolygonClickPoints, PolygonVertices);
-
-	bool bDonePolygon;
-	if (bInFixedPolygonMode)
-	{
-		// ignore very close click points
-		if (FixedPolygonClickPoints.Num() > 0 && ToolSceneQueriesUtil::PointSnapQuery(this, FixedPolygonClickPoints[FixedPolygonClickPoints.Num()-1], HitPos) )
+		if (bInInteractiveExtrude)
 		{
-			return true;
+			EndInteractiveExtrude();
+			return false;
 		}
 
-		FixedPolygonClickPoints.Add(HitPos);
-		int NumTargetPoints = (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode_Drape::Rectangle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode_Drape::RoundedRectangle) ? 3 : 2;
-		bDonePolygon = (FixedPolygonClickPoints.Num() == NumTargetPoints);
-		if (bDonePolygon)
+		FVector3d HitPos;
+		bool bHit = FindDrawPlaneHitPoint(ClickPos, HitPos);
+		if (bHit == false)
 		{
-			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
-		}
-	}
-	else
-	{
-		// ignore very close click points
-		if (PolygonVertices.Num() > 0 && ToolSceneQueriesUtil::PointSnapQuery(this, PolygonVertices[PolygonVertices.Num()-1], HitPos))
-		{
-			return true;
+			return true;  // ignore click but continue accepting clicks
 		}
 
-		if (bHaveSelfIntersection)
+		// Construct the change now for the undo queue so it reflects the current state.  We might not do anything, in which
+		// case we will not emit the change
+		TUniquePtr<FDrawDrapeGeoStateChange> Change =
+			MakeUnique<FDrawDrapeGeoStateChange>(CurrentCurveTimestamp, FixedPolygonClickPoints, PolygonVertices);
+
+		bool bDonePolygon;
+		if (bInFixedPolygonMode)
 		{
-			// If the self-intersection point is coincident with a polygon vertex, don't add that point twice (it would produce a degenerate polygon edge)
-			if (SelfIntersectSegmentIdx < PolygonVertices.Num()-1 && FVector3d::PointsAreSame(SelfIntersectionPoint, PolygonVertices[SelfIntersectSegmentIdx+1]))
+			// ignore very close click points
+			if (FixedPolygonClickPoints.Num() > 0 && ToolSceneQueriesUtil::PointSnapQuery(this, FixedPolygonClickPoints[FixedPolygonClickPoints.Num()-1], HitPos) )
 			{
-				++SelfIntersectSegmentIdx;
+				return true;
 			}
 
-			// discard vertex in segments before intersection (this is redundant if idx is 0)
-			for (int j = SelfIntersectSegmentIdx; j < PolygonVertices.Num(); ++j)
+			FixedPolygonClickPoints.Add(HitPos);
+			int NumTargetPoints = (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode_Drape::Rectangle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode_Drape::RoundedRectangle) ? 3 : 2;
+			bDonePolygon = (FixedPolygonClickPoints.Num() == NumTargetPoints);
+			if (bDonePolygon)
 			{
-				PolygonVertices[j-SelfIntersectSegmentIdx] = PolygonVertices[j];
+				GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
 			}
-			PolygonVertices.SetNum(PolygonVertices.Num() - SelfIntersectSegmentIdx);
-			PolygonVertices[0] = PreviewVertex = SelfIntersectionPoint;
-			bDonePolygon = true;
 		}
 		else
 		{
-			// close polygon if we clicked on start point
-			bDonePolygon = SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID;
+			// ignore very close click points
+			if (PolygonVertices.Num() > 0 && ToolSceneQueriesUtil::PointSnapQuery(this, PolygonVertices[PolygonVertices.Num()-1], HitPos))
+			{
+				return true;
+			}
+
+			if (bHaveSelfIntersection)
+			{
+				// If the self-intersection point is coincident with a polygon vertex, don't add that point twice (it would produce a degenerate polygon edge)
+				if (SelfIntersectSegmentIdx < PolygonVertices.Num()-1 && FVector3d::PointsAreSame(SelfIntersectionPoint, PolygonVertices[SelfIntersectSegmentIdx+1]))
+				{
+					++SelfIntersectSegmentIdx;
+				}
+
+				// discard vertex in segments before intersection (this is redundant if idx is 0)
+				for (int j = SelfIntersectSegmentIdx; j < PolygonVertices.Num(); ++j)
+				{
+					PolygonVertices[j-SelfIntersectSegmentIdx] = PolygonVertices[j];
+				}
+				PolygonVertices.SetNum(PolygonVertices.Num() - SelfIntersectSegmentIdx);
+				PolygonVertices[0] = PreviewVertex = SelfIntersectionPoint;
+				bDonePolygon = true;
+			}
+			else
+			{
+				// close polygon if we clicked on start point
+				bDonePolygon = SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID;
+			}
 		}
-	}
 
-	// emit change event
-	GetToolManager()->EmitObjectChange(this, MoveTemp(Change), LOCTEXT("DrawPolyAddPoint", "Add Point"));
+		// emit change event
+		GetToolManager()->EmitObjectChange(this, MoveTemp(Change), LOCTEXT("DrawPolyAddPoint", "Add Point"));
 
-	if (bDonePolygon)
-	{
-		//SnapEngine.Reset();
-		bHaveSurfaceHit = false;
-		if (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode_Drape::Interactive)
+		if (bDonePolygon)
 		{
-			BeginInteractiveExtrude();
+			//SnapEngine.Reset();
+			bHaveSurfaceHit = false;
+			if (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode_Drape::Interactive)
+			{
+				BeginInteractiveExtrude();
 
-			PreviewMesh->ClearPreview();
-			PreviewMesh->SetVisible(true);
+				PreviewMesh->ClearPreview();
+				PreviewMesh->SetVisible(true);
 
-			return true;
+				return true;
+			}
+			else 
+			{
+				EmitCurrentPolygon();
+
+				PreviewMesh->ClearPreview();
+				PreviewMesh->SetVisible(false);
+
+				return false;
+			}
 		}
-		else 
+
+		AppendVertex(HitPos);
+
+		// if we are starting a freehand poly, add start point as snap target.
+		// Note that logic in FindDrawPlaneHitPoint will ignore it until we get 3 verts
+		if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
 		{
-			EmitCurrentPolygon();
-
-			PreviewMesh->ClearPreview();
-			PreviewMesh->SetVisible(false);
-
-			return false;
+			SnapEngine.AddPointTarget(PolygonVertices[0], StartPointSnapID, 1);
 		}
+
+		UpdatePreviewVertex(HitPos);
+		return true;
 	}
 
-	AppendVertex(HitPos);
-
-	// if we are starting a freehand poly, add start point as snap target.
-	// Note that logic in FindDrawPlaneHitPoint will ignore it until we get 3 verts
-	if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
-	{
-		SnapEngine.AddPointTarget(PolygonVertices[0], StartPointSnapID, 1);
-	}
-
-	UpdatePreviewVertex(HitPos);
 	return true;
 }
 
@@ -1028,7 +1211,7 @@ void UDrapeGeometryCollectionCreation::EmitCurrentPolygon()
 	// generate new mesh
 	FFrame3d PlaneFrameOut;
 	FDynamicMesh3 Mesh;
-	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode_Drape::Flat) ?
+	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode_Drape::Flat && CurrentCollectionIndex == 0) ?
 		0 : PolygonProperties->ExtrudeHeight;
 	bool bSucceeded = GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
 	if (!bSucceeded) // somehow made a polygon with no valid triangulation; just throw it away ...
@@ -1060,7 +1243,7 @@ void UDrapeGeometryCollectionCreation::EmitCurrentPolygon()
 		PolygonProperties->ExtrudeHeight = SavedExtrudeHeight;
 		bHasSavedExtrudeHeight = false;
 	}
-
+	
 	ResetPolygon();
 }
 
@@ -1278,13 +1461,58 @@ bool UDrapeGeometryCollectionCreation::GeneratePolygonMesh(const TArray<FVector3
 }
 
 
-
-
 void UDrapeGeometryCollectionCreation::ShowStartupMessage()
 {
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDraw", "Draw a polygon on the drawing plane, and extrude it. Left-click to place polygon vertices. Hold Shift to ignore snapping while drawing."),
-		EToolMessageLevel::UserNotification);
+
+	UHandyManSettings* Settings = GetMutableDefault<UHandyManSettings>();
+	if (!Settings)
+	{
+		return;
+	}
+	FText Message;
+	switch (CurrentCollectionIndex)
+	{
+	case 0 :
+		{
+			if (Settings->GetToolsWithBlockedDialogs().Contains(EHandyManToolName::DrapeTool))
+			{
+				break;
+			}
+			auto ReturnType = FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT
+			("OnStartDraw","Select the geometry that will be your COLLISION geometry. This geo will be used in the simulation. Once selection is complete -Start Drawing- in the Tool Property Panel. **Disable this dialog in the Handy Man Editor Settings**"));
+			
+			break;
+		}
+
+	case 1 :
+		{
+
+			Message = LOCTEXT("OnStartDraw","Draw a CLOSED polygon on the drawing plane, This shape is your drape geometry. This geo will be simulated. Left-click to place polygon vertices. Hold Shift to ignore snapping while drawing.");
+
+			if (Settings->GetToolsWithBlockedDialogs().Contains(EHandyManToolName::DrapeTool))
+			{
+				break;
+			}
+			auto ReturnType = FMessageDialog::Open(EAppMsgType::Ok, Message);
+			break;
+		}
+
+	case 2 :
+		{
+			Message =LOCTEXT
+			("OnStartDraw","Draw another CLOSED polygon on the drawing plane, This shape is your PIN geometry. Draw shape(s) where you don't want simulation/ Left-click to place polygon vertices. Hold Shift to ignore snapping while drawing.");
+			if (Settings->GetToolsWithBlockedDialogs().Contains(EHandyManToolName::DrapeTool))
+			{
+				break;
+			}
+			auto ReturnType = FMessageDialog::Open(EAppMsgType::Ok, Message);
+			break;
+		}
+	
+	}
+	
+	
+	GetToolManager()->DisplayMessage(Message, EToolMessageLevel::UserNotification);
 }
 
 void UDrapeGeometryCollectionCreation::ShowExtrudeMessage()
@@ -1293,9 +1521,6 @@ void UDrapeGeometryCollectionCreation::ShowExtrudeMessage()
 		LOCTEXT("OnStartExtrude", "Set the height of the extrusion by positioning the mouse over the extrusion volume, or over objects to snap to their heights. Hold Shift to ignore snapping."),
 		EToolMessageLevel::UserNotification);
 }
-
-
-
 
 void UDrapeGeometryCollectionCreation::UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn)
 {
@@ -1308,19 +1533,34 @@ void UDrapeGeometryCollectionCreation::UndoCurrentOperation(const TArray<FVector
 	ApplyUndoPoints(ClickPointsIn, PolygonVerticesIn);
 }
 
+void UDrapeGeometryCollectionCreation::InstantiateTheHoudiniAsset()
+{
+	if (GetHandyManAPI())
+	{
+		GetHandyManAPI()->GetMutableHoudiniAPI()->InstantiateAsset
+		(
+		GetHandyManAPI()->GetHoudiniDigitalAsset(EHandyManToolName::DrapeTool),
+			FTransform::Identity,
+			nullptr,
+			nullptr,
+			false
+			);
+	}
+}
 
 void FDrawDrapeGeoStateChange::Revert(UObject* Object)
 {
 	Cast<UDrapeGeometryCollectionCreation>(Object)->UndoCurrentOperation( FixedVertexPoints, PolyPoints );
 	bHaveDoneUndo = true;
 }
+
 bool FDrawDrapeGeoStateChange::HasExpired(UObject* Object) const
 {
 	return bHaveDoneUndo || (Cast<UDrapeGeometryCollectionCreation>(Object)->CheckInCurve(CurveTimestamp) == false);
 }
 FString FDrawDrapeGeoStateChange::ToString() const
 {
-	return TEXT("FDrawPolygonStateChange");
+	return TEXT("FDrawDrapeGeoStateChange");
 }
 
 

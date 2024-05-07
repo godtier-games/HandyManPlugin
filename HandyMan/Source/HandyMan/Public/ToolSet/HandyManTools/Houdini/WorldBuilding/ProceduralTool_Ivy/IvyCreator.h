@@ -3,35 +3,11 @@
 #pragma once
 
 #include "HoudiniEngineEditor/Private/HoudiniEngineEditor.h"
+#include "ToolSet/DataTypes/HandyManDataTypes.h"
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
 #include "IvyCreator.generated.h"
 
-USTRUCT(BlueprintType)
-struct FObjectSelection
-{
-	GENERATED_BODY()
 
-	UPROPERTY()
-	TArray<UObject*> Selected;
-
-	FObjectSelection()
-	{
-		Selected.Empty();
-	}
-
-	FObjectSelection(UObject* InObject)
-	{
-		Selected.Add(InObject);
-	};
-
-	FObjectSelection(const TArray<UObject*>& InObjects)
-	{
-		Selected = InObjects;
-	};
-
-	
-	
-};
 
 class UHoudiniPublicAPIAssetWrapper;
 /**
@@ -62,7 +38,6 @@ public:
 	virtual void UpdateAcceptWarnings(EAcceptWarning Warning) override;
 	virtual bool CanAccept() const override;
 	virtual bool HasCancel() const override;
-	void HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult);
 
 	void HandleAccept();
 	void HandleCancel();
@@ -76,6 +51,8 @@ private:
 	TMap<UHoudiniPublicAPIAssetWrapper*, FObjectSelection> SelectedActors;
 
 	void HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection = false);
+	void HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult);
+
 
 	UHoudiniPublicAPIAssetWrapper* SpawnHDAInstance();
 

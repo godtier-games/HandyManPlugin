@@ -21,6 +21,8 @@ public:
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
 
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override {return nullptr;};
+	friend class UHandyManScriptableToolSet;
+
 
 	virtual void Setup() override;
 

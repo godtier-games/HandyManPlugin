@@ -6,6 +6,10 @@
 #include "EditorSubsystem.h"
 #include "HandyManSubsystem.generated.h"
 
+enum class EHandyManToolName;
+DECLARE_MULTICAST_DELEGATE_OneParam(FHandyManMeshCreatedSignature, UObject* CreatedObject);
+
+
 class UHoudiniAssetWrapper;
 class UHoudiniAsset;
 class UHoudiniPublicAPI;
@@ -19,6 +23,8 @@ class HANDYMAN_API UHandyManSubsystem : public UEditorSubsystem
 
 public:
 
+	FHandyManMeshCreatedSignature OnHandyManMeshCreated;
+	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	/** Returns the Houdini Public API instance. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Houdini Engine"), Category = "Houdini Engine")
@@ -26,7 +32,7 @@ public:
 	
 	UHoudiniPublicAPI* GetMutableHoudiniAPI() const {return HoudiniPublicAPI;}
 
-	UHoudiniAsset* GetHoudiniDigitalAsset(const FName& ToolName) const;
+	UHoudiniAsset* GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "Houdini")
 	void InitializeHoudiniApi();
