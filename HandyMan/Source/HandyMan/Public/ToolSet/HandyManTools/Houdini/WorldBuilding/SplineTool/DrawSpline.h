@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HandyManSettings.h"
+#include "HoudiniPublicAPIInputTypes.h"
 #include "InteractiveToolChange.h"
 #include "TransactionUtil.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
@@ -12,6 +13,7 @@
 #include "DrawSpline.generated.h"
 
 
+class UHoudiniPublicAPIAssetWrapper;
 class USingleClickOrDragInputBehavior;
 class UConstructionPlaneMechanic;
 class USplineComponent;
@@ -91,22 +93,34 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
 	TObjectPtr<UStaticMesh> InputGeometry = nullptr;
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 50))
-	int32 UpscaleAlongCurve = 0;
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = -50, UIMax = 50))
+	int32 OffsetAlongCurve = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 5))
 	float FenceHeight = 1.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 5))
-	bool bEnableCorners = true;
+	bool bEnableRandomRotation = false;
+	
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty, UIMin = -180, UIMax = 180))
+	float MinRandomRotation = 0.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty, UIMin = -180, UIMax = 180))
+	float MaxRandomRotation = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableCorners", EditConditionHides, TransientToolProperty, UIMin = 0, UIMax = 5))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty, UIMin = -180, UIMax = 180))
+	float RandomRotationSeed = 1729.0f;
+
+	//UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 5))
+	bool bEnableCorners = false;
+
+	//UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableCorners", EditConditionHides, TransientToolProperty, UIMin = 0, UIMax = 5))
 	float CornerBevelAmount = 1.5f;
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableCorners", EditConditionHides, TransientToolProperty, UIMin = 0, UIMax = 5))
+	//UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableCorners", EditConditionHides, TransientToolProperty, UIMin = 0, UIMax = 5))
 	float CornerStretch = 1.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableCorners", EditConditionHides, TransientToolProperty, UIMin = 0, UIMax = 180, ClampMin = 0, ClampMax = 180))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 180, ClampMin = 0, ClampMax = 180))
 	float MeshNormals = 30.0f;
 	
 
@@ -142,20 +156,20 @@ public:
 	EDrawSplineDrawMode_HandyMan DrawMode = EDrawSplineDrawMode_HandyMan::None;
 	
 	/** Point spacing when Draw Mode is "Free Draw" */
-	UPROPERTY(EditAnywhere, Category = Spline, meta = (ClampMin = 0, UIMax = 1000,
-		EditCondition = "DrawMode == EDrawSplineDrawMode_HandyMan::FreeDraw", EditConditionHides))
+	/*UPROPERTY(EditAnywhere, Category = Spline, meta = (ClampMin = 0, UIMax = 1000,
+		EditCondition = "DrawMode == EDrawSplineDrawMode_HandyMan::FreeDraw", EditConditionHides))*/
 	double MinPointSpacing = 200;
 
 	/** How far to offset spline points from the clicked surface, along the surface normal */
-	UPROPERTY(EditAnywhere, Category = Spline, meta = (UIMin = 0, UIMax = 100))
+	//UPROPERTY(EditAnywhere, Category = Spline, meta = (UIMin = 0, UIMax = 100))
 	double ClickOffset = 0;
 
 	/** How to choose the direction to offset points from the clicked surface */
-	UPROPERTY(EditAnywhere, Category = Spline, meta = (EditCondition = "ClickOffset > 0", EditConditionHides))
+	//UPROPERTY(EditAnywhere, Category = Spline, meta = (EditCondition = "ClickOffset > 0", EditConditionHides))
 	ESplineOffsetMethod_HandyMan OffsetMethod = ESplineOffsetMethod_HandyMan::HitNormal;
 
 	/** Manually-specified click offset direction. Note: Will be normalized. If it is a zero vector, a default Up vector will be used instead. */
-	UPROPERTY(EditAnywhere, Category = Spline, meta = (EditCondition = "ClickOffset > 0 && OffsetMethod == ESplineOffsetMethod_HandyMan::Custom", EditConditionHides))
+	//UPROPERTY(EditAnywhere, Category = Spline, meta = (EditCondition = "ClickOffset > 0 && OffsetMethod == ESplineOffsetMethod_HandyMan::Custom", EditConditionHides))
 	FVector OffsetDirection = FVector::UpVector;
 
 	/**
@@ -169,7 +183,7 @@ public:
 	 * How the spline rotation is set. It is suggested to use a nonzero FrameVisualizationWidth to
 	 * see the effects.
 	 */
-	UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay)
+	//UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay)
 	EDrawSplineUpVectorMode_HandyMan UpVectorMode = EDrawSplineUpVectorMode_HandyMan::UseHitNormal;
 
 	/**
@@ -177,8 +191,8 @@ public:
 	 * of that actor (rather than just drawing the spline by itself). Could be toggled off
 	 * if something about duplicating the given actor is problematic.
 	 */
-	UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay, meta=(
-		EditCondition = "OutputMode != EDrawSplineOutputMode_HandyMan::EmptyActor"))
+	/*UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay, meta=(
+		EditCondition = "OutputMode != EDrawSplineOutputMode_HandyMan::EmptyActor"))*/
 	bool bPreviewUsingActorCopy = true;
 
 	/** Whether to place spline points on the surface of objects in the world */
@@ -197,8 +211,8 @@ public:
 	 * If modifying a blueprint actor, whether to run the construction script while dragging
 	 * or only at the end of a drag. Can be toggled off for expensive construction scripts.
 	 */
-	UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay, meta = (
-		EditCondition = "OutputMode != EDrawSplineOutputMode_HandyMan::EmptyActor"))
+	/*UPROPERTY(EditAnywhere, Category = Spline, AdvancedDisplay, meta = (
+		EditCondition = "OutputMode != EDrawSplineOutputMode_HandyMan::EmptyActor"))*/
 	bool bRerunConstructionScriptOnDrag = true;
 };
 
@@ -213,7 +227,10 @@ class HANDYMAN_API UDrawSpline : public UHandyManInteractiveTool, public IClickB
 	GENERATED_BODY()
 public:
 
+	UDrawSpline();
+
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
+	virtual void SpawnHoudiniAssetInstance();
 
 	virtual void SetSelectedActor(AActor* Actor);
 
@@ -240,7 +257,19 @@ public:
 	virtual void OnClickDrag(const FInputDeviceRay& DragPos);
 	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos);
 	virtual void OnTerminateDragSequence();
+
+	EHoudiniPublicAPICurveType CurveType;
+	
+	EDrawSplineDrawMode_HandyMan DrawMode;
+
+	EHandyManToolName ToolIdentifier;
+
 protected:
+
+	UFUNCTION()
+	virtual void HandlePreInstantiation(UHoudiniPublicAPIAssetWrapper* InAssetWrapper);
+
+	
 
 	UPROPERTY()
 	TObjectPtr<UDrawSplineProperties> Settings = nullptr;
@@ -305,9 +334,16 @@ public:
 
 	UPROPERTY()
 	class UHoudiniPublicAPICurveInput* CurveInput;
+
+	UPROPERTY()
+	class UHoudiniPublicAPIInput* Input;
 	
 	UPROPERTY()
 	class UHoudiniPublicAPICurveInputObject* InputCurveObject;
+
+	bool bHoudiniAssetInitialized = false;
+
+	
 
 public:
 	// Helper class for making undo/redo transactions, to avoid friending all the variations.
