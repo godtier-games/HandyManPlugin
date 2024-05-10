@@ -43,7 +43,7 @@ public class HandyMan : ModuleRules
 				"Core",
 				"PhysicsCore",
 				"RenderCore",
-
+				"GameplayTags",
 				"GeometryCore",
 				"GeometryAlgorithms",
 				"GeometryScriptingCore",
