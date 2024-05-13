@@ -27,6 +27,7 @@
 #pragma once
 
 #include "IHoudiniEngineEditor.h"
+#include "HoudiniEngineRuntime/Private/HoudiniInputTypes.h"
 #include "HoudiniEngineToolTypes.h"
 
 #include "CoreTypes.h"

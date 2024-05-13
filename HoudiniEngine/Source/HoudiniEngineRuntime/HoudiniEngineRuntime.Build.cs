@@ -80,7 +80,7 @@ public class HoudiniEngineRuntime : ModuleRules
 			{
 				"Landscape",
 				"PhysicsCore",
-				"DeveloperSettings",
+				"DeveloperSettings"
             }
 		);
 
