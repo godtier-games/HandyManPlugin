@@ -7,6 +7,7 @@
 #include "HoudiniPublicAPI.h"
 #include "HoudiniPublicAPIAssetWrapper.h"
 #include "InteractiveToolManager.h"
+#include "Kismet/KismetStringLibrary.h"
 
 UInteractiveTool* UBuildingGeneratorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
@@ -132,9 +133,9 @@ void UBuildingGeneratorTool::RefreshAction()
 		{
 			for (int j = 0; j < BuildingModules->BuildingModules.Num(); j++)
 			{
-				if (!BuildingModules->BuildingModules[i].FloorName.IsEmpty() && BuildingModules->BuildingModules[i].TargetBlockoutMesh[j]->Tags.IsEmpty())
+				if (!BuildingModules->BuildingModules[i].BuildingName.IsEmpty() && BuildingModules->BuildingModules[i].TargetBlockoutMesh[j]->Tags.IsEmpty())
 				{
-					BuildingModules->BuildingModules[i].TargetBlockoutMesh[j]->Tags.Add(FName(BuildingModules->BuildingModules[i].FloorName));
+					BuildingModules->BuildingModules[i].TargetBlockoutMesh[j]->Tags.Add(FName(BuildingModules->BuildingModules[i].BuildingName));
 				}
 
 				InputObjects.Add(BuildingModules->BuildingModules[i].TargetBlockoutMesh[j]);
@@ -146,7 +147,7 @@ void UBuildingGeneratorTool::RefreshAction()
 		CurrentInstance->SetIntParameterValue("styles", i + 1, 0);
 		FString GroupParameterName = FString::Printf(TEXT("group%d"), i + 1);
 		FString PatternParameterName = FString::Printf(TEXT("pattern%d"), i + 1);
-		CurrentInstance->SetStringParameterValue(FName(GroupParameterName), BuildingModules->BuildingModules[i].FloorName, 0);
+		CurrentInstance->SetStringParameterValue(FName(GroupParameterName), BuildingModules->BuildingModules[i].BuildingName, 0);
 		CurrentInstance->SetStringParameterValue(FName(PatternParameterName), ConstructFloorPatternString(BuildingModules->BuildingModules[i].FloorModules), 0);
 		FHandyManHoudiniBuildingModule Module;
 		AppendMeshes(BuildingModules->BuildingModules[i].FloorModules, MeshComponents);
@@ -206,7 +207,7 @@ FString UBuildingGeneratorTool::ConstructFloorPatternString(const TArray<FHandyM
 
 	FString OutString = FString::Printf(TEXT("<%s>"), *CompiledString);
 
-	return OutString;
+	return UKismetStringLibrary::Replace(OutString, TEXT("."), TEXT("_"));
 }
 
 FString UBuildingGeneratorTool::ConstructFloorPatternString(const TArray<FHandyManFloorModule>& Pattern)
@@ -226,9 +227,11 @@ FString UBuildingGeneratorTool::ConstructFloorPatternString(const TArray<FHandyM
 		FinalString += Item;
 	}
 
+	
+
 	FString OutString = FString::Printf(TEXT("<%s>"), *FinalString);
 
-	return OutString;
+	return UKismetStringLibrary::Replace(OutString, TEXT("."), TEXT("_"));
 }
 
 void UBuildingGeneratorTool::AppendMeshes(const TArray<FHandyManFloorModule>& Modules, TArray<FHandyManBuildingMeshComponent>& OutMeshes)

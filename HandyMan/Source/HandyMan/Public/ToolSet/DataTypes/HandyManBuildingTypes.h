@@ -118,7 +118,7 @@ struct FHandyManBuildingModule
 	}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	FString FloorName;
+	FString BuildingName;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
 	TArray<AActor*> TargetBlockoutMesh;
