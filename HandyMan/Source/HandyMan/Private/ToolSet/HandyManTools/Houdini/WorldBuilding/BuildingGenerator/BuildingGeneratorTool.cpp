@@ -61,6 +61,25 @@ void UBuildingGeneratorTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Super::Shutdown(ShutdownType);
 	
+	UHandyManSettings* Settings = GetMutableDefault<UHandyManSettings>();
+	if(UDataTable* BuildingModuleDataTable = Settings->GetBuildingModuleDataTable())
+	{
+		for (auto Item : BuildingModuleDataTable->GetRowNames())
+		{
+			BuildingModuleDataTable->RemoveRow(Item);
+		}
+	}
+
+	if (UDataTable* BuildingMeshesDataTable = Settings->GetBuildingMeshesDataTable())
+	{
+		for (auto Item : BuildingMeshesDataTable->GetRowNames())
+		{
+			BuildingMeshesDataTable->RemoveRow(Item);
+		}
+	}
+
+	
+	
 }
 
 void UBuildingGeneratorTool::RefreshAction()
@@ -130,18 +149,11 @@ void UBuildingGeneratorTool::RefreshAction()
 		CurrentInstance->SetStringParameterValue(FName(GroupParameterName), BuildingModules->BuildingModules[i].FloorName, 0);
 		CurrentInstance->SetStringParameterValue(FName(PatternParameterName), ConstructFloorPatternString(BuildingModules->BuildingModules[i].FloorModules), 0);
 		FHandyManHoudiniBuildingModule Module;
-		Module.FloorName = BuildingModules->BuildingModules[i].FloorName;
-		Module.Pattern = ConstructFloorPatternString(BuildingModules->BuildingModules[i].FloorModules);
-		BuildingModuleDataTable->AddRow(FName(BuildingModules->BuildingModules[i].FloorName), Module);
 		AppendMeshes(BuildingModules->BuildingModules[i].FloorModules, MeshComponents);
 	}
 
 	ConstructMeshDataTable(MeshComponents, BuildingMeshesDataTable);
 	ConstructFloorPatternsDataTable(FloorModules, BuildingModuleDataTable);
-
-	auto WorldInput = CurrentInstance->CreateEmptyInput(UHoudiniPublicAPIWorldInput::StaticClass());
-	WorldInput->SetInputObjects(InputObjects);
-	CurrentInstance->SetInputAtIndex(0, WorldInput);
 
 	auto MeshesInput = CurrentInstance->CreateEmptyInput(UHoudiniPublicAPIGeoInput::StaticClass());
 	MeshesInput->SetInputObjects({BuildingMeshesDataTable});
@@ -151,7 +163,50 @@ void UBuildingGeneratorTool::RefreshAction()
 	FloorInput->SetInputObjects({BuildingModuleDataTable});
 	CurrentInstance->SetInputParameter(FName("floors"), FloorInput);
 
+	auto WorldInput = CurrentInstance->CreateEmptyInput(UHoudiniPublicAPIWorldInput::StaticClass());
+	WorldInput->SetInputObjects(InputObjects);
+	CurrentInstance->SetInputAtIndex(0, WorldInput);
+
+	CurrentInstance->Rebuild();
+
+	
+
 		
+}
+
+FString UBuildingGeneratorTool::ConstructFloorPatternString(const TArray<FHandyManBuildingMeshComponent>& Pattern)
+{
+
+	TMap<int32, FString> FinalStringMap;
+
+	for (int i = 0; i < Pattern.Num(); i++)
+	{
+		if (Pattern[i].Repetitions > 0)
+		{
+			FString RepetitionString = FString::Printf(TEXT("[%s]*%d"), *Pattern[i].MeshNameTag.GetTagName().ToString(), Pattern[i].Repetitions);
+			FinalStringMap.Add(i, RepetitionString);
+			continue;
+		}
+		FString Addition = i != Pattern.Num() - 1 && Pattern.Num() > 1 ? TEXT("-") : TEXT("");
+		FString FloorPatternString = FString::Printf(TEXT("%s%s"), *Pattern[i].MeshNameTag.GetTagName().ToString(), *Addition);
+		FinalStringMap.Add(i, FloorPatternString);
+	}
+	
+	TArray<FString> FinalString;
+	for (auto Item : FinalStringMap)
+	{
+		FinalString.EmplaceAt(Item.Key, Item.Value);
+	}
+
+	FString CompiledString;
+	for (auto Item : FinalStringMap)
+	{
+		CompiledString += Item.Value;
+	}
+
+	FString OutString = FString::Printf(TEXT("<%s>"), *CompiledString);
+
+	return OutString;
 }
 
 FString UBuildingGeneratorTool::ConstructFloorPatternString(const TArray<FHandyManFloorModule>& Pattern)
@@ -196,7 +251,7 @@ void UBuildingGeneratorTool::ConstructMeshDataTable(const TArray<FHandyManBuildi
 		FHandyManHoudiniMeshModule MeshModule;
 		MeshModule.Mesh = Item.Mesh;
 		MeshModule.MeshName = Item.MeshNameTag.GetTagName().ToString();
-		MeshModule.MeshWidth = Item.Mesh->GetExtendedBounds().BoxExtent.Y;
+		MeshModule.MeshWidth = Item.MeshWidth;
 		
 		OutDataTable->AddRow(Item.MeshNameTag.GetTagName(), MeshModule);
 	}
@@ -214,7 +269,7 @@ void UBuildingGeneratorTool::ConstructFloorPatternsDataTable(const TArray<FHandy
 		FHandyManHoudiniBuildingModule FloorModule;
 		FloorModule.FloorHeight = Item.FloorHeight;
 		FloorModule.FloorName = Item.FloorNameTag.GetTagName().ToString();
-		FloorModule.Pattern = ConstructFloorPatternString(Modules);
+		FloorModule.Pattern = ConstructFloorPatternString(Item.Pattern);
 		
 		OutDataTable->AddRow(Item.FloorNameTag.GetTagName(), FloorModule);
 	}

@@ -72,6 +72,7 @@ protected:
 
 private:
 
+	FString ConstructFloorPatternString(const TArray<FHandyManBuildingMeshComponent>& Pattern);
 	FString ConstructFloorPatternString(const TArray<FHandyManFloorModule>& Pattern);
 	void AppendMeshes(const TArray<FHandyManFloorModule>& Modules, TArray<FHandyManBuildingMeshComponent>& OutMeshes);
 	void ConstructMeshDataTable(const TArray<FHandyManBuildingMeshComponent>& Meshes, UDataTable*& OutDataTable);

@@ -22,6 +22,9 @@ struct FHandyManBuildingMeshComponent
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
 	UStaticMesh* Mesh;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
+	float MeshWidth = 0.0f;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component", meta = (ToolTip = "The number of times this mesh will be repeated in the pattern. 0 means infinite. Setting this value to any number will make sure it only shows up that number of times per side"))
 	int32 Repetitions = 0;
 	
