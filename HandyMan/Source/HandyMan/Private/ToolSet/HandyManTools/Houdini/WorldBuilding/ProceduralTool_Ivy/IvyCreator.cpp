@@ -12,7 +12,7 @@
 #include "ToolSet/Core/HandyManSubsystem.h"
 
 
-UIvyCreator::UIvyCreator():PropertySet(nullptr)
+UIvyCreator::UIvyCreator(): PropertySet(nullptr), CurrentInstance(nullptr)
 {
 	ToolName = FText::FromString("Ivy Creator");
 	ToolTooltip = FText::FromString("Procedurally Place Ivy on selected Static Meshes");

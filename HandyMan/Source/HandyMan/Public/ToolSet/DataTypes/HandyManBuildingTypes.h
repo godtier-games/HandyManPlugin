@@ -21,18 +21,21 @@ struct FHandyManBuildingMeshComponent
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
 	UStaticMesh* Mesh;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component", meta = (ToolTip = "The number of times this mesh will be repeated in the pattern. 0 means infinite. Setting this value to any number will make sure it only shows up that number of times per side"))
+	int32 Repetitions = 0;
 	
 };
 
 
 USTRUCT(BlueprintType)
-struct FHandyManFloorLayout
+struct FHandyManFloorModule
 {
 	GENERATED_BODY()
 
 	
 
-	FHandyManFloorLayout()
+	FHandyManFloorModule()
 	{
 	}
 
@@ -70,7 +73,7 @@ struct FHandyManBuildingLayout
 	AActor* TargetBlockoutMesh = nullptr;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	TArray<FHandyManFloorLayout> FloorLayout;
+	TArray<FHandyManFloorModule> FloorLayout;
 
 	
 };
@@ -78,13 +81,13 @@ struct FHandyManBuildingLayout
 
 /*Special type that will be used in the Data Table that is sent to houdini that has data about the meshes*/
 USTRUCT(BlueprintType)
-struct FHandyManHoudiniFloorModule
+struct FHandyManHoudiniMeshModule : public FTableRowBase
 {
 	GENERATED_BODY()
 
 	
 
-	FHandyManHoudiniFloorModule(): Mesh(nullptr)
+	FHandyManHoudiniMeshModule(): Mesh(nullptr)
 	{
 	}
 
@@ -101,7 +104,31 @@ struct FHandyManHoudiniFloorModule
 
 /*Special type that will be used in the Data Table that is sent to houdini that has data about the floor plan*/
 USTRUCT(BlueprintType)
-struct FHandyManHoudiniBuildingModule
+struct FHandyManBuildingModule
+{
+	GENERATED_BODY()
+
+	
+
+	FHandyManBuildingModule()
+	{
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
+	FString FloorName;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
+	TArray<AActor*> TargetBlockoutMesh;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
+	TArray<FHandyManFloorModule> FloorModules;
+	
+};
+
+
+/*Special type that will be used in the Data Table that is sent to houdini that has data about the floor plan*/
+USTRUCT(BlueprintType)
+struct FHandyManHoudiniBuildingModule : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -110,13 +137,15 @@ struct FHandyManHoudiniBuildingModule
 	FHandyManHoudiniBuildingModule()
 	{
 	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
+	FString FloorName;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	AActor* TargetBlockoutMesh = nullptr;
+	FString Pattern;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	TArray<FHandyManFloorLayout> FloorLayout;
-	
+	float FloorHeight = 0.0f;
 };
 
 

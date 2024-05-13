@@ -61,6 +61,7 @@ enum class EHandyManToolName
 	DrapeTool UMETA(DisplayName = "Drape Tool"),
 	FenceTool_Smooth UMETA(DisplayName = "Smooth Fence Tool"),
 	FenceTool_Easy UMETA(DisplayName = "Easy Fence Tool"),
+	BuildingGenerator UMETA(DisplayName = "Building Generator Tool"),
 };
 
 
@@ -86,7 +87,17 @@ public:
 	UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
 	TArray<EHandyManToolName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }
 
+	UDataTable* GetBuildingModuleDataTable();
+	UDataTable* GetBuildingMeshesDataTable();
+
 protected:
+
+	// Global HDA Library asset to use.
+	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
+	FSoftObjectPath BuildingModuleDataTable = FSoftObjectPath(TEXT("/HandyMan/Data/DT_BuildingModule.DT_BuildingModule"));
+
+	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
+	FSoftObjectPath BuildingMeshesDataTable = FSoftObjectPath(TEXT("/HandyMan/Data/DT_BuildingMeshes.DT_BuildingMeshes"));
 	
 	// Global HDA Library asset to use.
 	//UPROPERTY(EditAnywhere, config, Category = "Houdini")

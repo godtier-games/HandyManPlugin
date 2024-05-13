@@ -3,10 +3,8 @@
 
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
 
-#include "HoudiniAsset.h"
-#include "HoudiniPublicAPI.h"
+
 #include "Interfaces/IPluginManager.h"
-#include "Subsystems/EditorAssetSubsystem.h"
 
 #define HDA( RelativePath, ... ) FString( UHandyManSingleClickTool::InContent(RelativePath, ".uasset" ))
 

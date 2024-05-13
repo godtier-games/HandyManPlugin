@@ -29,6 +29,18 @@ UHoudiniAssetWrapper* UHandyManSettings::GetDigitalAssetLibrary() const
 	return DigitalAssetLibrary.IsValid() ? Cast<UHoudiniAssetWrapper>(DigitalAssetLibrary.TryLoad()) : nullptr;
 }
 
+UDataTable* UHandyManSettings::GetBuildingModuleDataTable()
+{
+	FString AssetPath = BuildingModuleDataTable.ToString();
+	return BuildingModuleDataTable.IsValid() ? Cast<UDataTable>(BuildingModuleDataTable.TryLoad()) : nullptr;
+}
+
+UDataTable* UHandyManSettings::GetBuildingMeshesDataTable()
+{
+	FString AssetPath = BuildingMeshesDataTable.ToString();
+	return BuildingMeshesDataTable.IsValid() ? Cast<UDataTable>(BuildingMeshesDataTable.TryLoad()) : nullptr;
+}
+
 
 FText UHandyManCustomizationSettings::GetSectionText() const 
 { 
