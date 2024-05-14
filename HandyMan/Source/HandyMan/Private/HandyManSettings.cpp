@@ -4,6 +4,7 @@
 #include "HandyManSettings.h"
 
 #include "ToolSet/Core/HoudiniAssetWrapper.h"
+#include "ToolSet/Core/PCGAssetWrapper.h"
 
 
 #define LOCTEXT_NAMESPACE "HandyManModeSettings"
@@ -27,6 +28,12 @@ UHoudiniAssetWrapper* UHandyManSettings::GetDigitalAssetLibrary() const
 {
 	FString AssetPath = DigitalAssetLibrary.ToString();
 	return DigitalAssetLibrary.IsValid() ? Cast<UHoudiniAssetWrapper>(DigitalAssetLibrary.TryLoad()) : nullptr;
+}
+
+UPCGAssetWrapper* UHandyManSettings::GetPCGActorLibrary() const
+{
+	FString AssetPath = PCGActorLibrary.ToString();
+	return PCGActorLibrary.IsValid() ? Cast<UPCGAssetWrapper>(PCGActorLibrary.TryLoad()) : nullptr;
 }
 
 UDataTable* UHandyManSettings::GetBuildingModuleDataTable()

@@ -1,13 +1,10 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "ToolSet/HandyManTools/Houdini/WorldBuilding/SplineTool/DrawSpline.h"
-
+#include "ToolSet/HandyManTools/PCG/SplineFence/SplineFenceTool.h"
 #include "AssetSelection.h"
 #include "FrameTypes.h"
 #include "HandyManSettings.h"
-#include "HoudiniPublicAPI.h"
-#include "HoudiniPublicAPIAssetWrapper.h"
 #include "SplineUtil.h"
 #include "ToolBuilderUtil.h"
 #include "UnrealEdGlobals.h"
@@ -19,23 +16,22 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_SplineActor.h"
 
 
 
-#define LOCTEXT_NAMESPACE "UDrawSpline"
 
-UDrawSpline::UDrawSpline()
+#define LOCTEXT_NAMESPACE "USplineTool"
+
+
+UBaseScriptableToolBuilder* USplineTool::GetNewCustomToolBuilderInstance(UObject* Outer)
 {
-}
-
-UBaseScriptableToolBuilder* UDrawSpline::GetNewCustomToolBuilderInstance(UObject* Outer)
-{
-	return Cast<UBaseScriptableToolBuilder>(NewObject<UDrawSplineBuilder>(Outer));
+	return Cast<UBaseScriptableToolBuilder>(NewObject<USplineToolBuilder>(Outer));
 }
 
 using namespace UE::Geometry;
 
-namespace DrawSplineToolLocals
+namespace SplineToolLocals
 {
 	FText AddPointTransactionName = LOCTEXT("AddPointTransactionName", "Add Point");
 
@@ -157,7 +153,7 @@ namespace DrawSplineToolLocals
 	}
 
 	// Undoes a point addition with an auto tangent
-	class FSimplePointInsertionChange : public UDrawSpline::FDrawSplineChange
+	class FSimplePointInsertionChange : public USplineTool::FSplineToolChange
 	{
 	public:
 		FSimplePointInsertionChange(const FVector3d& HitLocationIn, const FVector3d& UpVectorIn)
@@ -190,7 +186,7 @@ namespace DrawSplineToolLocals
 	};
 
 	// Undoes a point addition with an explicit tangent
-	class FTangentPointInsertionChange : public UDrawSpline::FDrawSplineChange
+	class FTangentPointInsertionChange : public USplineTool::FSplineToolChange
 	{
 	public:
 		FTangentPointInsertionChange(const FVector3d& HitLocationIn, const FVector3d& UpVectorIn, const FVector3d& TangentIn)
@@ -226,7 +222,7 @@ namespace DrawSplineToolLocals
 	};
 
 	// Undoes a free draw stroke (multiple points at once)
-	class FStrokeInsertionChange : public UDrawSpline::FDrawSplineChange
+	class FStrokeInsertionChange : public USplineTool::FSplineToolChange
 	{
 	public:
 		FStrokeInsertionChange(const TArray<FVector3d>& HitLocationsIn, const TArray<FVector3d>& UpVectorsIn)
@@ -274,41 +270,42 @@ namespace DrawSplineToolLocals
 	};
 }
 
-void UDrawSpline::SpawnHoudiniAssetInstance()
+void USplineTool::SpawnActorInstance()
 {
 	if (GetHandyManAPI())
 	{
-		CurrentInstance = UHoudiniPublicAPIAssetWrapper::CreateEmptyWrapper(GetHandyManAPI()->GetMutableHoudiniAPI());
-		
-		CurrentInstance->GetOnPostInstantiationDelegate().AddDynamic(this, &ThisClass::HandlePreInstantiation);
-		
-		
-		GetHandyManAPI()->GetMutableHoudiniAPI()->InstantiateAssetWithExistingWrapper
-		(
-			CurrentInstance,
-			GetHandyManAPI()->GetHoudiniDigitalAsset(ToolIdentifier),
-			FTransform::Identity,
-			nullptr,
-			nullptr,
-			true
-		);
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.ObjectFlags = RF_Transient;
+		SpawnInfo.Name = FName("SplineActor");
+		if (auto SpawnedActor =  TargetWorld->SpawnActor<APCG_ActorBase>(GetHandyManAPI()->GetPCGActorClass(ToolIdentifier)))
+		{
+			SpawnedActor->SetActorTransform(FTransform::Identity);
+			TargetSplineActor = Cast<APCG_SplineActor>(SpawnedActor);
+		}
 		
 	}
+	else
+	{
+		TargetSplineActor = nullptr;
+	}
+	
+	
+	
 }
 
-void UDrawSpline::Setup()
+void USplineTool::Setup()
 {
 	Super::Setup();
 
-	bHoudiniAssetInitialized = false;
 	
-	Settings = NewObject<UDrawSplineProperties>(this);
+	
+	Settings = NewObject<USplineToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
 	Settings->TargetActor = SelectedActor;
 
-	SetToolDisplayName(LOCTEXT("DrawSplineToolName", "Draw Spline"));
+	SetToolDisplayName(LOCTEXT("SplineToolName", "Spline Tool"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("DrawSplineToolDescription", "Draw a spline to replace an existing one or add it to an actor."),
 		EToolMessageLevel::UserNotification);
@@ -369,162 +366,75 @@ void UDrawSpline::Setup()
 		TransitionOutputMode();
 	});*/
 	
-	Settings->WatchProperty(Settings->bEnableCorners, [this](bool)
-		{
-			if (CurrentInstance)
-			{
-				CurrentInstance->SetIntParameterValue("bEnableCorners", Settings->bEnableCorners ? 1 : 0);
-			}
-		});
-	Settings->WatchProperty(Settings->InputGeometry, [this](UStaticMesh*)
+	Settings->WatchProperty(Settings->InputGeometry, [this](TSoftObjectPtr<UStaticMesh>)
 		{
 			if (Settings->InputGeometry)
 			{
-				if (CurrentInstance)
+				if (TargetSplineActor)
 				{
-					/*UHoudiniPublicAPIGeoInput* InputGeometry = Cast<UHoudiniPublicAPIGeoInput>(CurrentInstance->CreateEmptyInput(UHoudiniPublicAPIGeoInput::StaticClass()));
-					InputGeometry->bImportAsReference = true;
-					InputGeometry->bImportAsReferenceMaterialEnabled = true;
-					InputGeometry->bImportAsReferenceBboxEnabled = true;
-					InputGeometry->bImportAsReferenceRotScaleEnabled = true;
-					InputGeometry->SetInputObjects({ Settings->InputGeometry });*/
-					CurrentInstance->SetStringParameterValue("FencePath_1", Settings->InputGeometry.GetPath());
-					CurrentInstance->Recook();
+					TargetSplineActor->SetSplineMesh(Settings->InputGeometry);
 				}
 			}
 			
 		});
-	Settings->WatchProperty(Settings->FenceHeight, [this](float) {
-		if (CurrentInstance)
+	Settings->WatchProperty(Settings->MeshHeightRange, [this](FVector2D) {
+		if (TargetSplineActor)
 		{
-			CurrentInstance->SetFloatParameterValue("FenceHeight", Settings->FenceHeight);
+			TargetSplineActor->SetMeshHeightRange(Settings->MeshHeightRange);
 			
 		}
 	});
-	Settings->WatchProperty(Settings->CornerStretch, [this](float) {
-		if (CurrentInstance)
-		{
-			CurrentInstance->SetFloatParameterValue("CornerStretch", Settings->FenceHeight);
-			
-		}
-	});
-	Settings->WatchProperty(Settings->CornerBevelAmount, [this](float)
+	Settings->WatchProperty(Settings->MeshDistance, [this](float)
 	{
-		if (CurrentInstance)
+		if (TargetSplineActor)
 		{
-			CurrentInstance->SetFloatParameterValue("BevelAmount", Settings->CornerBevelAmount);
-			
-		}
-	});
-	Settings->WatchProperty(Settings->MeshNormals, [this](float)
-	{
-		if (CurrentInstance)
-		{
-			CurrentInstance->SetFloatParameterValue("NormalAngle", Settings->MeshNormals);
-			
-		}
-	});
-	Settings->WatchProperty(Settings->OffsetAlongCurve, [this](int32)
-	{
-		if (CurrentInstance)
-		{
-			CurrentInstance->SetIntParameterValue("ScaleAlongCurve", Settings->OffsetAlongCurve);
-			
+			TargetSplineActor->SetMeshOffsetDistance(Settings->MeshDistance);
 		}
 	});
 	Settings->WatchProperty(Settings->bEnableRandomRotation, [this](bool)
 		{
-			if (CurrentInstance)
-			{
-				CurrentInstance->SetIntParameterValue("bEnableRandomRotation", Settings->bEnableRandomRotation ? 1 : 0);
-			}
+		if (TargetSplineActor)
+		{
+			TargetSplineActor->SetEnableRandomRotation(Settings->bEnableRandomRotation);
+		}
 		});
 	
-	Settings->WatchProperty(Settings->MinRandomRotation, [this](float)
+	Settings->WatchProperty(Settings->MinRandomRotation, [this](FRotator)
 		{
-			if (CurrentInstance)
+			if (TargetSplineActor)
 			{
-				CurrentInstance->SetFloatParameterValue("MinRandomRotation", Settings->MinRandomRotation);
+				TargetSplineActor->SetMinRandomRotation(Settings->MinRandomRotation);
 			}
 		});
 
-	Settings->WatchProperty(Settings->MaxRandomRotation, [this](float)
+	Settings->WatchProperty(Settings->MaxRandomRotation, [this](FRotator)
 		{
-			if (CurrentInstance)
+			if (TargetSplineActor)
 			{
-				CurrentInstance->SetFloatParameterValue("MaxRandomRotation", Settings->MaxRandomRotation);
+				TargetSplineActor->SetMaxRandomRotation(Settings->MaxRandomRotation);
 			}
 		});
-	Settings->WatchProperty(Settings->RandomRotationSeed, [this](float)
+	Settings->WatchProperty(Settings->RandomizedSeed, [this](float)
 		{
-			if (CurrentInstance)
+			if (TargetSplineActor)
 			{
-				CurrentInstance->SetFloatParameterValue("RandomRotationSeed", Settings->RandomRotationSeed);
+				TargetSplineActor->SetMaxRandomRotation(Settings->MaxRandomRotation);
 			}
 		});
 
 	
 	Settings->SilentUpdateWatched();
 
-	SpawnHoudiniAssetInstance();
+	SpawnActorInstance();
 
 	
 }
 
-
-void UDrawSpline::HandlePreInstantiation(UHoudiniPublicAPIAssetWrapper* InAssetWrapper)
-{
-	if (!CurrentInstance->GetInputAtIndex(0, (Input)))
-	{
-		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok, LOCTEXT("Failed to get input", "Failed to get input"));
-	}
-
-	if (Input)
-	{
-		TArray<UObject*> CurveObjects;
-		Input->GetInputObjects(CurveObjects);
-
-		if (CurveObjects.Num() > 0)
-		{
-			if (auto AlteredInput = Cast<UHoudiniPublicAPICurveInputObject>(CurveObjects[0]))
-			{
-				AlteredInput->ClearCurvePoints();
-				AlteredInput->SetCurveType(CurveType);
-
-				Input->SetInputObjects({AlteredInput});
-				CurrentInstance->SetInputAtIndex(0, Input);
-			}
-					
-		}
-	}
-		
-
-	/*if (InputCurveObject)
-	{
-		InputCurveObject->ClearCurvePoints();
-
-		InputCurveObject->SetCurveType(CurveType);
-		
-		if (CurveInput)
-		{
-			CurveInput->SetInputObjects({InputCurveObject});
-		}
-	}
-	
-
-	if (!CurrentInstance->SetInputAtIndex(0, CurveInput))
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to set input"));
-	}
-	CurrentInstance->Recook();*/
-
-	bHoudiniAssetInitialized = true;
-}
 
 // Set things up for a new output mode or destination
-void UDrawSpline::TransitionOutputMode()
+void USplineTool::TransitionOutputMode()
 {
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
 	// Setting up the previews seems to be the most error prone part of the tool because editor duplicating, hiding
 	// from outliner, and avoiding emitting undo/redo transactions seems to be quite finnicky...
@@ -717,11 +627,14 @@ void UDrawSpline::TransitionOutputMode()
 	}
 }
 
-void UDrawSpline::Shutdown(EToolShutdownType ShutdownType)
+void USplineTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	LongTransactions.CloseAll(GetToolManager());
 
-	Settings->SaveProperties(this);
+	if (Settings)
+	{
+		Settings->SaveProperties(this);
+	}
 
 	if (PreviousTargetActor)
 	{
@@ -754,9 +667,9 @@ void UDrawSpline::Shutdown(EToolShutdownType ShutdownType)
 	Super::Shutdown(ShutdownType);
 }
 
-void UDrawSpline::GenerateAsset()
+void USplineTool::GenerateAsset()
 {
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 	USplineComponent* OutputSpline = nullptr;
 	auto CreateSplineInEmptyActor = [this, &OutputSpline]()
 	{
@@ -849,9 +762,9 @@ void UDrawSpline::GenerateAsset()
 }
 
 // Helper to add a point given a hit location and hit normal
-void UDrawSpline::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& HitNormal)
+void USplineTool::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& HitNormal)
 {
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
 	int32 NumSplinePoints = WorkingSpline->GetNumberOfSplinePoints();
 	FVector3d UpVectorToUse = GetUpVectorToUse(HitLocation, HitNormal, NumSplinePoints);
@@ -861,12 +774,17 @@ void UDrawSpline::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& 
 	WorkingSpline->SetUpVectorAtSplinePoint(NumSplinePoints, UpVectorToUse, ESplineCoordinateSpace::World, 
 		/*bUpdate =*/ true);
 
-	if (Input)
+	if (TargetSplineActor)
 	{
 		
 		if (!ensure(WorkingSpline.IsValid()))
 		{
 			return;
+		}
+
+		if (WorkingSpline->GetNumberOfSplinePoints() == 1)
+		{
+			TargetSplineActor->SetActorLocationAndRotation(WorkingSpline->GetSplinePointAt(0, ESplineCoordinateSpace::World).Position,WorkingSpline->GetSplinePointAt(0, ESplineCoordinateSpace::World).Rotation );
 		}
 
 		if (WorkingSpline->GetNumberOfSplinePoints() < 2)
@@ -875,41 +793,21 @@ void UDrawSpline::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& 
 		}
 		
 
-		if (CurrentInstance)
+		TArray<FTransform> NewPoints;
+		for (int32 i = 0; i < WorkingSpline->GetNumberOfSplinePoints(); ++i)
 		{
-			TArray<UObject*> CurveObjects;
-			Input->GetInputObjects(CurveObjects);
-
-			if (CurveObjects.Num() > 0)
-			{
-				if (auto FinalInput = Cast<UHoudiniPublicAPICurveInputObject>(CurveObjects[0]))
-				{
-					TArray<FTransform> NewPoints;
-					for (int32 i = 0; i < WorkingSpline->GetNumberOfSplinePoints(); ++i)
-					{
-						FTransform NewPointTransform;
-						NewPointTransform.SetLocation(WorkingSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
-						NewPointTransform.SetRotation(WorkingSpline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
-						NewPoints.Add(NewPointTransform);
-					}
-					FinalInput->SetCurvePoints(NewPoints);
-
-					Input->SetInputObjects({FinalInput});
-
-					CurrentInstance->SetInputAtIndex(0, Input);
-
-
-				}
-					
-			}
-			
+			FTransform NewPointTransform;
+			NewPointTransform.SetLocation(WorkingSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
+			NewPointTransform.SetRotation(WorkingSpline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
+			NewPoints.Add(NewPointTransform);
 		}
+		TargetSplineActor->SetSplinePoints(NewPoints);
 		
 	}
 	
 }
 
-FVector3d UDrawSpline::GetUpVectorToUse(const FVector3d& HitLocation, const FVector3d& HitNormal, int32 NumSplinePointsBeforehand)
+FVector3d USplineTool::GetUpVectorToUse(const FVector3d& HitLocation, const FVector3d& HitNormal, int32 NumSplinePointsBeforehand)
 {
 	FVector3d UpVectorToUse = HitNormal;
 	switch (Settings->UpVectorMode)
@@ -941,7 +839,7 @@ FVector3d UDrawSpline::GetUpVectorToUse(const FVector3d& HitLocation, const FVec
 	return UpVectorToUse;
 }
 
-bool UDrawSpline::Raycast(const FRay& WorldRay, FVector3d& HitLocationOut, FVector3d& HitNormalOut, double& HitTOut)
+bool USplineTool::Raycast(const FRay& WorldRay, FVector3d& HitLocationOut, FVector3d& HitNormalOut, double& HitTOut)
 {
 	double BestHitT = TNumericLimits<double>::Max();
 	
@@ -1011,7 +909,7 @@ bool UDrawSpline::Raycast(const FRay& WorldRay, FVector3d& HitLocationOut, FVect
 	return BestHitT < TNumericLimits<double>::Max();
 }
 
-FInputRayHit UDrawSpline::IsHitByClick(const FInputDeviceRay& ClickPos)
+FInputRayHit USplineTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FVector3d HitLocation, HitNormal;
 	double HitT;
@@ -1022,12 +920,11 @@ FInputRayHit UDrawSpline::IsHitByClick(const FInputDeviceRay& ClickPos)
 	return FInputRayHit();
 }
 
-void UDrawSpline::OnClicked(const FInputDeviceRay& ClickPos)
+void USplineTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
-	if(!bHoudiniAssetInitialized) return;
-
+	
 	if (Settings)
 	{
 		if (!Settings->InputGeometry)
@@ -1086,9 +983,8 @@ void UDrawSpline::OnClicked(const FInputDeviceRay& ClickPos)
 	}
 }
 
-FInputRayHit UDrawSpline::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+FInputRayHit USplineTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
-	if(!bHoudiniAssetInitialized) return FInputRayHit();
 	/*FVector3d HitLocation, HitNormal;
 	double HitT;
 	if (Raycast(PressPos.WorldRay, HitLocation, HitNormal, HitT))
@@ -1098,13 +994,12 @@ FInputRayHit UDrawSpline::CanBeginClickDragSequence(const FInputDeviceRay& Press
 	return FInputRayHit();
 }
 
-void UDrawSpline::OnClickPress(const FInputDeviceRay& PressPos)
+void USplineTool::OnClickPress(const FInputDeviceRay& PressPos)
 {
-	if(!bHoudiniAssetInitialized) return;
 	FVector3d HitLocation, HitNormal;
 	double HitT;
 
-	LongTransactions.Open(DrawSplineToolLocals::AddPointTransactionName, GetToolManager());
+	LongTransactions.Open(SplineToolLocals::AddPointTransactionName, GetToolManager());
 
 	// Regardless of DrawMode, start by placing a point, though don't emit a transaction until mouse up
 	if (ensure(Raycast(PressPos.WorldRay, HitLocation, HitNormal, HitT)))
@@ -1123,10 +1018,9 @@ void UDrawSpline::OnClickPress(const FInputDeviceRay& PressPos)
 	}
 }
 
-void UDrawSpline::OnClickDrag(const FInputDeviceRay& DragPos)
+void USplineTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	if(!bHoudiniAssetInitialized) return;
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
 	if (Settings->DrawMode == EDrawSplineDrawMode_HandyMan::None)
 	{
@@ -1196,16 +1090,14 @@ void UDrawSpline::OnClickDrag(const FInputDeviceRay& DragPos)
 	bNeedToRerunConstructionScript = bNeedToRerunConstructionScript || Settings->bRerunConstructionScriptOnDrag;
 }
 
-void UDrawSpline::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void USplineTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
-	if(!bHoudiniAssetInitialized) return;
 	OnClickDrag(ReleasePos);
 	OnTerminateDragSequence();
 }
-void UDrawSpline::OnTerminateDragSequence()
+void USplineTool::OnTerminateDragSequence()
 {
-	if(!bHoudiniAssetInitialized) return;
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
 	bDrawTangentForLastPoint = false;
 	bFreeDrawPlacedPreviewPoint = false;
@@ -1260,7 +1152,7 @@ void UDrawSpline::OnTerminateDragSequence()
 
 
 
-void UDrawSpline::OnTick(float DeltaTime)
+void USplineTool::OnTick(float DeltaTime)
 {
 	if (PlaneMechanic)
 	{
@@ -1314,9 +1206,9 @@ void UDrawSpline::OnTick(float DeltaTime)
 	}
 }
 
-void UDrawSpline::Render(IToolsContextRenderAPI* RenderAPI)
+void USplineTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	using namespace DrawSplineToolLocals;
+	using namespace SplineToolLocals;
 
 	Super::Render(RenderAPI);
 
@@ -1340,48 +1232,51 @@ void UDrawSpline::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-void UDrawSpline::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+void USplineTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 
-bool UDrawSpline::CanAccept() const
+bool USplineTool::CanAccept() const
 {
 	return WorkingSpline.IsValid() && WorkingSpline->GetNumberOfSplinePoints() > 0;
 }
 
 // To be called by builder
-void UDrawSpline::SetSelectedActor(AActor* Actor)
+void USplineTool::SetSelectedActor(AActor* Actor)
 {
 	SelectedActor = Actor;
 }
-void UDrawSpline::SetWorld(UWorld* World)
+void USplineTool::SetWorld(UWorld* World)
 {
 	TargetWorld = World;
 }
 
 /// Tool builder:
 
-bool UDrawSplineBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+bool USplineToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return true;
 }
 
-UInteractiveTool* UDrawSplineBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UInteractiveTool* USplineToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UDrawSpline* NewTool = NewObject<UDrawSpline>(SceneState.ToolManager);
+	USplineTool* NewTool = NewObject<USplineTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
 	
 
 	// May be null
 	NewTool->SetSelectedActor(ToolBuilderUtil::FindFirstActor(SceneState, [](AActor*) { return true; }));
+	NewTool->DrawMode = EDrawSplineDrawMode_HandyMan::TangentDrag;
+	NewTool->CurveType = EHoudiniPublicAPICurveType::Bezier;
+	NewTool->ToolIdentifier = EHandyManToolName::FenceTool_Easy;
 
 	return NewTool;
 }
 
 
-void UDrawSpline::FDrawSplineChange::Apply(UObject* Object)
+void USplineTool::FSplineToolChange::Apply(UObject* Object)
 {
-	UDrawSpline* Tool = Cast<UDrawSpline>(Object);
+	USplineTool* Tool = Cast<USplineTool>(Object);
 	if (!ensure(Tool))
 	{
 		return;
@@ -1397,9 +1292,9 @@ void UDrawSpline::FDrawSplineChange::Apply(UObject* Object)
 	Tool->bNeedToRerunConstructionScript = true;
 }
 
-void UDrawSpline::FDrawSplineChange::Revert(UObject* Object)
+void USplineTool::FSplineToolChange::Revert(UObject* Object)
 {
-	UDrawSpline* Tool = Cast<UDrawSpline>(Object);
+	USplineTool* Tool = Cast<USplineTool>(Object);
 	if (!ensure(Tool))
 	{
 		return;
@@ -1412,30 +1307,17 @@ void UDrawSpline::FDrawSplineChange::Revert(UObject* Object)
 
 	Revert(*Spline);
 
-	if (Tool->Input && Tool->CurrentInstance)
+	if (Tool->TargetSplineActor)
 	{
-			TArray<UObject*> CurveObjects;
-			Tool->Input->GetInputObjects(CurveObjects);
-
-			if (CurveObjects.Num() > 0)
-			{
-				if (auto AlteredInput = Cast<UHoudiniPublicAPICurveInputObject>(CurveObjects[0]))
-				{
-					TArray<FTransform> NewPoints;
-					for (int32 i = 0; i < Spline->GetNumberOfSplinePoints(); ++i)
-					{
-						FTransform NewPointTransform;
-						NewPointTransform.SetLocation(Spline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
-						NewPointTransform.SetRotation(Spline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
-						NewPoints.Add(NewPointTransform);
-					}
-					AlteredInput->SetCurvePoints(NewPoints);
-
-					Tool->Input->SetInputObjects({AlteredInput});
-					Tool->CurrentInstance->Recook();
-					
-				}
-			}
+		TArray<FTransform> NewPoints;
+		for (int32 i = 0; i < Spline->GetNumberOfSplinePoints(); ++i)
+		{
+			FTransform NewPointTransform;
+			NewPointTransform.SetLocation(Spline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
+			NewPointTransform.SetRotation(Spline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
+			NewPoints.Add(NewPointTransform);
+		}
+		Tool->TargetSplineActor->SetSplinePoints(NewPoints);
 		
 	}
 
@@ -1444,3 +1326,4 @@ void UDrawSpline::FDrawSplineChange::Revert(UObject* Object)
 }
 
 #undef LOCTEXT_NAMESPACE
+

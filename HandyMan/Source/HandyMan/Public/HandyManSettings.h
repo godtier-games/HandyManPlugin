@@ -6,6 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "HandyManSettings.generated.h"
 
+class UPCGAssetWrapper;
 class UHoudiniAssetWrapper;
 class UHoudiniAsset;
 struct FCollectionReference;
@@ -85,6 +86,7 @@ public:
 	virtual FText GetSectionDescription() const override;
 
 	UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
+	UPCGAssetWrapper* GetPCGActorLibrary() const;
 	TArray<EHandyManToolName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }
 
 	UDataTable* GetBuildingModuleDataTable();
@@ -102,6 +104,10 @@ protected:
 	// Global HDA Library asset to use.
 	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
 	FSoftObjectPath DigitalAssetLibrary = FSoftObjectPath(TEXT("/HandyMan/Data/HDA_Library.HDA_Library"));
+
+	// Global HDA Library asset to use.
+	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
+	FSoftObjectPath PCGActorLibrary = FSoftObjectPath(TEXT("/HandyMan/Data/PCG_Library.PCG_Library"));
 
 	/** List of Tool Names that should be blocked from showing dialog windows */
 	UPROPERTY(EditAnywhere, config, Category = "Pop Ups")

@@ -6,6 +6,7 @@
 #include "HandyManSettings.h"
 #include "HoudiniPublicAPI.h"
 #include "ToolSet/Core/HoudiniAssetWrapper.h"
+#include "ToolSet/Core/PCGAssetWrapper.h"
 
 void UHandyManSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -29,9 +30,26 @@ UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolNam
 	
 }
 
+TSubclassOf<AActor> UHandyManSubsystem::GetPCGActorClass(const EHandyManToolName& ToolName) const
+{
+	if (const UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
+	{
+		if (UPCGAssetWrapper* Library = HandyManSettings->GetPCGActorLibrary())
+		{
+			if (Library->ActorClasses.Contains(ToolName))
+			{
+				return Library->ActorClasses.Find(ToolName)->LoadSynchronous();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UHandyManSubsystem::InitializeHoudiniApi()
 {
-	if (!HoudiniPublicAPI)
+	// TODO : Enable this when I need houdini engine
+	/*if (!HoudiniPublicAPI)
 	{
 		HoudiniPublicAPI = NewObject<UHoudiniPublicAPI>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	}
@@ -39,7 +57,7 @@ void UHandyManSubsystem::InitializeHoudiniApi()
 	if (!HoudiniPublicAPI->IsSessionValid())
 	{
 		HoudiniPublicAPI->CreateSession();
-	}
+	}*/
 }
 
 void UHandyManSubsystem::CleanUp()

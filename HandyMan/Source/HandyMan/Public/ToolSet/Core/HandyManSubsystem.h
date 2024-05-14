@@ -33,6 +33,8 @@ public:
 	UHoudiniPublicAPI* GetMutableHoudiniAPI() const {return HoudiniPublicAPI;}
 
 	UHoudiniAsset* GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const;
+
+	TSubclassOf<AActor> GetPCGActorClass(const EHandyManToolName& ToolName) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "Houdini")
 	void InitializeHoudiniApi();
