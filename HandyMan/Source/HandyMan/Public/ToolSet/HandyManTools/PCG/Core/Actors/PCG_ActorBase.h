@@ -23,9 +23,4 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
-	TObjectPtr<class USceneComponent> DefaultSceneComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
-	TObjectPtr<class UPCGComponent> PCGComponent;
 };

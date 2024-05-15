@@ -5,6 +5,7 @@
 #include "AssetSelection.h"
 #include "FrameTypes.h"
 #include "HandyManSettings.h"
+#include "PCGComponent.h"
 #include "SplineUtil.h"
 #include "ToolBuilderUtil.h"
 #include "UnrealEdGlobals.h"
@@ -281,6 +282,7 @@ void USplineTool::SpawnActorInstance()
 		{
 			SpawnedActor->SetActorTransform(FTransform::Identity);
 			TargetSplineActor = Cast<APCG_SplineActor>(SpawnedActor);
+			TargetSplineActor->GetPCGComponent()->GenerateLocal(true);
 		}
 		
 	}
@@ -375,7 +377,6 @@ void USplineTool::Setup()
 					TargetSplineActor->SetSplineMesh(Settings->InputGeometry);
 				}
 			}
-			
 		});
 	Settings->WatchProperty(Settings->MeshHeightRange, [this](FVector2D) {
 		if (TargetSplineActor)
@@ -384,11 +385,11 @@ void USplineTool::Setup()
 			
 		}
 	});
-	Settings->WatchProperty(Settings->MeshDistance, [this](float)
+	Settings->WatchProperty(Settings->DistanceOffset, [this](float)
 	{
 		if (TargetSplineActor)
 		{
-			TargetSplineActor->SetMeshOffsetDistance(Settings->MeshDistance);
+			TargetSplineActor->SetMeshOffsetDistance(Settings->DistanceOffset);
 		}
 	});
 	Settings->WatchProperty(Settings->bEnableRandomRotation, [this](bool)
@@ -397,6 +398,22 @@ void USplineTool::Setup()
 		{
 			TargetSplineActor->SetEnableRandomRotation(Settings->bEnableRandomRotation);
 		}
+		});
+	
+	Settings->WatchProperty(Settings->bAimMeshAtNextPoint, [this](bool)
+		{
+			if (TargetSplineActor)
+			{
+				TargetSplineActor->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
+				SetSplinePointsOnTargetActor();
+			}
+		});
+	Settings->WatchProperty(Settings->bClosedSpline, [this](bool)
+		{
+			if (TargetSplineActor)
+			{
+				TargetSplineActor->SetCloseSpline(Settings->bClosedSpline);
+			}
 		});
 	
 	Settings->WatchProperty(Settings->MinRandomRotation, [this](FRotator)
@@ -419,6 +436,13 @@ void USplineTool::Setup()
 			if (TargetSplineActor)
 			{
 				TargetSplineActor->SetMaxRandomRotation(Settings->MaxRandomRotation);
+			}
+		});
+	Settings->WatchProperty(Settings->SplineType, [this](TEnumAsByte<ESplinePointType::Type>)
+		{
+			if (TargetSplineActor)
+			{
+				TargetSplineActor->SetSplinePointType(Settings->SplineType);
 			}
 		});
 
@@ -653,6 +677,14 @@ void USplineTool::Shutdown(EToolShutdownType ShutdownType)
 		GenerateAsset();
 	}
 
+	if (ShutdownType == EToolShutdownType::Cancel)
+	{
+		if (TargetSplineActor)
+		{
+			TargetSplineActor->Destroy();
+		}
+	}
+
 	PlaneMechanic->Shutdown();
 
 	if (PreviewActor)
@@ -761,19 +793,8 @@ void USplineTool::GenerateAsset()
 	GetToolManager()->EndUndoTransaction();
 }
 
-// Helper to add a point given a hit location and hit normal
-void USplineTool::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& HitNormal)
+void USplineTool::SetSplinePointsOnTargetActor()
 {
-	using namespace SplineToolLocals;
-
-	int32 NumSplinePoints = WorkingSpline->GetNumberOfSplinePoints();
-	FVector3d UpVectorToUse = GetUpVectorToUse(HitLocation, HitNormal, NumSplinePoints);
-
-	WorkingSpline->AddSplinePoint(HitLocation, ESplineCoordinateSpace::World, 
-		/*bUpdate =*/ false);
-	WorkingSpline->SetUpVectorAtSplinePoint(NumSplinePoints, UpVectorToUse, ESplineCoordinateSpace::World, 
-		/*bUpdate =*/ true);
-
 	if (TargetSplineActor)
 	{
 		
@@ -804,6 +825,23 @@ void USplineTool::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& 
 		TargetSplineActor->SetSplinePoints(NewPoints);
 		
 	}
+	return;
+}
+
+// Helper to add a point given a hit location and hit normal
+void USplineTool::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& HitNormal)
+{
+	using namespace SplineToolLocals;
+
+	int32 NumSplinePoints = WorkingSpline->GetNumberOfSplinePoints();
+	FVector3d UpVectorToUse = GetUpVectorToUse(HitLocation, HitNormal, NumSplinePoints);
+
+	WorkingSpline->AddSplinePoint(HitLocation, ESplineCoordinateSpace::World, 
+		/*bUpdate =*/ false);
+	WorkingSpline->SetUpVectorAtSplinePoint(NumSplinePoints, UpVectorToUse, ESplineCoordinateSpace::World, 
+		/*bUpdate =*/ true);
+
+	SetSplinePointsOnTargetActor();
 	
 }
 

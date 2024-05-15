@@ -10,9 +10,8 @@
 APCG_ActorBase::APCG_ActorBase()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-	RootComponent = DefaultSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneComponent"));
-	PCGComponent = CreateDefaultSubobject<UPCGComponent>(TEXT("PCGComponent"));
+	PrimaryActorTick.bCanEverTick = false;
+	
 }
 
 // Called when the game starts or when spawned

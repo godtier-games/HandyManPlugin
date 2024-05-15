@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SplineComponent.h"
 #include "ToolSet/HandyManTools/Houdini/WorldBuilding/SplineTool/DrawSpline.h"
 #include "SplineFenceTool.generated.h"
 
@@ -97,7 +98,8 @@ protected:
 
 	void TransitionOutputMode();
 	void GenerateAsset();
-	
+	void SetSplinePointsOnTargetActor();
+
 	// Used to restore visibility of previous actor when switching to a different one
 	UPROPERTY()
 	TObjectPtr<AActor> PreviousTargetActor = nullptr;
@@ -182,12 +184,21 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
 	TSoftObjectPtr<UStaticMesh> InputGeometry = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	TEnumAsByte<ESplinePointType::Type> SplineType = ESplinePointType::Linear;
 	
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = -1000, UIMax = 1000))
-	float MeshDistance = 100.0f;
+	float DistanceOffset = 10.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0.1, UIMax = 10))
 	FVector2D MeshHeightRange = FVector2D(1.0f, 1.0f);
+	
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	bool bClosedSpline = false;
+
+	//UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	bool bAimMeshAtNextPoint = false;
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
 	bool bEnableRandomRotation = false;

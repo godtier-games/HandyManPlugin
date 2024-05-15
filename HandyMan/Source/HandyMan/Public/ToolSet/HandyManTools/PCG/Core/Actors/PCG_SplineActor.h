@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PCGComponent.h"
 #include "PCG_ActorBase.h"
+#include "HoudiniEngineEditor/Private/HoudiniEngineToolTypes.h"
 #include "PCG_SplineActor.generated.h"
 
-UCLASS()
+UCLASS(meta = (PrioritizeCategories = ProceduralSettings))
 class HANDYMAN_API APCG_SplineActor : public APCG_ActorBase
 {
 	GENERATED_BODY()
@@ -27,6 +29,20 @@ public:
 	void SetSplinePoints(const TArray<FTransform>& Points);
 
 	UFUNCTION(BlueprintCallable, Category = "HandyMan")
+	void SetCloseSpline(bool bCloseLoop)
+	{
+		if (SplineComponent)
+		{
+			SplineComponent->SetClosedLoop(bCloseLoop, true);
+
+			if (PCGComponent)
+			{
+				PCGComponent->NotifyPropertiesChangedFromBlueprint();
+			}
+		}
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "HandyMan")
 	void SetSplineMesh(const TSoftObjectPtr<UStaticMesh> Mesh)
 	{
 		SplineMesh = Mesh;
@@ -38,6 +54,13 @@ public:
 	void SetEnableRandomRotation(const bool bEnable)
 	{
 		bEnableRandomRotation = bEnable;
+		RerunConstructionScripts();
+	};
+
+	UFUNCTION(BlueprintCallable, Category = "HandyMan")
+	void SetAimMeshAtNextPoint(const bool bEnable)
+	{
+		bAimMeshAtNextPoint = bEnable;
 		RerunConstructionScripts();
 	};
 
@@ -69,32 +92,71 @@ public:
 		RerunConstructionScripts();
 	};
 	
+	UFUNCTION(BlueprintCallable, Category = "HandyMan")
+	void SetSplinePointType(const ESplinePointType::Type& PointType)
+	{
+		SplinePointType = PointType;
+		if (SplineComponent)
+		{
+			for (int i = 0; i < SplineComponent->GetNumberOfSplinePoints(); i++)
+			{
+				SplineComponent->SetSplinePointType(i, PointType);
+			}
+
+			PCGComponent->NotifyPropertiesChangedFromBlueprint();
+		}
+	};
+
+	UFUNCTION(BlueprintPure, Category = "HandyMan")
+	UPCGComponent* GetPCGComponent() const { return PCGComponent; }
+	
 
 protected:
 
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
-	TObjectPtr<class USplineComponent> SplineComponent;
-
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	TSoftObjectPtr<UStaticMesh> SplineMesh;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	bool bEnableRandomRotation = false;
 
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
+	bool bAimMeshAtNextPoint = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition = "bEnableRandomRotation", EditConditionHides), Category = ProceduralSettings)
 	FRotator MinRandomRotation;
 
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition = "bEnableRandomRotation", EditConditionHides), Category = ProceduralSettings)
 	FRotator MaxRandomRotation;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	FVector2D MeshHeightRange = FVector2D(1.0f, 1.0f);
 	
-	UPROPERTY(BlueprintReadOnly, Category = "HandyMan")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	float MeshOffsetDistance = 100.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
+	UPROPERTY(BlueprintReadOnly)
 	FSoftObjectPath SplineMeshPath;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "HandyMan | Procedural Settings")
+	TEnumAsByte<ESplinePointType::Type> SplinePointType = ESplinePointType::Linear;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
+	TObjectPtr<class USplineComponent> SplineComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
+	TObjectPtr<class UPCGComponent> PCGComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
+	TObjectPtr<class USceneComponent> DefaultSceneComponent;
+
+
+
+private:
+	
 };
