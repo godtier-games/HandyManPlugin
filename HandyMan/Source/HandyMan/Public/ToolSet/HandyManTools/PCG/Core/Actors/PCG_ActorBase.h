@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "PCG_ActorBase.generated.h"
 
+class UPCGComponent;
+
 UCLASS()
 class HANDYMAN_API APCG_ActorBase : public AActor
 {
@@ -22,5 +24,8 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintPure, Category = "PCG")
+	virtual UPCGComponent* GetPCGComponent() const { return nullptr; }
 
 };

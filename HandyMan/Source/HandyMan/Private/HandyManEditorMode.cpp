@@ -157,7 +157,7 @@ void UHandyManEditorMode::Enter()
 		return;
 	}
 
-	HandyManAPI->InitializeHoudiniApi();
+	//HandyManAPI->InitializeHoudiniApi();
 
 	// listen to post-build
 	GetToolManager()->OnToolPostBuild.AddUObject(this, &UHandyManEditorMode::OnToolPostBuild);

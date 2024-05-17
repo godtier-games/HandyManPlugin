@@ -24,6 +24,16 @@ void UIvyCreator::Setup()
 {
 	Super::Setup();
 
+	if (GetHandyManAPI())
+	{
+		GetHandyManAPI()->InitializeHoudiniApi();
+		
+		if (!GetHandyManAPI()->GetMutableHoudiniAPI()->IsSessionValid())
+		{
+			GetHandyManAPI()->GetMutableHoudiniAPI()->CreateSession();
+		}
+	}
+
 	GEditor->GetSelectedActors()->DeselectAll();
 
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
