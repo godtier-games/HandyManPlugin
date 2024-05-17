@@ -110,6 +110,12 @@ public class HandyMan : ModuleRules
 				"ToolPresetEditor",
 				"EditorConfig",
 				"ModelingToolsEditorMode",
+				"PCG",
+				"PCGCompute",
+				"PCGBiomeCore",
+				"PCGExternalDataInterop",
+				"PCGWaterInterop",
+				"PCGGeometryScriptInterop",
 			}
 			);
 		
