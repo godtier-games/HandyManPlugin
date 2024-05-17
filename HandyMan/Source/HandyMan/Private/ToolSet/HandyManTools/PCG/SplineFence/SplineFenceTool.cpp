@@ -17,9 +17,8 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_SplineActor.h"
-
-
+#include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_ActorBase.h"
+#include "ToolSet/HandyManTools/PCG/SplineFence/PCG_SplineActor.h"
 
 
 #define LOCTEXT_NAMESPACE "USplineTool"
