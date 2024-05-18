@@ -80,7 +80,7 @@ bool FPCGOrientPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 				const FVector& TravelVector = NextPoint.Transform.GetLocation() - InPoint.Transform.GetLocation();
 				const FRotator& LookAtRotation = UKismetMathLibrary::FindLookAtRotation(InPoint.Transform.GetLocation(), NextPoint.Transform.GetLocation());
-				const FVector& AdjustedScale = FVector(TravelVector.Length() / InMeshOffsetDistance, InPoint.Transform.GetScale3D().Y, InPoint.Transform.GetScale3D().Z);
+				const FVector& AdjustedScale = FVector(TravelVector.Length() / InMeshOffsetDistance == 0 ? 1 : InMeshOffsetDistance, InPoint.Transform.GetScale3D().Y, InPoint.Transform.GetScale3D().Z);
 				OutPoint.Transform.SetRotation(LookAtRotation.Quaternion());
 				OutPoint.Transform.SetScale3D(AdjustedScale);
 
