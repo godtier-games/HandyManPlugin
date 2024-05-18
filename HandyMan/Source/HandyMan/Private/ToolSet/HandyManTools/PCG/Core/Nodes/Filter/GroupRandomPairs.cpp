@@ -10,9 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "PCGGroupRandomPairsSettings"
 
-
-
-namespace PCGRandomGroupSettings
+namespace PCGRandomGroupPairSettings
 {
     static const FName PairedPointsLabel = TEXT("PointsWithPair");
     static const FName UsedPointsLabel = TEXT("PairPoints");
@@ -34,9 +32,9 @@ TArray<FPCGPinProperties> UGroupRandomPairsSettings::OutputPinProperties() const
 {
     TArray<FPCGPinProperties> Properties;
 
-    Properties.Emplace(PCGRandomGroupSettings::PairedPointsLabel, EPCGDataType::Point);
-    Properties.Emplace(PCGRandomGroupSettings::UsedPointsLabel, EPCGDataType::Point);
-    Properties.Emplace(PCGRandomGroupSettings::ExcessPointsLabel, EPCGDataType::Point);
+    Properties.Emplace(PCGRandomGroupPairSettings::PairedPointsLabel, EPCGDataType::Point);
+    Properties.Emplace(PCGRandomGroupPairSettings::UsedPointsLabel, EPCGDataType::Point);
+    Properties.Emplace(PCGRandomGroupPairSettings::ExcessPointsLabel, EPCGDataType::Point);
 
     return Properties;
 }
@@ -70,7 +68,7 @@ bool FPCGGroupRandomPairsElement::ExecuteInternal(FPCGContext* Context) const
 
         const TArray<FPCGPoint>& InPoints = PointData->GetPoints();
 
-        // Create output point data
+        // Create output point data. This is the recommended way instead of writing directly to the incoming points.
         UPCGPointData* ChosenPointsData = NewObject<UPCGPointData>();
         ChosenPointsData->InitializeFromData(PointData);
         TArray<FPCGPoint>& ChosenPoints = ChosenPointsData->GetMutablePoints();
@@ -84,10 +82,12 @@ bool FPCGGroupRandomPairsElement::ExecuteInternal(FPCGContext* Context) const
         TArray<FPCGPoint>& UsedPoints = UsedPointsData->GetMutablePoints();
 
         FRandomStream RandomStream(Context->GetSeed());
+        TArray<int64> ChosenPointSeedArray;
         
         for (int i =0; i < InPoints.Num(); i++)
         {
-          
+
+            // Check the attribute value to filter the points. TODO: Make this more generic to handle all types of attributes
             const FPCGMetadataAttribute<bool>* StartingPointAttribute = static_cast<FPCGMetadataAttribute<bool>*>((PointData->Metadata->GetMutableAttribute(Settings->StartPointAttributeName)));
             if (StartingPointAttribute && StartingPointAttribute->GetValueFromItemKey(InPoints[i].MetadataEntry))
             {
@@ -98,8 +98,9 @@ bool FPCGGroupRandomPairsElement::ExecuteInternal(FPCGContext* Context) const
                 {
                     const FPCGMetadataAttribute<bool>* EndingPointAttribute = static_cast<FPCGMetadataAttribute<bool>*>((PointData->Metadata->GetMutableAttribute(Settings->ExcessPointAttributeName)));
 
-                    bool bIsAcceptableItem = !ChosenPointSeedArray.Contains(Point.Seed) || ChosenPointSeedArray.IsEmpty();
-                    if (EndingPointAttribute && EndingPointAttribute->GetValueFromItemKey(Point.MetadataEntry) && bIsAcceptableItem)
+                    const bool bIsAcceptableItem = !ChosenPointSeedArray.Contains(Point.Seed) || ChosenPointSeedArray.IsEmpty();
+                    const bool bIsNotSameItem = Point.Seed != InPoints[i].Seed;
+                    if (EndingPointAttribute && EndingPointAttribute->GetValueFromItemKey(Point.MetadataEntry) && bIsAcceptableItem && bIsNotSameItem)
                     {
                        ItemsToChooseFrom.Add(Point);
                     }
@@ -107,7 +108,8 @@ bool FPCGGroupRandomPairsElement::ExecuteInternal(FPCGContext* Context) const
 
                 FPCGPoint PointPair = ItemsToChooseFrom.Num() > 0 ? ItemsToChooseFrom[RandomStream.RandRange(0, ItemsToChooseFrom.Num() - 1)] : FPCGPoint();
                 Selection = PointPair.Seed;
-                FPCGMetadataAttribute<int64>* Attribute = ChosenPointsData->Metadata->FindOrCreateAttribute<int64>(Settings->AttributeNameToAjust, -1, true, true);
+                ChosenPointSeedArray.Add(PointPair.Seed);
+                FPCGMetadataAttribute<int64>* Attribute = ChosenPointsData->Metadata->FindOrCreateAttribute<int64>(Settings->AttributeNameToAdjust, -1, true, true);
                 Attribute->SetValue(AlteredPoint.MetadataEntry, Selection);
                 ChosenPoints.Add(AlteredPoint);
                 UsedPoints.Add(PointPair);
@@ -126,16 +128,16 @@ bool FPCGGroupRandomPairsElement::ExecuteInternal(FPCGContext* Context) const
         // Output all in output collection
         FPCGTaggedData& ChosenTaggedData = Outputs.Add_GetRef(Input);
         ChosenTaggedData.Data = ChosenPointsData;
-        ChosenTaggedData.Pin = PCGRandomGroupSettings::PairedPointsLabel;
+        ChosenTaggedData.Pin = PCGRandomGroupPairSettings::PairedPointsLabel;
 
         FPCGTaggedData& DiscardedTaggedData = Outputs.Add_GetRef(Input);
         DiscardedTaggedData.Data = DiscardedPointsData;
-        DiscardedTaggedData.Pin = PCGRandomGroupSettings::ExcessPointsLabel;
+        DiscardedTaggedData.Pin = PCGRandomGroupPairSettings::ExcessPointsLabel;
 
         // Output all in output collection
         FPCGTaggedData& UsedTaggedData = Outputs.Add_GetRef(Input);
         UsedTaggedData.Data = UsedPointsData;
-        UsedTaggedData.Pin = PCGRandomGroupSettings::UsedPointsLabel;
+        UsedTaggedData.Pin = PCGRandomGroupPairSettings::UsedPointsLabel;
 
     }
 

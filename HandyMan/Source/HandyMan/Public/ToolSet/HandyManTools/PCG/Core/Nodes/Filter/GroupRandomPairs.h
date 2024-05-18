@@ -35,21 +35,21 @@ protected:
 	//~End UPCGSettings interface
 
 public:
-	/** The Start Point Attribute Name */
+	/** The Start Point Attribute Name. This should point to an attribute that already exists on the incoming points */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
 	FName StartPointAttributeName = NAME_None;
 	
-	/** The End Point Attribute Name */
+	/** The End Points Attribute Name. This should point to an attribute that already exists on the incoming points */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
 	FName EndPointAttributeName = NAME_None;
 
-	/** The Excess Point Attribute Name */
+	/** The Excess Point Attribute Name. This should point to an attribute that already exists on the incoming points */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
 	FName ExcessPointAttributeName = NAME_None;
 
-	/** The Excess Point Attribute Name */
+	/** The Attribute you want to update with new data. This should point to an attribute that already exists on the incoming points*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
-	FName AttributeNameToAjust = NAME_None;
+	FName AttributeNameToAdjust = NAME_None;
 	
 };
 
@@ -58,6 +58,6 @@ class FPCGGroupRandomPairsElement : public IPCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 
-	TArray<int64> ChosenPointSeedArray;
+	// Cache the seed value of the selected points so there are no duplicates
 };
 
