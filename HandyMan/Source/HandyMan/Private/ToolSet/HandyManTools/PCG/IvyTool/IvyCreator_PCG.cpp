@@ -6,8 +6,12 @@
 #include "PCGComponent.h"
 #include "PCGGraph.h"
 #include "Selection.h"
+#include "ActorPartition/PartitionActor.h"
 #include "Helpers/PCGGraphParametersHelpers.h"
+#include "ToolSet/Core/HM_IvyToolMeshData.h"
 #include "ToolSet/HandyManTools/PCG/IvyTool/PCG_IvyActor.h"
+
+#define LOCTEXT_NAMESPACE "UIvyCreator_PCG"
 
 UIvyCreator_PCG::UIvyCreator_PCG(): PropertySet(nullptr)
 {
@@ -26,6 +30,17 @@ void UIvyCreator_PCG::Setup()
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
 	PropertySet = Cast<UIvyCreator_PCG_PropertySet>(AddPropertySetOfType(UIvyCreator_PCG_PropertySet::StaticClass(), "Settings", PropertyCreationOutcome));
 
+	PropertySet->WatchProperty(PropertySet->MeshData, [this](UHM_IvyToolMeshData*)
+	{
+		for (auto Item : SelectedActors)
+		{
+			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
+			{
+				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
+				UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
+			}
+		}
+	});
 	PropertySet->WatchProperty(PropertySet->RandomSeed, [this](int32)
 	{
 		for (auto Item : SelectedActors)
@@ -56,17 +71,6 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartingPointsHeightRatio"), PropertySet->StartingPointsHeightRatio);
-			}
-		}
-	});
-	PropertySet->WatchProperty(PropertySet->EndingPointsHeightRatio, [this](float)
-	{
-		for (auto Item : SelectedActors)
-		{
-			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
-			{
-				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalEndingPointsHeightRatio"), PropertySet->EndingPointsHeightRatio);
 			}
 		}
 	});
@@ -212,6 +216,12 @@ void UIvyCreator_PCG::OnHitByClick_Implementation(FInputDeviceRay ClickPos, cons
 {
 	Super::OnHitByClick_Implementation(ClickPos, Modifiers);
 
+	if (!PropertySet || PropertySet && !PropertySet->MeshData)
+	{
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok, LOCTEXT("IvyToolNoData", "You are trying to run this tool with no mesh data. Create a data asset (UHM_IvyToolMeshData) and pass that into the tool ."));
+		return;
+	}
+
 	HighlightActors(ClickPos, Modifiers, true);
 	
 	
@@ -297,230 +307,58 @@ bool UIvyCreator_PCG::HasCancel() const
 
 void UIvyCreator_PCG::HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult)
 {
-	if (Modifiers.bShiftDown)
-	{
-		// I want to add this to a group
-
-		// If its the first item of the group, then create a new group
-
-		// Change highlight color to green g = group
-
-		if (CurrentInstance != nullptr)
-		{
-			auto FoundObjects = SelectedActors.FindRef(CurrentInstance);
-			if (SelectedActors.Contains(CurrentInstance) && !SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
-			{
-				GEditor->SelectActor(HitResult.GetActor(), true, false);
-				if(bShouldEditSelection) SelectedActors[CurrentInstance].Selected.Add(HitResult.GetActor());
-
-				// Remove from duplicate selections
-				for (auto& Item : SelectedActors)
-				{
-					if (!Item.Value.Selected.Contains(HitResult.GetActor()) || Item.Key == CurrentInstance) continue;
-					
-					if(bShouldEditSelection) Item.Value.Selected.Remove(HitResult.GetActor());
-					GEditor->SelectActor(HitResult.GetActor(), false, false);
-				}
-			}
-		}
-		else
-		{
-			for (auto& FindEmpty : SelectedActors)
-			{
-				if (FindEmpty.Value.Selected.Num() == 0)
-				{
-					FindEmpty.Value.Selected.Add(HitResult.GetActor());
-					CurrentInstance = FindEmpty.Key;
-					GEditor->SelectActor(HitResult.GetActor(), true, false);
-				}
-				else
-				{
-					CurrentInstance = SpawnHDAInstance();
-					SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
-					GEditor->SelectActor(HitResult.GetActor(), true, false);
-				}
-			}
-		}
-	}
-	else if (Modifiers.bCtrlDown)
-	{
-		// I want to remove this from a group
-		// If its not apart of a group then this will just delect the item
-		// if its apart of a group it will remove from group but remain selected (add new instance and add this to that instances selected objects)
-		// Change highlight color to blue
-
-		if (CurrentInstance != nullptr)
-		{
-			bool bHasSolvedSelection = false;
-			if (SelectedActors.Contains(CurrentInstance) && SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
-			{
-				if(bShouldEditSelection)
-				{
-					SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
-					
-					for (auto& FindEmpty : SelectedActors)
-					{
-						if (FindEmpty.Value.Selected.Num() == 0)
-						{
-							FindEmpty.Value.Selected.Add(HitResult.GetActor());
-							CurrentInstance = FindEmpty.Key;
-							bHasSolvedSelection = true;
-						}
-					}
-
-					if(!bHasSolvedSelection)
-					{
-						SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
-						CurrentInstance = SpawnHDAInstance();
-						SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
-					}
-					
-				}
-				
-			}
-			else
-			{
-				for (auto& Item : SelectedActors)
-				{
-					if (!Item.Value.Selected.Contains(HitResult.GetActor())) continue;
-					if(bShouldEditSelection && Item.Value.Selected.Num() > 1)
-					{
-						for (auto& FindEmpty : SelectedActors)
-						{
-							if (FindEmpty.Value.Selected.Num() == 0)
-							{
-								Item.Value.Selected.Remove(HitResult.GetActor());
-								FindEmpty.Value.Selected.Add(HitResult.GetActor());
-								CurrentInstance = FindEmpty.Key;
-								bHasSolvedSelection = true;
-							}
-						}
-
-						if (!bHasSolvedSelection)
-						{
-						
-							Item.Value.Selected.Remove(HitResult.GetActor());
-							CurrentInstance = SpawnHDAInstance();
-							SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
-							
-						}
-
-						
-
-						
-					}
-					
-				}
-			}
-
-			if (!bHasSolvedSelection)
-			{
-				/*CurrentInstance = SpawnHDAInstance();
-				SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));*/
-			}
-		}
-	}
-	else
-	{
+	
 		// If I'm just clicking on an object, then I want to select it
 		// If its already selected, then I want to deselect it
 		// Change its color to yellow.
 
-		TArray<UHoudiniPublicAPIAssetWrapper*> OutKeys;
-		SelectedActors.GetKeys(OutKeys);
+	const AActor* HitActor = HitResult.GetActor();
 
-		// this instance we are on is in the selected actors list check if this actor we are selecting is in the list
-		if (CurrentInstance != nullptr)
+	TArray<AActor*> OutKeys;
+	SelectedActors.GetKeys(OutKeys);
+
+	// this instance we are on is in the selected actors list check if this actor we are selecting is in the list
+	bool bHasSolvedSelection = false;
+	if (SelectedActors.Contains(HitActor) && SelectedActors[HitActor].Selected)
+	{
+		GEditor->SelectActor(HitResult.GetActor(), false, false);
+		
+		// Remove this actor from the map and destroy its inworld actor
+		SelectedActors[HitActor].Selected->Destroy();
+		SelectedActors[HitActor].Selected = nullptr;
+		bHasSolvedSelection = true;
+	}
+	else
+	{
+		if (!SelectedActors.Contains(HitActor) || SelectedActors.Contains(HitActor) && !SelectedActors[HitActor].Selected)
 		{
-			bool bHasSolvedSelection = false;
-			if (SelectedActors.Contains(CurrentInstance) && SelectedActors[CurrentInstance].Selected.Contains(HitResult.GetActor()))
-			{
-				GEditor->SelectActor(HitResult.GetActor(), false, false);
-				if(bShouldEditSelection) SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
-				bHasSolvedSelection = true;
-			}
-			else
-			{
-				for (auto& Item : SelectedActors)
-				{
-					if (!Item.Value.Selected.Contains(HitResult.GetActor())) continue;
-					
-					GEditor->SelectActor(HitResult.GetActor(), false, false);
-					if(bShouldEditSelection) Item.Value.Selected.Remove(HitResult.GetActor());
-					CurrentInstance = Item.Key;
-					bHasSolvedSelection = true;
-				}
-			}
-
-			if (!bHasSolvedSelection)
-			{
-				for (auto& FindEmpty : SelectedActors)
-				{
-					if (FindEmpty.Value.Selected.Num() == 0)
-					{
-						FindEmpty.Value.Selected.Add(HitResult.GetActor());
-						CurrentInstance = FindEmpty.Key;
-						GEditor->SelectActor(HitResult.GetActor(), true, false);
-						bHasSolvedSelection = true;
-					}
-				}
-
-				if (!bHasSolvedSelection)
-				{
-					CurrentInstance = SpawnHDAInstance();
-					SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
-					GEditor->SelectActor(HitResult.GetActor(), true, false);
-				}
-				
-				
-			}
-		}
-		else
-		{
-			CurrentInstance = SpawnHDAInstance();
-			SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 			GEditor->SelectActor(HitResult.GetActor(), true, false);
+			FObjectSelection NewSelection;
+			NewSelection.Selected = SpawnNewIvyWorldActor(HitActor);
+
+			SelectedActors.Add(HitResult.GetActor(), NewSelection);
+		
+			bHasSolvedSelection = true;
 		}
 	}
-
+	
+	
 	for (auto Highlight : SelectedActors)
 	{
-		for (int i = 0; i < Highlight.Value.Selected.Num(); i++)
-		{
-			if (Highlight.Value.Selected[i] == nullptr)
-			{
-				Highlight.Value.Selected.RemoveAt(i);
-				continue;
-			}
-			GEditor->SelectActor((AActor*)Highlight.Value.Selected[i], true, false);
-		};
+		GEditor->SelectActor((AActor*)Highlight.Value.Selected, true, false);
 	}
 	
 }
 
 void UIvyCreator_PCG::HandleAccept()
 {
+	// Destroy all of the static mesh actors that We've added ivy actors to.
 	for (auto Item : SelectedActors)
 	{
-		if (Item.Key)
+		if (Item.Value.Selected)
 		{
-			if(Item.Value.Selected.Num() == 0) {Item.Key->DeleteInstantiatedAsset(); continue;} 
-			UHoudiniPublicAPIWorldInput* InputGeo = Cast<UHoudiniPublicAPIWorldInput>(Item.Key->CreateEmptyInput(UHoudiniPublicAPIWorldInput::StaticClass()));
-
-			TArray<UObject*> InputObjects;
-			for (auto Object : Item.Value.Selected)
-			{
-				InputObjects.Add(Object);
-			}
-			
-			InputGeo->SetInputObjects(InputObjects);
-			Item.Key->SetInputAtIndex(0, InputGeo);
-			Item.Key->Recook();
-			Item.Key->SetAutoCookingEnabled(true);
+			Item.Key->Destroy();	
 		}
-		
-
-		
 	}
 }
 
@@ -528,20 +366,54 @@ void UIvyCreator_PCG::HandleCancel()
 {
 	for (auto Item : SelectedActors)
 	{
-		if (Item.Key)
+		if (Cast<AActor>(Item.Value.Selected))
 		{
-			Item.Key->DeleteInstantiatedAsset();
+			Cast<AActor>(Item.Value.Selected)->Destroy();
 		}
 	}
 
 	SelectedActors.Empty();
 }
 
+AActor* UIvyCreator_PCG::SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn)
+{
+	const AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(ActorToSpawnOn);
+	if (!StaticMeshActor)
+	{
+		
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok, LOCTEXT("IvyToolWrongGeo", "You've Selected an Actor that is not a Static Mesh Actor. Currently this tool only supports Static Mesh Actors."));
+		return nullptr;
+	}
+
+	APCG_IvyActor* IvyActor = GetWorld()->SpawnActor<APCG_IvyActor>(APCG_IvyActor::StaticClass(), StaticMeshActor->GetActorLocation(), StaticMeshActor->GetActorRotation());
+	IvyActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
+	IvyActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));
+	IvyActor->SetVineThickness(PropertySet->VineThickness);
+	
+	if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {return IvyActor;}
+	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSeed"), PropertySet->RandomSeed);
+	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineCount"), PropertySet->SplineCount);
+	UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartDistance"), PropertySet->StartingPointsHeightRatio);
+	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalPathComplexity"), PropertySet->PathComplexity);
+	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalOffsetDistance"), FVector(0, 0, PropertySet->MeshOffsetDistance));
+	UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafDensity"), PropertySet->LeafDensity);
+	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMin"), FVector(PropertySet->LeafScaleRange.X));
+	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMax"), FVector(PropertySet->LeafScaleRange.Y));
+	UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MinRandomRotation : FRotator());
+	UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MaxRandomRotation : FRotator());
+	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MinRandomOffset : FVector::Zero());
+	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MaxRandomOffset : FVector::Zero());
+	UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
+	
+	return IvyActor;
+	
+}
+
 void UIvyCreator_PCG::HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection)
 {
 	if (PropertySet)
 	{
-		const TEnumAsByte<ECollisionChannel> ChannelToTrace = PropertySet->bUseCustomTraceChannel ? PropertySet->CustomTraceChannel : TEnumAsByte<ECollisionChannel>(ECC_WorldStatic);
+		const TEnumAsByte<ECollisionChannel> ChannelToTrace = TEnumAsByte<ECollisionChannel>(ECC_WorldStatic);
 		// Do something with the property set
 		FHitResult HitResult;
 		if (GetWorld()->LineTraceSingleByChannel(HitResult, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * 10000.0f, ChannelToTrace))
@@ -551,28 +423,7 @@ void UIvyCreator_PCG::HighlightActors(FInputDeviceRay ClickPos, const FScriptabl
 				return;
 			}
 			
-			if (PropertySet->Filter.Num() > 0)
-			{
-				for (auto Item : PropertySet->Filter)
-				{
-					if (PropertySet->bExcludeFilter)
-					{
-						if (HitResult.GetActor()->IsA(Item)) {continue;}
-
-						HighlightSelectedActor(Modifiers, bShouldEditSelection, HitResult);
-					}
-					else
-					{
-						if (!HitResult.GetActor()->IsA(Item)) {continue;}
-
-						HighlightSelectedActor(Modifiers, bShouldEditSelection, HitResult);
-					}
-				}
-			}
-			else
-			{
-				HighlightSelectedActor(Modifiers, bShouldEditSelection, HitResult);
-			}
+			HighlightSelectedActor(Modifiers, bShouldEditSelection, HitResult);
 		}
 	}
 	
@@ -582,22 +433,4 @@ UIvyCreator_PCG_PropertySet::UIvyCreator_PCG_PropertySet()
 {
 }
 
-UHoudiniPublicAPIAssetWrapper* UIvyCreator_PCG::SpawnHDAInstance()
-{
-	UHoudiniPublicAPIAssetWrapper* returnObj = nullptr;
-	
-	if (PropertySet && GetHandyManAPI())
-	{
-		returnObj = GetHandyManAPI()->GetMutableHoudiniAPI()->InstantiateAsset
-		(
-				GetHandyManAPI()->GetHoudiniDigitalAsset(EHandyManToolName::IvyTool),
-				FTransform::Identity,
-				nullptr,
-				nullptr,
-				false,
-				false, PropertySet->AssetSaveLocation.FilePath, PropertySet->BakeType, !PropertySet->bKeepProceduralAssets
-		);
-	}
-	
-	return returnObj;
-}
+#undef LOCTEXT_NAMESPACE

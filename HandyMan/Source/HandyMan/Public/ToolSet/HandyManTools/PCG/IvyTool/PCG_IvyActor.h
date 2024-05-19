@@ -41,11 +41,20 @@ public:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
 
-#if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void SetDisplayMesh(TSoftObjectPtr<UStaticMesh> Mesh) {MeshToGiveVines = Mesh;};
+
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void SetDisplayMeshTransform(const FTransform& NewTransform) {DisplayMesh->SetWorldTransform(NewTransform);};
+	
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void SetVineThickness(const float Thickness);
+	
+
+
 	UFUNCTION(meta=(CallInEditor="true"))
 	void GenerateVines(const FPCGDataCollection& Data);
-#endif
-	
+
 
 protected:
 	// Called when the game starts or when spawned

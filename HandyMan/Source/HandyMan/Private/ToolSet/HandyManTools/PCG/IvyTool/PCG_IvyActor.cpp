@@ -46,7 +46,7 @@ void APCG_IvyActor::PostInitializeComponents()
 	Super::PostInitializeComponents();
 }
 
-#if WITH_EDITOR
+
   void APCG_IvyActor::GenerateVines(const FPCGDataCollection& Data)
 {
 
@@ -65,6 +65,7 @@ void APCG_IvyActor::PostInitializeComponents()
 			
 			FVector StartPos, StartTangent, EndPos, EndTangent;
 			Item->GetLocationAndTangentAtSplinePoint(i, StartPos, StartTangent, ESplineCoordinateSpace::World);
+			// TODO: This causes the tip of the vine to curl back on itself so I need the create a method to extend it out a little bit
 			Item->GetLocationAndTangentAtSplinePoint(Components.IsValidIndex(i + 1) ? i + 1 : i, EndPos, EndTangent, ESplineCoordinateSpace::World);
 			SplinePoints.Add(FTempSplinePoint(StartPos, StartTangent, EndPos, EndTangent));
 		}
@@ -105,7 +106,16 @@ void APCG_IvyActor::PostInitializeComponents()
 	} 
 
 }
-#endif
+
+
+void APCG_IvyActor::SetVineThickness(const float Thickness)
+{
+	for (int i = 0; i < Vines.Num(); i++)
+	{
+		Vines[i]->SetStartScale(FVector2D(Thickness, Thickness));
+		Vines[i]->SetEndScale(FVector2D(Thickness, Thickness));
+	}
+}
 
 
 // Called when the game starts or when spawned

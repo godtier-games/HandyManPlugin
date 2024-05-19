@@ -109,7 +109,7 @@ struct FObjectSelection
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UObject* Selected;
+	AActor* Selected;
 
 	FObjectSelection()
 	{
@@ -118,14 +118,29 @@ struct FObjectSelection
 
 	FObjectSelection(UObject* InObject)
 	{
-		Selected = InObject;
+		Selected = Cast<AActor>(InObject);
 	};
 
-	FObjectSelection(AActor* InObjects)
+	FObjectSelection(AActor* InObject)
 	{
-		Selected = Cast<UObject>(InObjects);
+		Selected = InObject;
 	};
 
 	
 	
 };
+
+USTRUCT(BlueprintType)
+struct FHandyManDynamicMeshData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Dynamic Mesh Data")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Dynamic Mesh Data")
+	float Weight = 1.0f;
+	
+	
+};
+
