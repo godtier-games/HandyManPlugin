@@ -57,31 +57,31 @@ enum class EDrawSplineUpVectorMode_HandyMan : uint8
 
 
 USTRUCT(BlueprintType)
-struct FObjectSelection
+struct FObjectSelections
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
 	TArray<UObject*> Selected;
 
-	FObjectSelection()
+	FObjectSelections()
 	{
 		Selected.Empty();
 	}
 
-	FObjectSelection(UObject* InObject)
+	FObjectSelections(UObject* InObject)
 	{
 		Selected.Empty();
 		Selected.Add(InObject);
 	};
 
-	FObjectSelection(const TArray<UObject*>& InObjects)
+	FObjectSelections(const TArray<UObject*>& InObjects)
 	{
 		Selected.Empty();
 		Selected = InObjects;
 	};
 
-	FObjectSelection(const TArray<AActor*>& InObjects)
+	FObjectSelections(const TArray<AActor*>& InObjects)
 	{
 		Selected.Empty();
 		for (auto Item : InObjects)
@@ -90,13 +90,40 @@ struct FObjectSelection
 		}
 	};
 
-	FObjectSelection(const TArray<AStaticMeshActor*>& InObjects)
+	FObjectSelections(const TArray<AStaticMeshActor*>& InObjects)
 	{
 		Selected.Empty();
 		for (auto Item : InObjects)
 		{
 			Selected.Add(Cast<UObject>(Item));
 		}
+	};
+
+	
+	
+};
+
+USTRUCT(BlueprintType)
+struct FObjectSelection
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	UObject* Selected;
+
+	FObjectSelection()
+	{
+		Selected = nullptr;
+	}
+
+	FObjectSelection(UObject* InObject)
+	{
+		Selected = InObject;
+	};
+
+	FObjectSelection(AActor* InObjects)
+	{
+		Selected = Cast<UObject>(InObjects);
 	};
 
 	

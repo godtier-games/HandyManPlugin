@@ -169,7 +169,7 @@ void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Mo
 				else
 				{
 					CurrentInstance = SpawnHDAInstance();
-					SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+					SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 					GEditor->SelectActor(HitResult.GetActor(), true, false);
 				}
 			}
@@ -205,7 +205,7 @@ void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Mo
 					{
 						SelectedActors[CurrentInstance].Selected.Remove(HitResult.GetActor());
 						CurrentInstance = SpawnHDAInstance();
-						SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+						SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 					}
 					
 				}
@@ -234,7 +234,7 @@ void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Mo
 						
 							Item.Value.Selected.Remove(HitResult.GetActor());
 							CurrentInstance = SpawnHDAInstance();
-							SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+							SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 							
 						}
 
@@ -301,7 +301,7 @@ void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Mo
 				if (!bHasSolvedSelection)
 				{
 					CurrentInstance = SpawnHDAInstance();
-					SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+					SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 					GEditor->SelectActor(HitResult.GetActor(), true, false);
 				}
 				
@@ -311,7 +311,7 @@ void UIvyCreator::HighlightSelectedActor(const FScriptableToolModifierStates& Mo
 		else
 		{
 			CurrentInstance = SpawnHDAInstance();
-			SelectedActors.Add(CurrentInstance, FObjectSelection(HitResult.GetActor()));
+			SelectedActors.Add(CurrentInstance, FObjectSelections(HitResult.GetActor()));
 			GEditor->SelectActor(HitResult.GetActor(), true, false);
 		}
 	}

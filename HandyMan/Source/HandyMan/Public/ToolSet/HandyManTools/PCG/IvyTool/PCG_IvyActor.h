@@ -7,6 +7,26 @@
 #include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_ActorBase.h"
 #include "PCG_IvyActor.generated.h"
 
+USTRUCT()
+struct FTempSplinePoint
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FVector StartLocation;
+
+	UPROPERTY()
+	FVector StartTangent;
+
+	UPROPERTY()
+	FVector EndLocation;
+
+	UPROPERTY()
+	FVector EndTangent;
+
+	
+};
+
 class UPCGComponent;
 
 UCLASS()

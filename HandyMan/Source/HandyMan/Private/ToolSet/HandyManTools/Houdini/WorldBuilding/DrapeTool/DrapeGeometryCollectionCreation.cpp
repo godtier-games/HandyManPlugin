@@ -367,7 +367,7 @@ void UDrapeGeometryCollectionCreation::HighlightSelectedActor(const FHitResult& 
 			}
 			else
 			{
-				GeometryCollection.Add(EDrapeToolStage::Collision, FObjectSelection(HitResult.GetActor()));
+				GeometryCollection.Add(EDrapeToolStage::Collision, FObjectSelections(HitResult.GetActor()));
 				GEditor->SelectActor(HitResult.GetActor(), true, false);
 				bHasSolvedSelection = true;
 			}

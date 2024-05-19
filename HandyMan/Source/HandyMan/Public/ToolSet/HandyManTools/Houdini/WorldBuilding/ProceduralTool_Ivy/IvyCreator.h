@@ -48,7 +48,7 @@ private:
 	class UIvyCreator_PropertySet* PropertySet;
 
 	UPROPERTY()
-	TMap<UHoudiniPublicAPIAssetWrapper*, FObjectSelection> SelectedActors;
+	TMap<UHoudiniPublicAPIAssetWrapper*, FObjectSelections> SelectedActors;
 
 	void HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection = false);
 	void HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult);

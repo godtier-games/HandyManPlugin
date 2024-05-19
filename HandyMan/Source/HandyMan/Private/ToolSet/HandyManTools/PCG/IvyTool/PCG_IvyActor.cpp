@@ -49,37 +49,60 @@ void APCG_IvyActor::PostInitializeComponents()
 #if WITH_EDITOR
   void APCG_IvyActor::GenerateVines(const FPCGDataCollection& Data)
 {
-	for (auto& Item : Vines)
-	{
-		Item->DestroyComponent();
-	}
-
-	Vines.Empty();
 
 	TArray<USplineComponent*> Components ;
 	GetComponents(USplineComponent::StaticClass(), Components);
 
+	TArray<FTempSplinePoint> SplinePoints;
+
+	int32 NumberOfSplineMeshesNeeded = 0;
+
 	for (auto Item : Components)
 	{
-		
-		
 		for (int i = 0; i < Item->GetNumberOfSplinePoints(); i++)
 		{
-			auto NewVine = NewObject<USplineMeshComponent>(this);
-			NewVine->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-			NewVine->SetMobility(EComponentMobility::Movable);
-			NewVine->SetStaticMesh(VineMesh.LoadSynchronous());
-			NewVine->SetCollisionProfileName("NoCollision");
+			NumberOfSplineMeshesNeeded++;
+			
 			FVector StartPos, StartTangent, EndPos, EndTangent;
 			Item->GetLocationAndTangentAtSplinePoint(i, StartPos, StartTangent, ESplineCoordinateSpace::World);
 			Item->GetLocationAndTangentAtSplinePoint(Components.IsValidIndex(i + 1) ? i + 1 : i, EndPos, EndTangent, ESplineCoordinateSpace::World);
-			NewVine->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent);
-			
-			NewVine->RegisterComponent();
-			Vines.Add(NewVine);
+			SplinePoints.Add(FTempSplinePoint(StartPos, StartTangent, EndPos, EndTangent));
 		}
-		
 	}
+
+
+	if (NumberOfSplineMeshesNeeded != Vines.Num())
+	{
+		// Check if we are over or under
+		if (NumberOfSplineMeshesNeeded > Vines.Num())
+		{
+			// We need to add more
+			for (int i = Vines.Num(); i < NumberOfSplineMeshesNeeded; i++)
+			{
+				auto NewVine = NewObject<USplineMeshComponent>(this);
+				NewVine->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+				NewVine->SetMobility(EComponentMobility::Movable);
+				NewVine->SetStaticMesh(VineMesh.LoadSynchronous());
+				NewVine->SetCollisionProfileName("NoCollision");
+				Vines.Add(NewVine);
+			}
+		}
+		else
+		{
+			// We need to remove some
+			for (int i = Vines.Num() - 1; i >= NumberOfSplineMeshesNeeded; i--)
+			{
+				Vines[i]->DestroyComponent();
+				Vines.RemoveAt(i);
+			}
+		}
+	}
+
+	for (int i = 0; i < SplinePoints.Num(); i++)
+	{
+		Vines[i]->SetStartAndEnd(SplinePoints[i].StartLocation, SplinePoints[i].StartTangent, SplinePoints[i].EndLocation, SplinePoints[i].EndTangent);
+		Vines[i]->RegisterComponent();
+	} 
 
 }
 #endif

@@ -97,7 +97,7 @@ private:
 	class UHoudiniPublicAPIAssetWrapper* CurrentInstance;
 
 	UPROPERTY()
-	TMap<EDrapeToolStage_SingleClick, FObjectSelection> SelectedActors;
+	TMap<EDrapeToolStage_SingleClick, FObjectSelections> SelectedActors;
 };
 
 

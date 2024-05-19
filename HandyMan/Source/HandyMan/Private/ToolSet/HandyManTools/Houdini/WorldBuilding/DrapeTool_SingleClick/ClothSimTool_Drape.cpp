@@ -103,7 +103,7 @@ void UClothSimTool_Drape::StartWatchingProperties()
 	Settings->WatchProperty(Settings->ClothGeometry, [&](AStaticMeshActor*)
 	{
 		GEditor->GetSelectedActors()->DeselectAll();
-		SelectedActors.Add(EDrapeToolStage_SingleClick::Drape, FObjectSelection(Settings->ClothGeometry));
+		SelectedActors.Add(EDrapeToolStage_SingleClick::Drape, FObjectSelections(Settings->ClothGeometry));
 		for (auto Item : SelectedActors)
 		{
 			for (auto ObjectItem : Item.Value.Selected)
@@ -117,7 +117,7 @@ void UClothSimTool_Drape::StartWatchingProperties()
 	Settings->WatchProperty(Settings->CollisionGeometry, [&](TArray<AStaticMeshActor*>)
 	{
 		GEditor->GetSelectedActors()->DeselectAll();
-		SelectedActors.Add(EDrapeToolStage_SingleClick::Collision, FObjectSelection(Settings->CollisionGeometry));
+		SelectedActors.Add(EDrapeToolStage_SingleClick::Collision, FObjectSelections(Settings->CollisionGeometry));
 		for (auto Item : SelectedActors)
 		{
 			for (auto ObjectItem : Item.Value.Selected)
@@ -131,7 +131,7 @@ void UClothSimTool_Drape::StartWatchingProperties()
 	Settings->WatchProperty(Settings->PinGeometry, [&](TArray<AStaticMeshActor*>)
 	{
 		GEditor->GetSelectedActors()->DeselectAll();
-		SelectedActors.Add(EDrapeToolStage_SingleClick::Pin, FObjectSelection(Settings->PinGeometry));
+		SelectedActors.Add(EDrapeToolStage_SingleClick::Pin, FObjectSelections(Settings->PinGeometry));
 		for (auto Item : SelectedActors)
 		{
 			for (auto ObjectItem : Item.Value.Selected)

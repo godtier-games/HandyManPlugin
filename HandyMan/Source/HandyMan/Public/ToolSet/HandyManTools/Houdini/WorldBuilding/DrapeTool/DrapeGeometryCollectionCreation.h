@@ -368,7 +368,7 @@ private:
 	int32 CurrentCollectionIndex = 0;
 
 	UPROPERTY()
-	TMap<EDrapeToolStage, FObjectSelection> GeometryCollection;
+	TMap<EDrapeToolStage, FObjectSelections> GeometryCollection;
 
 	UPROPERTY()
 	UHoudiniPublicAPIAssetWrapper* HoudiniAssetInstance;
