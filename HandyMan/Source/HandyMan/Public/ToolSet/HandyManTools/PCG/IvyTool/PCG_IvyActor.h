@@ -13,16 +13,16 @@ struct FTempSplinePoint
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FVector StartLocation;
+	FVector StartLocation = FVector::Zero();
 
 	UPROPERTY()
-	FVector StartTangent;
+	FVector StartTangent = FVector::Zero();
 
 	UPROPERTY()
-	FVector EndLocation;
+	FVector EndLocation = FVector::Zero();
 
 	UPROPERTY()
-	FVector EndTangent;
+	FVector EndTangent = FVector::Zero();
 
 	
 };
