@@ -3,11 +3,13 @@
 
 #include "ToolSet/HandyManTools/PCG/IvyTool/IvyCreator_PCG.h"
 
+#include "HandyManSettings.h"
 #include "PCGComponent.h"
 #include "PCGGraph.h"
 #include "Selection.h"
 #include "ActorPartition/PartitionActor.h"
 #include "Helpers/PCGGraphParametersHelpers.h"
+#include "Subsystems/EditorActorSubsystem.h"
 #include "ToolSet/Core/HM_IvyToolMeshData.h"
 #include "ToolSet/HandyManTools/PCG/IvyTool/PCG_IvyActor.h"
 
@@ -37,7 +39,44 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
+				IvyActor->SetVineMesh(PropertySet->MeshData->VineMesh);
 				UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
+			}
+		}
+	});
+	PropertySet->WatchProperty(PropertySet->bDebugMeshPoints, [this](bool)
+	{
+		for (auto Item : SelectedActors)
+		{
+			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
+			{
+				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
+				UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalDebug"), PropertySet->bDebugMeshPoints);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+			}
+		}
+	});
+	PropertySet->WatchProperty(PropertySet->bVoxelizeMesh, [this](bool)
+	{
+		for (auto Item : SelectedActors)
+		{
+			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
+			{
+				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
+				UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelizeMesh"), PropertySet->bVoxelizeMesh);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+			}
+		}
+	});
+	PropertySet->WatchProperty(PropertySet->VoxelSize, [this](float)
+	{
+		for (auto Item : SelectedActors)
+		{
+			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
+			{
+				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
+				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelSize"), PropertySet->VoxelSize);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
@@ -49,6 +88,7 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSeed"), PropertySet->RandomSeed);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
@@ -60,6 +100,7 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineCount"), PropertySet->SplineCount);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
@@ -70,7 +111,8 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartingPointsHeightRatio"), PropertySet->StartingPointsHeightRatio);
+				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartDistance"), PropertySet->StartingPointsHeightRatio);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
@@ -81,7 +123,8 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalPathComplexity"), PropertySet->PathComplexity);
+				UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineComplexity"), PropertySet->PathComplexity);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
@@ -92,7 +135,7 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVineThickness"), PropertySet->VineThickness);
+				IvyActor->SetVineThickness(PropertySet->VineThickness);
 			}
 		}
 	});
@@ -103,30 +146,21 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshOffsetDistance"), PropertySet->MeshOffsetDistance);
+				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalOffsetDistance"), FVector(PropertySet->MeshOffsetDistance));
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
 			}
 		}
 	});
-	PropertySet->WatchProperty(PropertySet->LeafDensity, [this](float)
+	PropertySet->WatchProperty(PropertySet->LeafSpawnSpacing, [this](float)
 	{
 		for (auto Item : SelectedActors)
 		{
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafDensity"), PropertySet->LeafDensity);
-			}
-		}
-	});
-	PropertySet->WatchProperty(PropertySet->LeafScaleRange, [this](FVector2D)
-	{
-		for (auto Item : SelectedActors)
-		{
-			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
-			{
-				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMin"), FVector(PropertySet->LeafScaleRange.X));
-				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMax"), FVector(PropertySet->LeafScaleRange.Y));
+				UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafDensity"), PropertySet->LeafSpawnSpacing);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -137,8 +171,10 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMin"), FVector(PropertySet->LeafScaleRange.X));
-				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMax"), FVector(PropertySet->LeafScaleRange.Y));
+				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinScale"), FVector(PropertySet->LeafScaleRange.X));
+				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxScale"), FVector(PropertySet->LeafScaleRange.Y));
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -151,6 +187,8 @@ void UIvyCreator_PCG::Setup()
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MinRandomRotation : FRotator());
 				UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MaxRandomRotation : FRotator());
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -162,6 +200,8 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinRotation"), PropertySet->MinRandomRotation);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -173,6 +213,8 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxRotation"), PropertySet->MaxRandomRotation);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -185,6 +227,8 @@ void UIvyCreator_PCG::Setup()
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MinRandomOffset : FVector::Zero());
 				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MaxRandomOffset : FVector::Zero());
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -196,6 +240,8 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->MinRandomOffset);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -207,6 +253,8 @@ void UIvyCreator_PCG::Setup()
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
 				UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->MaxRandomOffset);
+				IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+
 			}
 		}
 	});
@@ -334,7 +382,15 @@ void UIvyCreator_PCG::HighlightSelectedActor(const FScriptableToolModifierStates
 		{
 			GEditor->SelectActor(HitResult.GetActor(), true, false);
 			FObjectSelection NewSelection;
-			NewSelection.Selected = SpawnNewIvyWorldActor(HitActor);
+			AActor* NewIvyActor = SpawnNewIvyWorldActor(HitActor);
+
+			check(NewIvyActor)
+			
+
+			NewSelection.Selected = NewIvyActor;
+			
+			
+			
 
 			SelectedActors.Add(HitResult.GetActor(), NewSelection);
 		
@@ -350,25 +406,28 @@ void UIvyCreator_PCG::HighlightSelectedActor(const FScriptableToolModifierStates
 	
 }
 
+
 void UIvyCreator_PCG::HandleAccept()
 {
 	// Destroy all of the static mesh actors that We've added ivy actors to.
+	UEditorActorSubsystem* ActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 	for (auto Item : SelectedActors)
 	{
 		if (Item.Value.Selected)
 		{
-			Item.Key->Destroy();	
+			ActorSubsystem->DestroyActor(Item.Key);	
 		}
 	}
 }
 
 void UIvyCreator_PCG::HandleCancel()
 {
+	UEditorActorSubsystem* ActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 	for (auto Item : SelectedActors)
 	{
 		if (Cast<AActor>(Item.Value.Selected))
 		{
-			Cast<AActor>(Item.Value.Selected)->Destroy();
+			ActorSubsystem->DestroyActor(Cast<AActor>(Item.Value.Selected));
 		}
 	}
 
@@ -385,27 +444,52 @@ AActor* UIvyCreator_PCG::SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn)
 		return nullptr;
 	}
 
-	APCG_IvyActor* IvyActor = GetWorld()->SpawnActor<APCG_IvyActor>(APCG_IvyActor::StaticClass(), StaticMeshActor->GetActorLocation(), StaticMeshActor->GetActorRotation());
-	IvyActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
-	IvyActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));
-	IvyActor->SetVineThickness(PropertySet->VineThickness);
+	if (GetHandyManAPI())
+	{
+		if (!GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::IvyTool))
+		{
+			return nullptr;
+			
+		}
+		APCG_IvyActor* IvyActor = GetWorld()->SpawnActorDeferred<APCG_IvyActor>(GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::IvyTool), FTransform::Identity);
+		IvyActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
+		IvyActor->SetVineMesh(PropertySet->MeshData->VineMesh);
+		IvyActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));
+		IvyActor->SetVineThickness(PropertySet->VineThickness);
+		IvyActor->TransferMeshMaterials(StaticMeshActor->GetStaticMeshComponent()->GetMaterials());
+		
+
+		const FVector& Location = StaticMeshActor->GetActorLocation();
+		const FRotator& Rotation = StaticMeshActor->GetActorRotation();
+		const FVector& Scale = FVector(1, 1, 1);
+		IvyActor->FinishSpawning(FTransform(Rotation, Location, Scale));
+
+		if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {return nullptr;}
+		UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelizeMesh"), PropertySet->bVoxelizeMesh);
+		UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalDebug"), PropertySet->bVoxelizeMesh);
+		UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelSize"), PropertySet->VoxelSize);
+		UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSeed"), PropertySet->RandomSeed);
+		UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineCount"), PropertySet->SplineCount);
+		UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartDistance"), PropertySet->StartingPointsHeightRatio);
+		UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineComplexity"), PropertySet->PathComplexity);
+		UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalOffsetDistance"), FVector(0, 0, PropertySet->MeshOffsetDistance));
+		UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafDensity"), PropertySet->LeafSpawnSpacing);
+		UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinScale"), FVector(PropertySet->LeafScaleRange.X));
+		UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxScale"), FVector(PropertySet->LeafScaleRange.Y));
+		UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MinRandomRotation : FRotator());
+		UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MaxRandomRotation : FRotator());
+		UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MinRandomOffset : FVector::Zero());
+		UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MaxRandomOffset : FVector::Zero());
+		UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
+		IvyActor->RerunConstructionScripts();
+		IvyActor->GetPCGComponent()->GenerateLocal(true);
+		IvyActor->GetPCGComponent()->NotifyPropertiesChangedFromBlueprint();
+		return IvyActor;
+	}
 	
-	if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {return IvyActor;}
-	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSeed"), PropertySet->RandomSeed);
-	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineCount"), PropertySet->SplineCount);
-	UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalStartDistance"), PropertySet->StartingPointsHeightRatio);
-	UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalPathComplexity"), PropertySet->PathComplexity);
-	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalOffsetDistance"), FVector(0, 0, PropertySet->MeshOffsetDistance));
-	UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafDensity"), PropertySet->LeafDensity);
-	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMin"), FVector(PropertySet->LeafScaleRange.X));
-	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalLeafScaleMax"), FVector(PropertySet->LeafScaleRange.Y));
-	UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MinRandomRotation : FRotator());
-	UPCGGraphParametersHelpers::SetRotatorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxRotation"), PropertySet->bUseRandomLeafRotation ? PropertySet->MaxRandomRotation : FRotator());
-	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMinOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MinRandomOffset : FVector::Zero());
-	UPCGGraphParametersHelpers::SetVectorParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMaxOffset"), PropertySet->bUseRandomLeafOffset ? PropertySet->MaxRandomOffset : FVector::Zero());
-	UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
 	
-	return IvyActor;
+	
+	return nullptr;
 	
 }
 

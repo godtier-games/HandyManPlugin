@@ -42,13 +42,19 @@ public:
 	virtual void PostInitializeComponents() override;
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetDisplayMesh(TSoftObjectPtr<UStaticMesh> Mesh) {MeshToGiveVines = Mesh;};
+	void SetDisplayMesh(TSoftObjectPtr<UStaticMesh> Mesh) {MeshToGiveVines = Mesh;}
+
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void SetVineMesh(TSoftObjectPtr<UStaticMesh> Mesh) {VineMesh = Mesh;};
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void SetDisplayMeshTransform(const FTransform& NewTransform) {DisplayMesh->SetWorldTransform(NewTransform);};
 	
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void SetVineThickness(const float Thickness);
+
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void TransferMeshMaterials(TArray<UMaterialInterface*> Materials);
 	
 
 
@@ -91,4 +97,6 @@ private:
 
 	UPROPERTY()
 	TArray<class USplineMeshComponent*> Vines;
+
+	bool bHasGeneratedFromVineUpdate = false;
 };

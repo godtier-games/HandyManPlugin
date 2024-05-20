@@ -32,12 +32,11 @@ void APCG_IvyActor::OnConstruction(const FTransform& Transform)
 		if (!MeshToGiveVines.ToSoftObjectPath().IsNull())
 		{
 			DisplayMesh->SetStaticMesh(MeshToGiveVines.LoadSynchronous());
+			UPCGGraphParametersHelpers::SetSoftObjectParameter(PCG->GetGraphInstance(), FName("InputMesh"), MeshToGiveVines);
+
 		}
 
-		UPCGGraphParametersHelpers::SetSoftObjectParameter(PCG->GetGraphInstance(), FName("InputMesh"), MeshToGiveVines);
-		UPCGGraphParametersHelpers::SetSoftObjectParameter(PCG->GetGraphInstance(), FName("VineMesh"), VineMesh);
-
-		PCG->NotifyPropertiesChangedFromBlueprint();
+		
 	}
 }
 
@@ -59,7 +58,7 @@ void APCG_IvyActor::PostInitializeComponents()
 
 	for (auto Item : Components)
 	{
-		for (int i = 0; i < Item->GetNumberOfSplinePoints(); i++)
+		for (int i = 0; i < Item->GetNumberOfSplinePoints() - 1; i++)
 		{
 			NumberOfSplineMeshesNeeded++;
 			
@@ -115,6 +114,18 @@ void APCG_IvyActor::SetVineThickness(const float Thickness)
 		Vines[i]->SetStartScale(FVector2D(Thickness, Thickness));
 		Vines[i]->SetEndScale(FVector2D(Thickness, Thickness));
 	}
+}
+
+void APCG_IvyActor::TransferMeshMaterials(TArray<UMaterialInterface*> Materials)
+{
+	if (DisplayMesh)
+	{
+		for (int i = 0; i < Materials.Num(); i++)
+		{
+			DisplayMesh->SetMaterial(i, Materials[i]);
+		}
+	}
+	
 }
 
 
