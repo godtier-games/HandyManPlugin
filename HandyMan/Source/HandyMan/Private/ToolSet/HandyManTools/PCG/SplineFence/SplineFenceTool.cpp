@@ -275,9 +275,12 @@ void USplineTool::SpawnActorInstance()
 	if (GetHandyManAPI())
 	{
 		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.ObjectFlags = RF_Transient;
+		SpawnInfo.ObjectFlags = RF_Transactional;
 		SpawnInfo.Name = FName("SplineActor");
-		if (auto SpawnedActor =  TargetWorld->SpawnActor<APCG_ActorBase>(GetHandyManAPI()->GetPCGActorClass(ToolIdentifier)))
+
+		auto World = GetTargetWorld();
+		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(ToolIdentifier);
+		if (auto SpawnedActor =  World->SpawnActor<APCG_ActorBase>(ClassToSpawn))
 		{
 			SpawnedActor->SetActorTransform(FTransform::Identity);
 			TargetSplineActor = Cast<APCG_SplineActor>(SpawnedActor);

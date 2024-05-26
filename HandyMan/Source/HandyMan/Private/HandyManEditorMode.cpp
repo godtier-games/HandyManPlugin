@@ -2,6 +2,8 @@
 
 #include "HandyManEditorMode.h"
 
+#include "AssetEditorModeManager.h"
+#include "EditorAssetLibrary.h"
 #include "EditorModelingObjectsCreationAPI.h"
 #include "HandyManEditorModeToolkit.h"
 #include "EdModeInteractiveToolsContext.h"
@@ -10,6 +12,7 @@
 
 #include "EdModeInteractiveToolsContext.h"
 #include "HandyManAssetUtils.h"
+#include "HandyManSettings.h"
 #include "Modules/ModuleManager.h"
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
@@ -28,10 +31,13 @@
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
 #include "ModelingModeAssetUtils.h"
 #include "ToolContextInterfaces.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/BrushComponent.h"
 #include "Selection/StaticMeshSelector.h"
 #include "Selection/VolumeSelector.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
+#include "ToolSet/Core/HoudiniAssetWrapper.h"
+#include "ToolSet/Core/PCGAssetWrapper.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -157,6 +163,16 @@ void UHandyManEditorMode::Enter()
 		return;
 	}
 
+	UEditorAssetLibrary::LoadAsset(HandyManAPI->GetHandyManSettings()->GetPCGActorLibraryPath());
+	UEditorAssetLibrary::LoadAsset( HandyManAPI->GetHandyManSettings()->GetDigitalAssetLibraryPath());
+	
+	/*if (auto AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		AssetEditor->OpenEditorsForAssets(TArray<FString>{HandyManAPI->GetHandyManSettings()->GetPCGActorLibraryPath(), HandyManAPI->GetHandyManSettings()->GetDigitalAssetLibraryPath()});
+		AssetEditor->CloseAllEditorsForAsset(HandyManAPI->GetHandyManSettings()->GetPCGActorLibrary());
+		AssetEditor->CloseAllEditorsForAsset(HandyManAPI->GetHandyManSettings()->GetDigitalAssetLibrary());
+		
+	}*/
 	//HandyManAPI->InitializeHoudiniApi();
 
 	// listen to post-build

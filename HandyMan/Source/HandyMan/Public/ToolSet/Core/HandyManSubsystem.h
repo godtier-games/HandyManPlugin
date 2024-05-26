@@ -6,6 +6,7 @@
 #include "EditorSubsystem.h"
 #include "HandyManSubsystem.generated.h"
 
+class UHandyManSettings;
 enum class EHandyManToolName;
 DECLARE_MULTICAST_DELEGATE_OneParam(FHandyManMeshCreatedSignature, UObject* CreatedObject);
 
@@ -29,6 +30,8 @@ public:
 	/** Returns the Houdini Public API instance. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Houdini Engine"), Category = "Houdini Engine")
 	const UHoudiniPublicAPI* GetHoudiniAPI() const {return HoudiniPublicAPI;}
+
+	UHandyManSettings* GetHandyManSettings() const;
 	
 	UHoudiniPublicAPI* GetMutableHoudiniAPI() const {return HoudiniPublicAPI;}
 

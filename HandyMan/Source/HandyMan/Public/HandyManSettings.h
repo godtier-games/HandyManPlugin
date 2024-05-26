@@ -92,6 +92,9 @@ public:
 	UDataTable* GetBuildingModuleDataTable();
 	UDataTable* GetBuildingMeshesDataTable();
 
+	FString GetPCGActorLibraryPath() const { return PCGActorLibrary.ToString(); }
+	FString GetDigitalAssetLibraryPath() const { return DigitalAssetLibrary.ToString(); }
+
 protected:
 
 	// Global HDA Library asset to use.
@@ -107,7 +110,9 @@ protected:
 
 	// Global HDA Library asset to use.
 	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
-	FSoftObjectPath PCGActorLibrary = FSoftObjectPath(TEXT("/HandyMan/Data/PCG_Library.PCG_Library"));
+	FSoftObjectPath PCGActorLibrary = FSoftObjectPath(TEXT("/Script/HandyMan.PCGAssetWrapper'/HandyMan/Data/PCG_Library.PCG_Library'"));
+
+	
 
 	/** List of Tool Names that should be blocked from showing dialog windows */
 	UPROPERTY(EditAnywhere, config, Category = "Pop Ups")

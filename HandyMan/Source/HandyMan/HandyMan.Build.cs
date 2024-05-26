@@ -115,7 +115,7 @@ public class HandyMan : ModuleRules
 				"PCGBiomeCore",
 				"PCGExternalDataInterop",
 				"PCGWaterInterop",
-				"PCGGeometryScriptInterop",
+				"PCGGeometryScriptInterop", "EditorScriptingUtilities",
 			}
 			);
 		

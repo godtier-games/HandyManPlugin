@@ -13,6 +13,11 @@ void UHandyManSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 }
 
+UHandyManSettings* UHandyManSubsystem::GetHandyManSettings() const
+{
+	return GetMutableDefault<UHandyManSettings>();
+}
+
 UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const
 {
 	if (const UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
@@ -38,7 +43,7 @@ TSubclassOf<AActor> UHandyManSubsystem::GetPCGActorClass(const EHandyManToolName
 		{
 			if (Library->ActorClasses.Contains(ToolName))
 			{
-				return Library->ActorClasses.Find(ToolName)->LoadSynchronous();
+				return *Library->ActorClasses.Find(ToolName);
 			}
 		}
 	}
