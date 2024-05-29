@@ -7,7 +7,11 @@
 #include "PCGGraph.h"
 #include "Components/SplineComponent.h"
 #include "Components/SplineMeshComponent.h"
+#include "GeometryScript/MeshAssetFunctions.h"
+#include "GeometryScript/MeshBasicEditFunctions.h"
+#include "GeometryScript/PolyPathFunctions.h"
 #include "Helpers/PCGGraphParametersHelpers.h"
+#include "ModelingUtilities/GodtierModelingUtilities.h"
 
 
 // Sets default values
@@ -26,17 +30,14 @@ APCG_IvyActor::APCG_IvyActor()
 void APCG_IvyActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-
+	
 	if (PCG && PCG->GetGraphInstance())
 	{
 		if (!MeshToGiveVines.ToSoftObjectPath().IsNull())
 		{
 			DisplayMesh->SetStaticMesh(MeshToGiveVines.LoadSynchronous());
 			UPCGGraphParametersHelpers::SetSoftObjectParameter(PCG->GetGraphInstance(), FName("InputMesh"), MeshToGiveVines);
-
 		}
-
-		
 	}
 }
 
@@ -48,72 +49,22 @@ void APCG_IvyActor::PostInitializeComponents()
 
   void APCG_IvyActor::GenerateVines(const FPCGDataCollection& Data)
 {
-
-	TArray<USplineComponent*> Components ;
-	GetComponents(USplineComponent::StaticClass(), Components);
-
-	TArray<FTempSplinePoint> SplinePoints;
-
-	int32 NumberOfSplineMeshesNeeded = 0;
-
-	for (auto Item : Components)
-	{
-		for (int i = 0; i < Item->GetNumberOfSplinePoints() - 1; i++)
-		{
-			NumberOfSplineMeshesNeeded++;
-			
-			FVector StartPos, StartTangent, EndPos, EndTangent;
-			Item->GetLocationAndTangentAtSplinePoint(i, StartPos, StartTangent, ESplineCoordinateSpace::World);
-			// TODO: This causes the tip of the vine to curl back on itself so I need the create a method to extend it out a little bit
-			Item->GetLocationAndTangentAtSplinePoint(Components.IsValidIndex(i + 1) ? i + 1 : i, EndPos, EndTangent, ESplineCoordinateSpace::World);
-			SplinePoints.Add(FTempSplinePoint(StartPos, StartTangent, EndPos, EndTangent));
-		}
-	}
-
-
-	if (NumberOfSplineMeshesNeeded != Vines.Num())
-	{
-		// Check if we are over or under
-		if (NumberOfSplineMeshesNeeded > Vines.Num())
-		{
-			// We need to add more
-			for (int i = Vines.Num(); i < NumberOfSplineMeshesNeeded; i++)
-			{
-				auto NewVine = NewObject<USplineMeshComponent>(this);
-				NewVine->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-				NewVine->SetMobility(EComponentMobility::Movable);
-				NewVine->SetStaticMesh(VineMesh.LoadSynchronous());
-				NewVine->SetCollisionProfileName("NoCollision");
-				Vines.Add(NewVine);
-			}
-		}
-		else
-		{
-			// We need to remove some
-			for (int i = Vines.Num() - 1; i >= NumberOfSplineMeshesNeeded; i--)
-			{
-				Vines[i]->DestroyComponent();
-				Vines.RemoveAt(i);
-			}
-		}
-	}
-
-	for (int i = 0; i < SplinePoints.Num(); i++)
-	{
-		Vines[i]->SetStartAndEnd(SplinePoints[i].StartLocation, SplinePoints[i].StartTangent, SplinePoints[i].EndLocation, SplinePoints[i].EndTangent);
-		Vines[i]->RegisterComponent();
-	} 
-
+	MarkForMeshRebuild(true);
 }
 
 
 void APCG_IvyActor::SetVineThickness(const float Thickness)
 {
-	for (int i = 0; i < Vines.Num(); i++)
+	VineThickness = Thickness;
+	if (PCG)
+	{
+		PCG->NotifyPropertiesChangedFromBlueprint();
+	}
+	/*for (int i = 0; i < Vines.Num(); i++)
 	{
 		Vines[i]->SetStartScale(FVector2D(Thickness, Thickness));
 		Vines[i]->SetEndScale(FVector2D(Thickness, Thickness));
-	}
+	}*/
 }
 
 void APCG_IvyActor::TransferMeshMaterials(TArray<UMaterialInterface*> Materials)
@@ -126,6 +77,37 @@ void APCG_IvyActor::TransferMeshMaterials(TArray<UMaterialInterface*> Materials)
 		}
 	}
 	
+}
+
+void APCG_IvyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
+{
+	TargetMesh->Reset();
+	UDynamicMesh* CombinedSplinesMesh = nullptr;
+	auto TempMesh = AllocateComputeMesh();
+	
+	TArray<USplineComponent*> Components ;
+	GetComponents(USplineComponent::StaticClass(), Components);
+
+	
+	FSweepOptions SweepOptions;
+	SweepOptions.TargetMesh = TempMesh;
+	SweepOptions.ShapeType = ESweepShapeType::Circle;
+	SweepOptions.ShapeRadius = VineThickness;
+	SweepOptions.ShapeSegments = 8;
+
+	for (auto Item : Components)
+	{
+		SweepOptions.Spline = Item;
+		CombinedSplinesMesh = UGodtierModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
+	}
+
+	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, CombinedSplinesMesh, FTransform::Identity);
+	if (!VineMaterial.ToString().IsEmpty())
+	{
+		DynamicMeshComponent->SetMaterial(0, VineMaterial.LoadSynchronous());
+	}
+	
+	ReleaseAllComputeMeshes();
 }
 
 

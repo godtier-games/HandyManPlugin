@@ -46,7 +46,6 @@ public class HandyMan : ModuleRules
 				"GameplayTags",
 				"GeometryCore",
 				"GeometryAlgorithms",
-				"GeometryScriptingCore",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"ScriptableToolsFramework",
@@ -63,7 +62,9 @@ public class HandyMan : ModuleRules
 				"HoudiniEngineEditor",
 				"HoudiniEngineRuntime",
 				"Landscape",
-				"MeshModelingTools"
+				"MeshModelingTools",
+				"GodtierGeometryScriptUtils",
+				"GeometryScriptingEditor"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -115,7 +116,11 @@ public class HandyMan : ModuleRules
 				"PCGBiomeCore",
 				"PCGExternalDataInterop",
 				"PCGWaterInterop",
-				"PCGGeometryScriptInterop", "EditorScriptingUtilities",
+				"PCGGeometryScriptInterop", 
+				"EditorScriptingUtilities", 
+				"GodtierGeometryScriptUtils",
+				"GeometryScriptingEditor",
+				"GeometryScriptingCore",
 			}
 			);
 		

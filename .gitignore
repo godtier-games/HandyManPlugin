@@ -49,6 +49,7 @@ SourceArt/**/*.tga
 HandyMan/Binaries/*
 HoudiniEngine/Binaries/*
 Plugins/*/Binaries/*
+GodtierGeometryScriptUtils/Binaries/*
 
 # Builds
 Build/*
@@ -72,6 +73,7 @@ Intermediate/*
 HandyMan/Intermediate/*
 HoudiniEngine/Intermediate/*
 Plugins/*/Intermediate/*
+GodtierGeometryScriptUtils/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*

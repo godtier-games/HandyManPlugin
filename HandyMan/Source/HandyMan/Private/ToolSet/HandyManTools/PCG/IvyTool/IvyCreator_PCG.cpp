@@ -39,7 +39,7 @@ void UIvyCreator_PCG::Setup()
 			if (APCG_IvyActor* IvyActor = Cast<APCG_IvyActor>(Item.Value.Selected))
 			{
 				if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {continue;}
-				IvyActor->SetVineMesh(PropertySet->MeshData->VineMesh);
+				IvyActor->SetVineMaterial(PropertySet->MeshData->VineMaterial);
 				UPCGGraphParametersHelpers::SetObjectParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalMeshData"), PropertySet->MeshData);
 			}
 		}
@@ -453,7 +453,7 @@ AActor* UIvyCreator_PCG::SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn)
 		}
 		APCG_IvyActor* IvyActor = GetWorld()->SpawnActorDeferred<APCG_IvyActor>(GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::IvyTool), FTransform::Identity);
 		IvyActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
-		IvyActor->SetVineMesh(PropertySet->MeshData->VineMesh);
+		IvyActor->SetVineMaterial(PropertySet->MeshData->VineMaterial);
 		IvyActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));
 		IvyActor->SetVineThickness(PropertySet->VineThickness);
 		IvyActor->TransferMeshMaterials(StaticMeshActor->GetStaticMeshComponent()->GetMaterials());
@@ -466,7 +466,7 @@ AActor* UIvyCreator_PCG::SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn)
 
 		if(!IvyActor->GetPCGComponent() || !IvyActor->GetPCGComponent()->GetGraphInstance()) {return nullptr;}
 		UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelizeMesh"), PropertySet->bVoxelizeMesh);
-		UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalDebug"), PropertySet->bVoxelizeMesh);
+		UPCGGraphParametersHelpers::SetBoolParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalDebug"), PropertySet->bDebugMeshPoints);
 		UPCGGraphParametersHelpers::SetFloatParameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalVoxelSize"), PropertySet->VoxelSize);
 		UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSeed"), PropertySet->RandomSeed);
 		UPCGGraphParametersHelpers::SetInt32Parameter(IvyActor->GetPCGComponent()->GetGraphInstance(), FName("GlobalSplineCount"), PropertySet->SplineCount);

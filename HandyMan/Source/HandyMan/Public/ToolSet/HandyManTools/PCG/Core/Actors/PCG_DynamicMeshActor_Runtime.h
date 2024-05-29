@@ -3,20 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PCGComponent.h"
-#include "GameFramework/Actor.h"
-#include "PCG_ActorBase.generated.h"
+#include "DynamicMeshActor.h"
+#include "PCG_DynamicMeshActor_Runtime.generated.h"
 
-
+class UPCGComponent;
 
 UCLASS()
-class HANDYMAN_API APCG_ActorBase : public AActor
+class HANDYMAN_API APCG_DynamicMeshActor_Runtime : public ADynamicMeshActor
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	APCG_ActorBase();
+	APCG_DynamicMeshActor_Runtime();
 
 protected:
 	// Called when the game starts or when spawned
@@ -28,5 +27,4 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "PCG")
 	virtual UPCGComponent* GetPCGComponent() const { return nullptr; }
-
 };

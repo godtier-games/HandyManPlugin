@@ -63,6 +63,7 @@ enum class EHandyManToolName
 	FenceTool_Smooth UMETA(DisplayName = "Smooth Fence Tool"),
 	FenceTool_Easy UMETA(DisplayName = "Easy Fence Tool"),
 	BuildingGenerator UMETA(DisplayName = "Building Generator Tool"),
+	ScatterGeometryTool UMETA(DisplayName = "Scatter Tool"),
 };
 
 

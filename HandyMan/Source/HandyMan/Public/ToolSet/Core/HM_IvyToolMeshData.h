@@ -17,7 +17,7 @@ class HANDYMAN_API UHM_IvyToolMeshData : public UPrimaryDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ivy Tool Mesh Data")
-	TSoftObjectPtr<UStaticMesh> VineMesh;
+	TSoftObjectPtr<UMaterialInterface> VineMaterial;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ivy Tool Mesh Data")
 	TArray<FHandyManDynamicMeshData> LeafMeshes;
