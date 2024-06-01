@@ -25,6 +25,12 @@ struct FSweepOptions
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sweep Options")
 	TObjectPtr<USplineComponent> Spline = nullptr;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sweep Options")
+	bool bResampleCurve = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sweep Options")
+	int32 SampleSize = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sweep Options")
 	bool bProjectPointsToSurface = false;

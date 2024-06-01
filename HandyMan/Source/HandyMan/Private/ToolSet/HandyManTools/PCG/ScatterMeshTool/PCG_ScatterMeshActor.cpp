@@ -13,6 +13,7 @@ APCG_ScatterMeshActor::APCG_ScatterMeshActor()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 	PCG = CreateDefaultSubobject<UPCGComponent>(TEXT("PCG"));
+	PCG->bIsComponentPartitioned = false;
 	DisplayMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DisplayMesh"));
 	DisplayMesh->SetupAttachment(RootComponent);
 	DisplayMesh->SetMobility(EComponentMobility::Movable);

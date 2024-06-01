@@ -100,6 +100,7 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	
 	TArray<FVector2D> PolylineVertices;
 	TArray<FTransform> SweepPath;
+	TArray<double> SweepFrameTimes;
 	
 	if (TargetMesh == nullptr)
 	{
@@ -163,10 +164,32 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 		return TargetMesh;
 	}
 
+	bool bShouldResample = false;
 	for (int i = 0; i < Spline->GetNumberOfSplinePoints(); i++)
 	{
-		SweepPath.Add(Spline->GetTransformAtSplinePoint(i, Space));
+		if (Spline->GetSplinePointType(i) == ESplinePointType::CurveCustomTangent || Spline->GetSplinePointType(i) == ESplinePointType::Curve || SweepOptions.bResampleCurve )
+		{
+			bShouldResample = true;
+			break;
+		}
 	}
+
+	if (bShouldResample)
+	{
+		FGeometryScriptSplineSamplingOptions SampleOptions;
+		SampleOptions.CoordinateSpace = Space;
+		SampleOptions.NumSamples = SweepOptions.SampleSize;
+		//SampleOptions.ErrorTolerance = 1.0f;
+		UGeometryScriptLibrary_PolyPathFunctions::SampleSplineToTransforms(Spline, SweepPath, SweepFrameTimes, SampleOptions, FTransform::Identity);
+	}
+	else
+	{
+		for (int i = 0; i < Spline->GetNumberOfSplinePoints(); i++)
+		{
+			SweepPath.Add(Spline->GetTransformAtSplinePoint(i, Space));
+		}
+	}
+
 
 	
 	if (SweepPath.Num() < 2)
