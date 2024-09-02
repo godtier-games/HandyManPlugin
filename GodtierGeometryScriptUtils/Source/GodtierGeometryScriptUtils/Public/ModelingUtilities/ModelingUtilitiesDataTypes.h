@@ -66,3 +66,25 @@ struct FSweepOptions
 	EGeometryScriptPrimitiveUVMode UVMode = EGeometryScriptPrimitiveUVMode::Uniform;
 	
 };
+
+USTRUCT(BlueprintType)
+struct FSimpleCollisionOptions
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	TObjectPtr<UDynamicMesh> TargetMesh = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	TObjectPtr<USplineComponent> Spline = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	double Height = 50.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	double Width = 50.0;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	double ErrorTolerance = 1.0;
+	
+};

@@ -362,12 +362,12 @@ AActor* UScatterGeometryTool::SpawnNewScatterWorldActor(const AActor* ActorToSpa
 
 	if (GetHandyManAPI())
 	{
-		if (!GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::ScatterGeometryTool))
+		if (!GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString())))
 		{
 			return nullptr;
 			
 		}
-		APCG_ScatterMeshActor* ScatterActor = GetWorld()->SpawnActorDeferred<APCG_ScatterMeshActor>(GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::ScatterGeometryTool), FTransform::Identity);
+		APCG_ScatterMeshActor* ScatterActor = GetWorld()->SpawnActorDeferred<APCG_ScatterMeshActor>(GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString())), FTransform::Identity);
 		ScatterActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
 		ScatterActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));
 		ScatterActor->TransferMeshMaterials(StaticMeshActor->GetStaticMeshComponent()->GetMaterials());

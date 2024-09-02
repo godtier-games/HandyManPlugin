@@ -16,6 +16,15 @@ class HANDYMAN_API UHandyManInteractiveTool : public UScriptableInteractiveTool
 	GENERATED_BODY()
 
 public:
+	
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	FText LastKnownName;
+#endif
+	
 
 	const UHandyManSubsystem* GetHandyManAPI_Safe() const {return HandyManAPI;}
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}

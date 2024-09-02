@@ -36,7 +36,6 @@
 #include "Selection/StaticMeshSelector.h"
 #include "Selection/VolumeSelector.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
-#include "ToolSet/Core/HoudiniAssetWrapper.h"
 #include "ToolSet/Core/PCGAssetWrapper.h"
 
 

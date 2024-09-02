@@ -4,8 +4,6 @@
 #include "ToolSet/Core/HandyManSubsystem.h"
 
 #include "HandyManSettings.h"
-#include "HoudiniPublicAPI.h"
-#include "ToolSet/Core/HoudiniAssetWrapper.h"
 #include "ToolSet/Core/PCGAssetWrapper.h"
 
 void UHandyManSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -18,7 +16,7 @@ UHandyManSettings* UHandyManSubsystem::GetHandyManSettings() const
 	return GetMutableDefault<UHandyManSettings>();
 }
 
-UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const
+/*UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const
 {
 	if (const UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
 	{
@@ -33,9 +31,9 @@ UHoudiniAsset* UHandyManSubsystem::GetHoudiniDigitalAsset(const EHandyManToolNam
 
 	return nullptr;
 	
-}
+}*/
 
-TSubclassOf<AActor> UHandyManSubsystem::GetPCGActorClass(const EHandyManToolName& ToolName) const
+TSubclassOf<AActor> UHandyManSubsystem::GetPCGActorClass(const FName& ToolName) const
 {
 	if (const UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>())
 	{
@@ -51,7 +49,7 @@ TSubclassOf<AActor> UHandyManSubsystem::GetPCGActorClass(const EHandyManToolName
 	return nullptr;
 }
 
-void UHandyManSubsystem::InitializeHoudiniApi()
+/*void UHandyManSubsystem::InitializeHoudiniApi()
 {
 	// TODO : Enable this when I need houdini engine
 	/*if (!HoudiniPublicAPI)
@@ -62,15 +60,16 @@ void UHandyManSubsystem::InitializeHoudiniApi()
 	if (!HoudiniPublicAPI->IsSessionValid())
 	{
 		HoudiniPublicAPI->CreateSession();
-	}*/
-}
+	}#1#
+}*/
 
 void UHandyManSubsystem::CleanUp()
 {
-	if (!HoudiniPublicAPI)
+	/*if (!HoudiniPublicAPI)
 	{
 		HoudiniPublicAPI = NewObject<UHoudiniPublicAPI>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	}
+	*/
 	
 }
 

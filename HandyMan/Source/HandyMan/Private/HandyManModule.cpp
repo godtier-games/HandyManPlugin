@@ -31,4 +31,4 @@ void FHandyManModule::OnPostEngineInit()
 
 #undef LOCTEXT_NAMESPACE
 
-IMPLEMENT_MODULE(FHandyManModule, HandyManEditorMode)
+IMPLEMENT_MODULE(FHandyManModule, HandyMan)

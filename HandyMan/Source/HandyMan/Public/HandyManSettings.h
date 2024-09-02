@@ -70,7 +70,7 @@ enum class EHandyManToolName
 /**
  * 
  */
-UCLASS(config=Editor)
+UCLASS(config = Plugins, GlobalUserConfig)
 class HANDYMAN_API UHandyManSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -80,15 +80,21 @@ public:
 	// UDeveloperSettings overrides
 
 	virtual FName GetContainerName() const override { return FName("Project"); }
-	virtual FName GetCategoryName() const override { return FName("Plugins"); }
+	virtual FName GetCategoryName() const override { return FName("Godtier Games"); }
 	virtual FName GetSectionName() const override { return FName("ModelingMode"); }
 
 	virtual FText GetSectionText() const override;
 	virtual FText GetSectionDescription() const override;
 
-	UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
+	//UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
+	
 	UPCGAssetWrapper* GetPCGActorLibrary() const;
-	TArray<EHandyManToolName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }
+	TArray<FName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }
+	
+	TArray<FName> GetToolsNames() const { return ToolNames;}
+
+	void RemoveToolName(const FName& ToolName);
+	void AddToolName(const FName& ToolName);
 
 	UDataTable* GetBuildingModuleDataTable();
 	UDataTable* GetBuildingMeshesDataTable();
@@ -113,11 +119,13 @@ protected:
 	//UPROPERTY(EditAnywhere, config, Category = "Houdini")
 	FSoftObjectPath PCGActorLibrary = FSoftObjectPath(TEXT("/Script/HandyMan.PCGAssetWrapper'/HandyMan/Data/PCG_Library.PCG_Library'"));
 
-	
+	/** List of Tool Names*/
+	UPROPERTY(EditAnywhere, config, Category = "Tools")
+	TArray<FName> ToolNames;
 
 	/** List of Tool Names that should be blocked from showing dialog windows */
-	UPROPERTY(EditAnywhere, config, Category = "Pop Ups")
-	TArray<EHandyManToolName> BlockedDialogsArray;
+	UPROPERTY(EditAnywhere, config, Category = "Pop Ups", meta=(GetOptions="HandyMan.HandyManStatics.GetToolNames"))
+	TArray<FName> BlockedDialogsArray;
 	
 	/** Enable/Disable the options to emit Dynamic Mesh Actors in Modeling Mode Tools */
 	UPROPERTY()

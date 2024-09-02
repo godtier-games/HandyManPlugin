@@ -446,12 +446,12 @@ AActor* UIvyCreator_PCG::SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn)
 
 	if (GetHandyManAPI())
 	{
-		if (!GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::IvyTool))
+		if (!GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString())))
 		{
 			return nullptr;
 			
 		}
-		APCG_IvyActor* IvyActor = GetWorld()->SpawnActorDeferred<APCG_IvyActor>(GetHandyManAPI()->GetPCGActorClass(EHandyManToolName::IvyTool), FTransform::Identity);
+		APCG_IvyActor* IvyActor = GetWorld()->SpawnActorDeferred<APCG_IvyActor>(GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString())), FTransform::Identity);
 		IvyActor->SetDisplayMesh(StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh());
 		IvyActor->SetVineMaterial(PropertySet->MeshData->VineMaterial);
 		IvyActor->SetDisplayMeshTransform(FTransform( FQuat(),FVector(), StaticMeshActor->GetActorScale3D()));

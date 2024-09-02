@@ -7,6 +7,8 @@
 #include "MatrixTypes.h"
 #include "UDynamicMesh.h"
 #include "Components/SplineComponent.h"
+#include "CurveOps/TriangulateCurvesOp.h"
+#include "CurveOps/TriangulateCurvesOp.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "Generators/SweepGenerator.h"
 #include "GeometryScript/PolyPathFunctions.h"
@@ -254,6 +256,66 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	
 
 	GodtierMeshPrimitiveFunctions::AppendPrimitive(TargetMesh, &SweepGen, FTransform::Identity, PrimitiveOptions);
+	return TargetMesh;
+}
+
+UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, UGeometryScriptDebug* Debug)
+{
+	auto TargetMesh = CollisionOptions.TargetMesh;
+	auto Spline = CollisionOptions.Spline;
+	
+	struct FSplineCache
+	{
+		TArray<FVector3d> Vertices;
+		bool bClosed;
+		FTransform ComponentTransform;
+	};
+
+	FSplineCache SplineCache;
+	
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_NullMesh", "AppendSweepPolyline: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (Spline->GetNumberOfSplinePoints() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidSweepPath", "AppendSweepPolyline: SweepPath array requires at least 2 positions"));
+		return TargetMesh;
+	}
+
+	// GENERATE THE SPLINE CACHE DATA
+	Spline->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, CollisionOptions.ErrorTolerance * CollisionOptions.ErrorTolerance, SplineCache.Vertices);
+	
+	if (SplineCache.Vertices.Num() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidPolygon", "AppendSweepPolyline: Polyline array requires at least 2 positions"));
+		return TargetMesh;
+	}
+	
+	const TUniquePtr<FTriangulateCurvesOp> NewGeo = MakeUnique<FTriangulateCurvesOp>();
+	NewGeo->Thickness = CollisionOptions.Height;
+	NewGeo->UVScaleFactor = 1.0;
+	NewGeo->bWorldSpaceUVScale = true;
+	NewGeo->FlattenMethod = EFlattenCurveMethod::AlongZ;
+	NewGeo->OffsetClosedMethod = EOffsetClosedCurvesMethod::OffsetBothSides;
+	NewGeo->OffsetOpenMethod = EOffsetOpenCurvesMethod::Offset;
+	NewGeo->CombineMethod = ECombineCurvesMethod::Union;
+	NewGeo->OffsetJoinMethod = EOffsetJoinMethod::Square;
+	NewGeo->OpenEndShape = EOpenCurveEndShapes::Butt;
+	NewGeo->CurveOffset = CollisionOptions.Width;
+	
+	NewGeo->AddWorldCurve(SplineCache.Vertices, Spline->IsClosedLoop(), SplineCache.ComponentTransform);
+
+
+	FProgressCancel Progress;
+	
+	NewGeo->CalculateResult(&Progress);
+	
+	auto DynamicGeo = NewGeo->ExtractResult();
+	
+	TargetMesh->SetMesh(*DynamicGeo.Get());
+	
 	return TargetMesh;
 }
 

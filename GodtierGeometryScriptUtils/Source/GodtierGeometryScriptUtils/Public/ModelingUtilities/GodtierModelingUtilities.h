@@ -19,4 +19,7 @@ class GODTIERGEOMETRYSCRIPTUTILS_API UGodtierModelingUtilities : public UBluepri
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod, DisplayName = "Sweep Geometry", Keywords = "Sweep Geometry Pipe Curve"), Category = "GodtierGeometryScriptUtils | Modeling Utilities")
 	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* SweepGeometryAlongSpline(FSweepOptions SweepOptions, ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod, DisplayName = "Sweep Geometry", Keywords = "Sweep Geometry Pipe Curve"), Category = "GodtierGeometryScriptUtils | Modeling Utilities")
+	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, UGeometryScriptDebug* Debug = nullptr);
 };

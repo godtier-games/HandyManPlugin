@@ -59,8 +59,6 @@ public class HandyMan : ModuleRules
 				"PCGWaterInterop",
 				"PCGGeometryScriptInterop",
 				"ModelingComponents",
-				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime",
 				"Landscape",
 				"MeshModelingTools",
 				"GodtierGeometryScriptUtils",
@@ -74,8 +72,6 @@ public class HandyMan : ModuleRules
 			new string[]
 			{
 				"Engine", 
-				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime",
 				"CoreUObject",
 				"Slate",
 				"SlateCore",
