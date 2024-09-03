@@ -27,12 +27,15 @@ void APCG_DynamicSplineActor::RefreshDynamicCollision()
 	if (DynamicMeshComponent)
 	{
 		FSimpleCollisionOptions Options;
-		Options.Height = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Z * ColliderAdditiveScale.Y : 0;
+		Options.Height = 10 * ColliderAdditiveScale.Y;
 		Options.Width = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Y * ColliderAdditiveScale.X : 0;
 		Options.ErrorTolerance = 1.f;
 		Options.TargetMesh = DynamicMeshComponent->GetDynamicMesh();
 		Options.Spline = SplineComponent;
 		UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(Options);
+
+		const float ZOffset = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Z * 2.f : 0.f;
+		DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, ZOffset));
 	}
 }
 
@@ -41,7 +44,6 @@ void APCG_DynamicSplineActor::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 	
 	RefreshDynamicCollision();
-
 	
 }
 
@@ -102,6 +104,7 @@ void APCG_DynamicSplineActor::SetSplinePoints(const TArray<FTransform>& Points)
 	RefreshDynamicCollision();
 }
 
+#if WITH_EDITOR
 void APCG_DynamicSplineActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -120,5 +123,13 @@ void APCG_DynamicSplineActor::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			PCGComponent->NotifyPropertiesChangedFromBlueprint();
 		}
 	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, SplineMesh) && !SplineMesh.IsNull() && DynamicMeshComponent)
+	{
+		DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, SplineMesh.LoadSynchronous()->GetBounds().BoxExtent.Z * 2.f));
+	}
 }
+
+
+#endif
 
