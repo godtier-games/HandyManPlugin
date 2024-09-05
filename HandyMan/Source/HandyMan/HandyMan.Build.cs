@@ -39,13 +39,14 @@ public class HandyMan : ModuleRules
 				"PropertyEditor",
 				"StatusBar",
 				"Projects",
-
 				"Core",
+				"LevelEditor",
 				"PhysicsCore",
 				"RenderCore",
 				"GameplayTags",
 				"GeometryCore",
 				"GeometryAlgorithms",
+				"GeometryCollectionEngine",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"ScriptableToolsFramework",
@@ -76,6 +77,7 @@ public class HandyMan : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Engine",
+				"LevelEditor",
 				"InputCore",
 				"EditorFramework",
 				"UnrealEd",
@@ -87,6 +89,7 @@ public class HandyMan : ModuleRules
 				"EditorInteractiveToolsFramework",
 				"GeometryFramework",
 				"GeometryCore",
+				"GeometryCollectionEngine",
 				"GeometryProcessingInterfaces",
 				"DynamicMesh",
 				"ModelingComponents",
@@ -117,6 +120,12 @@ public class HandyMan : ModuleRules
 				"GodtierGeometryScriptUtils",
 				"GeometryScriptingEditor",
 				"GeometryScriptingCore",
+				"EditorStyle",
+				"MeshMergeUtilities",
+				"ChaosCore",
+				"Chaos",
+				"PhysicsCore",
+				"GeometryCollectionEngine"
 			}
 			);
 		

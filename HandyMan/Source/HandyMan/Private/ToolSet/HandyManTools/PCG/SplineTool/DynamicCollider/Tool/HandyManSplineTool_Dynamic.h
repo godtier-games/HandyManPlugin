@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InteractiveToolChange.h"
 #include "TransactionUtil.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Components/SplineComponent.h"

@@ -12,6 +12,7 @@
 
 #include "EdModeInteractiveToolsContext.h"
 #include "HandyManAssetUtils.h"
+#include "HandyManPhysicsInterface.h"
 #include "HandyManSettings.h"
 #include "Modules/ModuleManager.h"
 #include "ILevelEditor.h"
@@ -31,12 +32,18 @@
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
 #include "ModelingModeAssetUtils.h"
 #include "ToolContextInterfaces.h"
+#include "ToolTargetManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/BrushComponent.h"
 #include "Selection/StaticMeshSelector.h"
 #include "Selection/VolumeSelector.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
 #include "ToolSet/Core/PCGAssetWrapper.h"
+#include "ToolTargets/DynamicMeshComponentToolTarget.h"
+#include "ToolTargets/SkeletalMeshComponentToolTarget.h"
+#include "ToolTargets/SkeletalMeshToolTarget.h"
+#include "ToolTargets/StaticMeshComponentToolTarget.h"
+#include "ToolTargets/VolumeComponentToolTarget.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -69,6 +76,8 @@ UHandyManEditorMode::UHandyManEditorMode()
 		FSlateIcon("HandyManEditorModeStyle", "LevelEditor.HandyManEditorMode", "LevelEditor.HandyManEditorMode.Small"),
 		true,
 		999999);
+
+	
 }
 
 UHandyManEditorMode::UHandyManEditorMode(FVTableHelper& Helper)
@@ -174,15 +183,24 @@ void UHandyManEditorMode::Enter()
 	}*/
 	//HandyManAPI->InitializeHoudiniApi();
 
+
 	// listen to post-build
 	GetToolManager()->OnToolPostBuild.AddUObject(this, &UHandyManEditorMode::OnToolPostBuild);
 
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<USkeletalMeshToolTargetFactory>(GetToolManager()));
+
+
 	//// forward shutdown requests
-	//GetToolManager()->OnToolShutdownRequest.BindLambda([this](UInteractiveToolManager*, UInteractiveTool* Tool, EToolShutdownType ShutdownType)
-	//{
-	//	GetInteractiveToolsContext()->EndTool(ShutdownType); 
-	//	return true;
-	//});
+	GetToolManager()->OnToolShutdownRequest.BindLambda([this](UInteractiveToolManager*, UInteractiveTool* Tool, EToolShutdownType ShutdownType)
+	{
+		GetInteractiveToolsContext()->EndTool(ShutdownType); 
+		return true;
+	});
 
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
@@ -217,10 +235,10 @@ void UHandyManEditorMode::Enter()
 					FStaticMeshSelector::SetAssetUnlockedOnCreation(StaticMesh);
 				}
 
-				if (HandyManAPI)
+				/*if (HandyManAPI)
 				{
 					HandyManAPI->OnHandyManMeshCreated.Broadcast(CreatedInfo.NewAsset);
-				}
+				}*/
 			}
 			if ( UBrushComponent* BrushComponent = Cast<UBrushComponent>(CreatedInfo.NewComponent) )
 			{
@@ -380,6 +398,9 @@ void UHandyManEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInterac
 {
 	// re-enable slate throttling (see OnToolStarted)
 	FSlateThrottleManager::Get().DisableThrottle(false);
+	
+
+	// if the tool is a physics tool more than likely we want to reactivate the tool.
 }
 
 void UHandyManEditorMode::BindCommands()
