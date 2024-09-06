@@ -241,6 +241,15 @@ bool UPhysicBasedScatterTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 void UPhysicBasedScatterTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	Super::OnClickDrag(DragPos);
+
+	if (PropertySet)
+	{
+		if (PropertySet->ItemsToDrop.Num() == 0)
+		{
+			FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok, LOCTEXT("UPhysicBasedScatterTool", "Zero items to drop. Add an entry to the ItemsToDrop Array"));
+			return;
+		}
+	}
 	
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, DragPos);
@@ -494,21 +503,20 @@ void UPhysicBasedScatterTool::OnTick(float DeltaTime)
 				for (int i = 0; i < Actors.Num(); ++i)
 				{
 					AActor* SelectedActor =  Actors[i];
-					if (SelectedActor)
+					if (!SelectedActor){continue;}
+
+					bool DampVelocity = PropertySet->IsDamplingVelocity();
+					if (!PropertySet->IsDamplingVelocity())
 					{
-						bool DampVelocity = PropertySet->IsDamplingVelocity();
-						if (!PropertySet->IsDamplingVelocity())
+						//DampVelocity = GetCurrentWidgetAxis() != EAxisList::None && GetWidgetLocation() == SelectedActor->GetActorLocation();
+					}
+					if (DampVelocity)
+					{
+						TArray<UPrimitiveComponent*> Prims = GetPrimitives(SelectedActor);
+						for (auto& Prim : Prims)
 						{
-							//DampVelocity = GetCurrentWidgetAxis() != EAxisList::None && GetWidgetLocation() == SelectedActor->GetActorLocation();
-						}
-						if (DampVelocity)
-						{
-							TArray<UPrimitiveComponent*> Prims = GetPrimitives(SelectedActor);
-							for (auto& Prim : Prims)
-							{
-								Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
-								Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-							}
+							Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
+							Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 						}
 					}
 				}
@@ -519,30 +527,29 @@ void UPhysicBasedScatterTool::OnTick(float DeltaTime)
 					for (int i = 0; i < LevelActors.Num(); ++i)
 					{
 						AActor* LevelActor = LevelActors[i];
-						if (LevelActor)
+						if (!LevelActor) { continue;}
+						
+						if (AGeometryCollectionActor* CollectionActor = Cast<AGeometryCollectionActor>(LevelActor))
 						{
-							if (AGeometryCollectionActor* CollectionActor = Cast<AGeometryCollectionActor>(LevelActor))
+							auto CollectionComponent = CollectionActor->GetGeometryCollectionComponent();
+						}
+						else
+						{
+
+							bool DampVelocity = PropertySet->IsDamplingVelocity();
+							if (!PropertySet->IsDamplingVelocity())
 							{
-								auto CollectionComponent = CollectionActor->GetGeometryCollectionComponent();
+								// TODO : I think this has something to do with checking if the gizmo and the actor are in the same location
+								//DampVelocity = GetCurrentWidgetAxis() != EAxisList::None && GetWidgetLocation() == LevelActor->GetActorLocation();
 							}
-							else
+
+							if (DampVelocity)
 							{
-
-								bool DampVelocity = PropertySet->IsDamplingVelocity();
-								if (!PropertySet->IsDamplingVelocity())
+								auto Prims = GetPrimitives(LevelActor);
+								for (auto& Prim : Prims)
 								{
-									// TODO : I think this has something to do with checking if the gizmo and the actor are in the same location
-									//DampVelocity = GetCurrentWidgetAxis() != EAxisList::None && GetWidgetLocation() == LevelActor->GetActorLocation();
-								}
-
-								if (DampVelocity)
-								{
-									auto Prims = GetPrimitives(LevelActor);
-									for (auto& Prim : Prims)
-									{
-										Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
-										Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-									}
+									Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
+									Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 								}
 							}
 						}
@@ -587,8 +594,6 @@ void UPhysicBasedScatterTool::Shutdown(EToolShutdownType ShutdownType)
 		return;
 	}
 	SetTargets(NewTargets);
-
-	
 	
 	switch (ShutdownType)
 	{

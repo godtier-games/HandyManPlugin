@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMeshActor.h"
+#include "ToolSet/HandyManTools/PCG/Core/Interface/PCGToolInterface.h"
 #include "PCG_DynamicMeshActor_Runtime.generated.h"
 
 class UPCGComponent;
 
 UCLASS()
-class HANDYMAN_API APCG_DynamicMeshActor_Runtime : public ADynamicMeshActor
+class HANDYMAN_API APCG_DynamicMeshActor_Runtime : public ADynamicMeshActor, public IPCGToolInterface
 {
 	GENERATED_BODY()
 
@@ -25,8 +26,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintPure, Category = "PCG")
-	virtual UPCGComponent* GetPCGComponent() const { return nullptr;}
+	virtual UPCGComponent* GetPCGComponent() const override { return nullptr;}
 
 	UFUNCTION(BlueprintCallable, Category = "PCG")
 	void SetCollisionProfileByName(const FName ProfileName);

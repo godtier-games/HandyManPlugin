@@ -6,10 +6,11 @@
 #include "PCGComponent.h"
 #include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_DynamicMeshActor_Runtime.h"
 #include "Components/SplineComponent.h"
+#include "ToolSet/HandyManTools/PCG/SplineTool/Interface/SplineToolInterface.h"
 #include "PCG_DynamicSplineActor.generated.h"
 
 UCLASS()
-class HANDYMAN_API APCG_DynamicSplineActor : public APCG_DynamicMeshActor_Runtime
+class HANDYMAN_API APCG_DynamicSplineActor : public APCG_DynamicMeshActor_Runtime, public ISplineToolInterface
 {
 	GENERATED_BODY()
 
@@ -29,11 +30,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplinePoints(const TArray<FTransform>& Points);
+	virtual void SetSplinePoints(const TArray<FTransform> Points) override;
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetCloseSpline(bool bCloseLoop)
+	virtual void SetCloseSpline(bool bCloseLoop) override
 	{
 		if (SplineComponent)
 		{
@@ -46,69 +45,56 @@ public:
 		}
 	}
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplineMesh(const TSoftObjectPtr<UStaticMesh> Mesh)
+	virtual void SetSplineMesh(const TSoftObjectPtr<UStaticMesh> Mesh) override
 	{
 		SplineMesh = Mesh;
 		SplineMeshPath = SplineMesh.ToSoftObjectPath();
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetEnableRandomRotation(const bool bEnable)
+
+	virtual void SetEnableRandomRotation(const bool bEnable) override
 	{
 		bEnableRandomRotation = bEnable;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetAimMeshAtNextPoint(const bool bEnable)
+	virtual void SetAimMeshAtNextPoint(const bool bEnable) override
 	{
 		bAimMeshAtNextPoint = bEnable;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetColliderAdditiveScale(const FVector2D InColliderAdditiveScale)
+	virtual void SetMeshScale(const FVector2D InColliderAdditiveScale) override
 	{
 		ColliderAdditiveScale = InColliderAdditiveScale;
 		RerunConstructionScripts();
 	};
-
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMinRandomRotation(const FRotator Rotation)
+	
+	virtual void SetMinRandomRotation(const FRotator Rotation) override
 	{
 		MinRandomRotation = Rotation;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMaxRandomRotation(const FRotator Rotation)
+	virtual void SetMaxRandomRotation(const FRotator Rotation) override
 	{
 		MaxRandomRotation = Rotation;
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMeshOffsetDistance(const float OffsetDistance) 
+
+	virtual void SetMeshOffsetDistance(const float OffsetDistance) override
 	{
 		MeshOffsetDistance = OffsetDistance;
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplinePointType(const ESplinePointType::Type& PointType)
-	{
-		SplinePointType = PointType;
-		if (SplineComponent)
-		{
-			for (int i = 0; i < SplineComponent->GetNumberOfSplinePoints(); i++)
-			{
-				SplineComponent->SetSplinePointType(i, PointType);
-			}
 
-			PCGComponent->NotifyPropertiesChangedFromBlueprint();
-		}
+	virtual void SetSplinePointType(const ESplinePointType::Type PointType) override;
+
+	
+	virtual void SetColliderZOffset(const float OffsetDistance) override
+	{
+		ColliderZOffset = OffsetDistance;
+		RerunConstructionScripts();
 	};
 	
 	virtual UPCGComponent* GetPCGComponent() const override { return PCGComponent; }
@@ -128,6 +114,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	bool bEnableRandomRotation = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
+	bool bIsMeshCenteredOnSpline = false;
+
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	bool bAimMeshAtNextPoint = false;
 
@@ -141,7 +130,12 @@ protected:
 	float MeshOffsetDistance = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
+	float ColliderZOffset = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ProceduralSettings)
 	FVector2D ColliderAdditiveScale = FVector2D(1.0f, 1.0f);
+
+	
 
 	UPROPERTY(BlueprintReadOnly)
 	FSoftObjectPath SplineMeshPath;
@@ -158,5 +152,5 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandyMan")
 	TObjectPtr<class USceneComponent> DefaultSceneComponent;
 
-
+	
 };

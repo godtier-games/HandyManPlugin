@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "PCGComponent.h"
 #include "GameFramework/Actor.h"
+#include "ToolSet/HandyManTools/PCG/Core/Interface/PCGToolInterface.h"
 #include "PCG_ActorBase.generated.h"
 
 
 
 UCLASS()
-class HANDYMAN_API APCG_ActorBase : public AActor
+class HANDYMAN_API APCG_ActorBase : public AActor, public IPCGToolInterface
 {
 	GENERATED_BODY()
 
@@ -26,7 +27,6 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintPure, Category = "PCG")
-	virtual UPCGComponent* GetPCGComponent() const { return nullptr; }
+	virtual UPCGComponent* GetPCGComponent() const override { return nullptr; }
 
 };

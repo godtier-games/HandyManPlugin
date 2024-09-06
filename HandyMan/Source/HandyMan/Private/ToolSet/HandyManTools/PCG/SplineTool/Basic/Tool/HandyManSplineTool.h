@@ -11,6 +11,8 @@
 #include "ToolSet/Core/HandyManToolBuilder.h"
 #include "ToolSet/DataTypes/HandyManDataTypes.h"
 #include "ToolSet/HandyManBaseClasses/HandyManInteractiveTool.h"
+#include "ToolSet/HandyManTools/PCG/Core/Interface/PCGToolInterface.h"
+#include "ToolSet/HandyManTools/PCG/SplineTool/Interface/SplineToolInterface.h"
 #include "HandyManSplineTool.generated.h"
 
 
@@ -33,7 +35,8 @@ public:
 
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
 
-	void SpawnActorInstance();
+	void SpawnWorkingActorInstance(const USplineToolProperties* InSettings);
+	void SpawnOutputActorInstance(const USplineToolProperties* InSettings, const FTransform& SpawnTransform);
 	virtual void SetSelectedActor(AActor* Actor);
 
 	virtual UWorld* GetTargetWorld() { return TargetWorld.Get(); }
@@ -62,6 +65,10 @@ public:
 	EDrawSplineDrawMode_HandyMan DrawMode;
 
 	EHandyManToolName ToolIdentifier;
+
+	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
+	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
+
 
 protected:
 
@@ -106,6 +113,7 @@ protected:
 	void TransitionOutputMode();
 	void GenerateAsset();
 	void SetSplinePointsOnTargetActor();
+	void SetSplinePointsOnWorkingSpline();
 
 	// Used to restore visibility of previous actor when switching to a different one
 	UPROPERTY()
@@ -119,12 +127,19 @@ protected:
 
 	FViewCameraState CameraState;
 
+	TArray<FTransform> PointTransforms;
+
 private:
 	UE::TransactionUtil::FLongTransactionTracker LongTransactions;
 
 public:
+	
 	UPROPERTY()
-	TObjectPtr<APCG_SplineActor> TargetSplineActor;
+	TObjectPtr<AActor> TargetSplineActor;
+
+	TWeakInterfacePtr<ISplineToolInterface> TargetSplineInterface;
+
+	TWeakInterfacePtr<IPCGToolInterface> TargetPCGInterface;
 
 	// Helper class for making undo/redo transactions, to avoid friending all the variations.
 	class FSimpleSplineToolChange : public FSplineToolChange
@@ -176,7 +191,7 @@ public:
 	 * Determines whether the created spline is a loop. This can be toggled using "Closed Loop" in
 	 * the detail panel after spline creation.
 	 */
-	//UPROPERTY(EditAnywhere, Category = Spline, meta = (TransientToolProperty))
+	//UPROPERTY(EditAnywhere, Category = Spline)
 	bool bLoop = false;
 
 	/**
@@ -185,26 +200,32 @@ public:
 	//UPROPERTY(EditAnywhere, Category = Spline)
 	EDrawSplineOutputMode_HandyMan OutputMode = EDrawSplineOutputMode_HandyMan::EmptyActor;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	TSoftObjectPtr<UStaticMesh> InputGeometry = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	TEnumAsByte<ESplinePointType::Type> SplineType = ESplinePointType::Linear;
 
 	/**
 	 * The output geometry will use the same scale for all axes.
 	 * To insure collision consistency, this must be true in order to auto generate a simple collision geometry.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bUseUnifiedScaling = true;
+
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
+	bool bProjectGizmoToSurfacePlane = false;
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0, UIMax = 100))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0, UIMax = 100))
 	float DistanceOffset = 10.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, UIMin = 0.1, UIMax = 10, EditCondition = "!bUseUnifiedScaling", EditConditionHides))
-	FVector2D MeshHeightRange = FVector2D(1.0f, 1.0f);
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0))
+	float ZOffset = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty, EditCondition = "bUseUnifiedScaling", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0.1, UIMax = 10, EditCondition = "!bUseUnifiedScaling", EditConditionHides))
+	FVector2D MeshScaleRange = FVector2D(1.0f, 1.0f);
+
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( EditCondition = "bUseUnifiedScaling", EditConditionHides))
 	bool bAutoGenerateSimpleCollision = true;
 
 #pragma region TRIANGULATE SPLINE TOOL SETTINGS
@@ -231,19 +252,19 @@ public:
 	double MiterLimit = 1.0;
 #pragma endregion 
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bClosedSpline = false;
 
-	//UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	//UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bAimMeshAtNextPoint = false;
 
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bEnableRandomRotation = false;
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty, UIMin = -180, UIMax = 180))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides,  UIMin = -180, UIMax = 180))
 	FRotator MinRandomRotation = FRotator();
 	
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty, UIMin = -180, UIMax = 180))
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides,  UIMin = -180, UIMax = 180))
 	FRotator MaxRandomRotation = FRotator();
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = (EditCondition = "bEnableRandomRotation", EditConditionHides, TransientToolProperty))
@@ -252,7 +273,7 @@ public:
 	/**
 	 * Actor to attach to when Output Mode is "Existing Actor"
 	 */
-	/*UPROPERTY(EditAnywhere, Category = Spline, meta = (TransientToolProperty, 
+	/*UPROPERTY(EditAnywhere, Category = Spline, meta = ( 
 		EditCondition = "OutputMode == EDrawSplineOutputMode_HandyMan::ExistingActor", EditConditionHides))*/
 	TWeakObjectPtr<AActor> TargetActor = nullptr;
 

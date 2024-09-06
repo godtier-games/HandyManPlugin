@@ -36,9 +36,9 @@ UBaseScriptableToolBuilder* USplineTool::GetNewCustomToolBuilderInstance(UObject
 
 using namespace UE::Geometry;
 
-void USplineTool::SpawnActorInstance()
+void USplineTool::SpawnWorkingActorInstance(const USplineToolProperties* InSettings)
 {
-	if (GetHandyManAPI())
+	if (GetHandyManAPI() && InSettings)
 	{
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.ObjectFlags = RF_Transactional;
@@ -46,11 +46,29 @@ void USplineTool::SpawnActorInstance()
 
 		auto World = GetTargetWorld();
 		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
-		if (auto SpawnedActor =  World->SpawnActor<APCG_ActorBase>(ClassToSpawn))
+		if (auto SpawnedActor =  World->SpawnActor<AActor>(ClassToSpawn))
 		{
 			SpawnedActor->SetActorTransform(FTransform::Identity);
-			TargetSplineActor = Cast<APCG_SplineActor>(SpawnedActor);
-			TargetSplineActor->GetPCGComponent()->GenerateLocal(true);
+			TargetSplineActor = SpawnedActor;
+
+			TargetSplineInterface = CastChecked<ISplineToolInterface>(SpawnedActor);
+			TargetPCGInterface = CastChecked<IPCGToolInterface>(SpawnedActor);
+
+			if (TargetPCGInterface.IsValid())
+			{
+				TargetPCGInterface.Get()->GetPCGComponent()->GenerateLocal(true);
+			}
+
+			if (TargetSplineInterface.IsValid())
+			{
+				if (!InSettings->InputGeometry.IsNull())
+				{
+					TargetSplineInterface->SetSplineMesh(InSettings->InputGeometry);
+				}
+				TargetSplineInterface->SetSplinePointType(InSettings->SplineType);
+				TargetSplineInterface->SetMeshOffsetDistance(InSettings->DistanceOffset);
+				TargetSplineInterface->SetColliderZOffset(InSettings->ZOffset);
+			}
 		}
 		
 	}
@@ -60,6 +78,55 @@ void USplineTool::SpawnActorInstance()
 	}
 	
 	
+	
+}
+
+void USplineTool::SpawnOutputActorInstance(const USplineToolProperties* InSettings, const FTransform& SpawnTransform)
+{
+	if (GetHandyManAPI() && InSettings)
+	{
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.ObjectFlags = RF_Transactional;
+		SpawnInfo.Name = FName("SplineActor");
+
+		auto World = GetTargetWorld();
+		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
+		if (auto SpawnedActor =  World->SpawnActor<AActor>(ClassToSpawn))
+		{
+			SpawnedActor->SetActorTransform(SpawnTransform);
+
+			TWeakInterfacePtr<ISplineToolInterface> LocalTargetSplineInterface = CastChecked<ISplineToolInterface>(SpawnedActor);
+			TWeakInterfacePtr<IPCGToolInterface> LocalTargetPCGInterface = CastChecked<IPCGToolInterface>(SpawnedActor);
+
+			if (LocalTargetPCGInterface.IsValid())
+			{
+				LocalTargetPCGInterface.Get()->GetPCGComponent()->GenerateLocal(true);
+			}
+
+			if (LocalTargetSplineInterface.IsValid())
+			{
+				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMinRandomRotation(Settings->MinRandomRotation);
+				LocalTargetSplineInterface.Get()->SetCloseSpline(Settings->bClosedSpline);
+				LocalTargetSplineInterface.Get()->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
+				LocalTargetSplineInterface.Get()->SetEnableRandomRotation(Settings->bEnableRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMeshOffsetDistance(Settings->DistanceOffset);
+				LocalTargetSplineInterface.Get()->SetColliderZOffset(Settings->ZOffset);
+				LocalTargetSplineInterface.Get()->SetMeshScale(Settings->MeshScaleRange);
+				LocalTargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
+				LocalTargetSplineInterface.Get()->SetSplinePointType(InSettings->SplineType);
+				LocalTargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
+				LocalTargetSplineInterface.Get()->SetSplinePoints(PointTransforms);
+			}
+		}
+		
+	}
+	else
+	{
+		// TODO : Error Dialogue
+	}
+
 	
 }
 
@@ -140,84 +207,102 @@ void USplineTool::Setup()
 		{
 			if (Settings->InputGeometry)
 			{
-				if (TargetSplineActor)
+				if (TargetSplineInterface.IsValid())
 				{
-					TargetSplineActor->SetSplineMesh(Settings->InputGeometry);
+					TargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
 				}
 			}
 		});
-	Settings->WatchProperty(Settings->MeshHeightRange, [this](FVector2D) {
-		if (TargetSplineActor)
+	Settings->WatchProperty(Settings->MeshScaleRange, [this](FVector2D) {
+		if (TargetSplineInterface.IsValid())
 		{
-			TargetSplineActor->SetMeshHeightRange(Settings->MeshHeightRange);
+			TargetSplineInterface.Get()->SetMeshScale(Settings->MeshScaleRange);
 			
 		}
 	});
 	Settings->WatchProperty(Settings->DistanceOffset, [this](float)
 	{
-		if (TargetSplineActor)
+		if (TargetSplineInterface.IsValid())
 		{
-			TargetSplineActor->SetMeshOffsetDistance(Settings->DistanceOffset);
+			TargetSplineInterface.Get()->SetMeshOffsetDistance(Settings->DistanceOffset);
 		}
 	});
 	Settings->WatchProperty(Settings->bEnableRandomRotation, [this](bool)
 		{
-		if (TargetSplineActor)
+		if (TargetSplineInterface.IsValid())
 		{
-			TargetSplineActor->SetEnableRandomRotation(Settings->bEnableRandomRotation);
+			TargetSplineInterface.Get()->SetEnableRandomRotation(Settings->bEnableRandomRotation);
 		}
 		});
 	
 	Settings->WatchProperty(Settings->bAimMeshAtNextPoint, [this](bool)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid())
 			{
-				TargetSplineActor->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
+				TargetSplineInterface.Get()->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
 				SetSplinePointsOnTargetActor();
 			}
 		});
 	Settings->WatchProperty(Settings->bClosedSpline, [this](bool)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid())
 			{
-				TargetSplineActor->SetCloseSpline(Settings->bClosedSpline);
+				TargetSplineInterface.Get()->SetCloseSpline(Settings->bClosedSpline);
 			}
 		});
 	
 	Settings->WatchProperty(Settings->MinRandomRotation, [this](FRotator)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid())
 			{
-				TargetSplineActor->SetMinRandomRotation(Settings->MinRandomRotation);
+				TargetSplineInterface.Get()->SetMinRandomRotation(Settings->MinRandomRotation);
 			}
 		});
 
 	Settings->WatchProperty(Settings->MaxRandomRotation, [this](FRotator)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid())
 			{
-				TargetSplineActor->SetMaxRandomRotation(Settings->MaxRandomRotation);
+				TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
 			}
 		});
 	Settings->WatchProperty(Settings->RandomizedSeed, [this](float)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid())
 			{
-				TargetSplineActor->SetMaxRandomRotation(Settings->MaxRandomRotation);
+				TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
 			}
 		});
 	Settings->WatchProperty(Settings->SplineType, [this](TEnumAsByte<ESplinePointType::Type>)
 		{
-			if (TargetSplineActor)
+			if (TargetSplineInterface.IsValid() && TargetPCGInterface.IsValid())
 			{
-				TargetSplineActor->SetSplinePointType(Settings->SplineType);
+				TargetSplineInterface.Get()->SetSplinePointType(Settings->SplineType);
+				TargetPCGInterface->GetPCGComponent()->CleanupLocal(true);
+				TargetPCGInterface->GetPCGComponent()->GenerateLocal(true);
+			}
+
+			if (WorkingSpline.IsValid())
+			{
+				for (int i = 0; i < WorkingSpline.Get()->GetNumberOfSplinePoints(); ++i)
+				{
+					WorkingSpline.Get()->SetSplinePointType(i, Settings->SplineType, false);
+				}
 			}
 		});
+	
+	Settings->WatchProperty(Settings->ZOffset, [this](float)
+	{
+		if (TargetSplineInterface.IsValid())
+		{
+			TargetSplineInterface.Get()->SetColliderZOffset(Settings->ZOffset);
+		}
+	});
 
 	
 	Settings->SilentUpdateWatched();
 
-	SpawnActorInstance();
+	SpawnWorkingActorInstance(Settings);
 
 	
 }
@@ -482,8 +567,10 @@ void USplineTool::GenerateAsset()
 		}
 		Center /= NumSplinePoints;
 
+		SpawnOutputActorInstance(Settings, FTransform(Center));
+
 		// Spawning via a factory is editor-only
-		UActorFactoryEmptyActor* EmptyActorFactory = NewObject<UActorFactoryEmptyActor>();
+		/*UActorFactoryEmptyActor* EmptyActorFactory = NewObject<UActorFactoryEmptyActor>();
 		FAssetData AssetData(EmptyActorFactory->GetDefaultActorClass(FAssetData()));
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Name = TEXT("Spline");
@@ -501,7 +588,7 @@ void USplineTool::GenerateAsset()
 		OutputSpline->SetWorldTransform(FTransform(Center));
 		OldRoot->DestroyComponent();
 
-		CopySplineToSpline(*WorkingSpline, *OutputSpline, true);
+		CopySplineToSpline(*WorkingSpline, *OutputSpline, true);*/
 	};
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("DrawSplineTransactionName", "Draw Spline"));
@@ -510,6 +597,7 @@ void USplineTool::GenerateAsset()
 	{
 	case EDrawSplineOutputMode_HandyMan::EmptyActor:
 		CreateSplineInEmptyActor();
+		TargetSplineActor->Destroy();
 		break;
 	case EDrawSplineOutputMode_HandyMan::ExistingActor:
 	{
@@ -563,37 +651,49 @@ void USplineTool::GenerateAsset()
 
 void USplineTool::SetSplinePointsOnTargetActor()
 {
-	if (TargetSplineActor)
+	if (TargetSplineInterface.IsValid())
 	{
 		
-		if (!ensure(WorkingSpline.IsValid()))
+		TargetSplineInterface.Get()->SetSplinePoints(PointTransforms);
+	}
+}
+
+void USplineTool::SetSplinePointsOnWorkingSpline()
+{
+	if (WorkingSpline.IsValid())
+	{
+		WorkingSpline.Get()->ClearSplinePoints(true);
+		for (int i = 0; i < PointTransforms.Num(); i++)
 		{
-			return;
+			WorkingSpline.Get()->AddSplineWorldPoint(PointTransforms[i].GetLocation());
+
+			if (PointTransforms.Num() > i + 1 /*&& bAimMeshAtNextPoint*/)
+			{
+				FVector Tangent = PointTransforms[i + 1].GetLocation() - PointTransforms[i].GetLocation();
+				WorkingSpline.Get()->SetRotationAtSplinePoint(i, Tangent.ToOrientationRotator(), ESplineCoordinateSpace::World);
+			}
+		
 		}
 
-		if (WorkingSpline->GetNumberOfSplinePoints() == 1)
+		for (int i = 0; i < WorkingSpline.Get()->GetNumberOfSplinePoints(); i++)
 		{
-			TargetSplineActor->SetActorLocationAndRotation(WorkingSpline->GetSplinePointAt(0, ESplineCoordinateSpace::World).Position,WorkingSpline->GetSplinePointAt(0, ESplineCoordinateSpace::World).Rotation );
+			if(i == 0 || i == WorkingSpline.Get()->GetNumberOfSplinePoints() - 1)
+			{
+				WorkingSpline.Get()->SetSplinePointType(i, ESplinePointType::Linear);
+			}
+			else
+			{
+				WorkingSpline.Get()->SetSplinePointType(i, Settings->SplineType);
+			}
 		}
 
-		if (WorkingSpline->GetNumberOfSplinePoints() < 2)
+		for (int i = 0; i < WorkingSpline.Get()->GetNumberOfSplinePoints(); i++)
 		{
-			return;
+			WorkingSpline.Get()->SetSplinePointType(i, Settings->SplineType);
 		}
 		
-
-		TArray<FTransform> NewPoints;
-		for (int32 i = 0; i < WorkingSpline->GetNumberOfSplinePoints(); ++i)
-		{
-			FTransform NewPointTransform;
-			NewPointTransform.SetLocation(WorkingSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
-			NewPointTransform.SetRotation(WorkingSpline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
-			NewPoints.Add(NewPointTransform);
-		}
-		TargetSplineActor->SetSplinePoints(NewPoints);
 		
 	}
-	return;
 }
 
 // Helper to add a point given a hit location and hit normal
@@ -609,6 +709,23 @@ void USplineTool::AddSplinePoint(const FVector3d& HitLocation, const FVector3d& 
 	WorkingSpline->SetUpVectorAtSplinePoint(NumSplinePoints, UpVectorToUse, ESplineCoordinateSpace::World, 
 		/*bUpdate =*/ true);
 
+	if (WorkingSpline.IsValid() && WorkingSpline.Get()->IsVisible())
+	{
+		WorkingSpline.Get()->SetHiddenInGame(true);
+	}
+	
+
+	
+
+	PointTransforms.Add(WorkingSpline.Get()->GetTransformAtSplinePoint(NumSplinePoints, ESplineCoordinateSpace::World));
+
+	FScriptableToolGizmoOptions GizmoOptions;
+	GizmoOptions.GizmoMode = EScriptableToolGizmoMode::TranslationOnly;
+	GizmoOptions.TranslationParts = static_cast<int32>(EScriptableToolGizmoTranslation::All);
+	EToolsFrameworkOutcomePins OutCome;
+	
+	CreateTRSGizmo(FString::FromInt(NumSplinePoints), PointTransforms.Last(), GizmoOptions, OutCome);
+	
 	SetSplinePointsOnTargetActor();
 	
 }
@@ -956,6 +1073,43 @@ void USplineTool::OnTerminateDragSequence()
 	LongTransactions.Close(GetToolManager());
 }
 
+void USplineTool::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
+{
+	Super::OnGizmoTransformChanged_Handler(GizmoIdentifier, NewTransform);
+
+	// TODO : This doesn't work currently it crashes the engine.
+	if (Settings && Settings->bProjectGizmoToSurfacePlane)
+	{
+		const FVector& Loc = NewTransform.GetLocation();
+		const FVector& Offset = FVector::UpVector * 100.0f;
+	
+		FHitResult Hit;
+	
+		if (GetTargetWorld()->LineTraceSingleByChannel(Hit, Loc + Offset, Loc - Offset, ECC_Visibility))
+		{
+			SetGizmoTransform(GizmoIdentifier, FTransform(Hit.Location), false);
+		}
+	}
+	
+}
+
+void USplineTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
+{
+	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
+
+	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform)
+	{
+		const int32 PointIndex = FCString::Atoi(*GizmoIdentifier);
+
+		if (PointTransforms.IsValidIndex(PointIndex))
+		{
+			PointTransforms[PointIndex] = CurrentTransform;
+		}
+
+		SetSplinePointsOnTargetActor();
+		SetSplinePointsOnWorkingSpline();
+	}
+}
 
 
 void USplineTool::OnTick(float DeltaTime)
@@ -1032,9 +1186,9 @@ void USplineTool::Render(IToolsContextRenderAPI* RenderAPI)
 			DrawTangent(*WorkingSpline, WorkingSpline->GetNumberOfSplinePoints() - 1, *RenderAPI);
 		}
 
-		SplineUtil::FDrawSplineSettings DrawSettings;
+		/*SplineUtil::FDrawSplineSettings DrawSettings;
 		DrawSettings.ScaleVisualizationWidth = Settings->FrameVisualizationWidth;
-		SplineUtil::DrawSpline(*WorkingSpline, *RenderAPI, DrawSettings);
+		SplineUtil::DrawSpline(*WorkingSpline, *RenderAPI, DrawSettings);*/
 	}
 }
 
@@ -1108,7 +1262,7 @@ void USplineTool::FSimpleSplineToolChange::Revert(UObject* Object)
 
 	Revert(*Spline);
 
-	if (Tool->TargetSplineActor)
+	if (Tool->TargetSplineInterface.Get())
 	{
 		TArray<FTransform> NewPoints;
 		for (int32 i = 0; i < Spline->GetNumberOfSplinePoints(); ++i)
@@ -1118,7 +1272,7 @@ void USplineTool::FSimpleSplineToolChange::Revert(UObject* Object)
 			NewPointTransform.SetRotation(Spline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World).ToOrientationQuat());
 			NewPoints.Add(NewPointTransform);
 		}
-		Tool->TargetSplineActor->SetSplinePoints(NewPoints);
+		Tool->TargetSplineInterface.Get()->SetSplinePoints(NewPoints);
 		
 	}
 

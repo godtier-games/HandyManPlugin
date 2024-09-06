@@ -5,11 +5,12 @@
 #include "PCGComponent.h"
 #include "Components/SplineComponent.h"
 #include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_ActorBase.h"
+#include "ToolSet/HandyManTools/PCG/SplineTool/Interface/SplineToolInterface.h"
 #include "PCG_SplineActor.generated.h"
 
 
 UCLASS(meta = (PrioritizeCategories = ProceduralSettings))
-class HANDYMAN_API APCG_SplineActor : public APCG_ActorBase
+class HANDYMAN_API APCG_SplineActor : public APCG_ActorBase, public ISplineToolInterface
 {
 	GENERATED_BODY()
 
@@ -25,11 +26,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplinePoints(const TArray<FTransform>& Points);
+	virtual void SetSplinePoints(const TArray<FTransform> Points) override;
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetCloseSpline(bool bCloseLoop)
+	virtual void SetCloseSpline(bool bCloseLoop) override
 	{
 		if (SplineComponent)
 		{
@@ -42,58 +41,50 @@ public:
 		}
 	}
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplineMesh(const TSoftObjectPtr<UStaticMesh> Mesh)
+	virtual void SetSplineMesh(const TSoftObjectPtr<UStaticMesh> Mesh) override
 	{
 		SplineMesh = Mesh;
 		SplineMeshPath = SplineMesh.ToSoftObjectPath();
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetEnableRandomRotation(const bool bEnable)
+
+	virtual void SetEnableRandomRotation(const bool bEnable) override
 	{
 		bEnableRandomRotation = bEnable;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetAimMeshAtNextPoint(const bool bEnable)
+	virtual void SetAimMeshAtNextPoint(const bool bEnable) override
 	{
 		bAimMeshAtNextPoint = bEnable;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMinRandomRotation(const FRotator Rotation)
+	virtual void SetMinRandomRotation(const FRotator Rotation) override
 	{
 		MinRandomRotation = Rotation;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMaxRandomRotation(const FRotator Rotation)
+	virtual void SetMaxRandomRotation(const FRotator Rotation) override
 	{
 		MaxRandomRotation = Rotation;
 		RerunConstructionScripts();
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMeshHeightRange(const FVector2D HeightRange) 
+	virtual void SetMeshScale(const FVector2D HeightRange) override
 	{
 		MeshHeightRange = HeightRange;
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetMeshOffsetDistance(const float OffsetDistance) 
+
+	virtual void SetMeshOffsetDistance(const float OffsetDistance) override
 	{
 		MeshOffsetDistance = OffsetDistance;
 		RerunConstructionScripts();
 	};
-	
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
-	void SetSplinePointType(const ESplinePointType::Type& PointType)
+
+	virtual void SetSplinePointType(const ESplinePointType::Type PointType) override
 	{
 		SplinePointType = PointType;
 		if (SplineComponent)

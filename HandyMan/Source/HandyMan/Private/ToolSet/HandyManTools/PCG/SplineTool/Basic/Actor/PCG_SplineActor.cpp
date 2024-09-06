@@ -30,7 +30,7 @@ void APCG_SplineActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void APCG_SplineActor::SetSplinePoints(const TArray<FTransform>& Points)
+void APCG_SplineActor::SetSplinePoints(const TArray<FTransform> Points)
 {
 	if (!SplineComponent)
 	{

@@ -3,6 +3,9 @@
 
 #include "PCG_DynamicSplineActor.h"
 
+#include "GeometryScript/MeshModelingFunctions.h"
+#include "GeometryScript/MeshNormalsFunctions.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
 #include "ModelingUtilities/GodtierModelingUtilities.h"
 
 
@@ -20,22 +23,46 @@ APCG_DynamicSplineActor::APCG_DynamicSplineActor()
 	DynamicMeshComponent->CollisionType = CTF_UseComplexAsSimple;
 	DynamicMeshComponent->bEnableComplexCollision = true;
 
+	Tags.Add(FName("Rail"));
+
 }
 
 void APCG_DynamicSplineActor::RefreshDynamicCollision()
 {
 	if (DynamicMeshComponent)
 	{
+		FVector2D MeshScale = FVector2D(10 * ColliderAdditiveScale.Y, SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Y * ColliderAdditiveScale.X : 0);
 		FSimpleCollisionOptions Options;
 		Options.Height = 10 * ColliderAdditiveScale.Y;
 		Options.Width = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Y * ColliderAdditiveScale.X : 0;
 		Options.ErrorTolerance = 1.f;
 		Options.TargetMesh = DynamicMeshComponent->GetDynamicMesh();
 		Options.Spline = SplineComponent;
-		UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(Options);
+		Options.ZOffset = -1.0; /*SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Z * 2.f : 0.f;*/
 
-		const float ZOffset = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Z * 2.f : 0.f;
-		DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, ZOffset));
+		FSweepOptions SweepOptions;
+		SweepOptions.SampleSize = SplineComponent->GetSplineLength() / 10;
+		SweepOptions.bProjectPointsToSurface = false;
+		SweepOptions.ShapeDimensions = MeshScale;
+		SweepOptions.ShapeType = ESweepShapeType::Box;
+		SweepOptions.TargetMesh = DynamicMeshComponent->GetDynamicMesh();
+		SweepOptions.Spline = SplineComponent;
+		SweepOptions.bResampleCurve = true;
+		SweepOptions.bFlipOrientation = false;
+		
+
+		UGodtierModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::World);
+
+		FGeometryScriptSplitNormalsOptions SplitNormalsOptions;
+		FGeometryScriptCalculateNormalsOptions CalculateNormalsOptions;
+		CalculateNormalsOptions.bAreaWeighted = true;
+		UGeometryScriptLibrary_MeshNormalsFunctions::ComputeSplitNormals(DynamicMeshComponent->GetDynamicMesh(), SplitNormalsOptions, CalculateNormalsOptions);
+
+		if (!SplineMesh.IsNull())
+		{
+			DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, SplineMesh.LoadSynchronous()->GetBounds().BoxExtent.Z + ColliderZOffset));
+		}
+		
 	}
 }
 
@@ -62,7 +89,7 @@ void APCG_DynamicSplineActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void APCG_DynamicSplineActor::SetSplinePoints(const TArray<FTransform>& Points)
+void APCG_DynamicSplineActor::SetSplinePoints(const TArray<FTransform> Points)
 {
 	if (!SplineComponent)
 	{
@@ -104,7 +131,26 @@ void APCG_DynamicSplineActor::SetSplinePoints(const TArray<FTransform>& Points)
 	RefreshDynamicCollision();
 }
 
+void APCG_DynamicSplineActor::SetSplinePointType(const ESplinePointType::Type PointType)
+{
+	SplinePointType = PointType;
+	if (SplineComponent)
+	{
+		for (int i = 0; i < SplineComponent->GetNumberOfSplinePoints(); i++)
+		{
+			SplineComponent->SetSplinePointType(i, PointType);
+		}
+
+		PCGComponent->NotifyPropertiesChangedFromBlueprint();
+	}
+
+	RerunConstructionScripts();
+};
+
 #if WITH_EDITOR
+
+
+
 void APCG_DynamicSplineActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -115,18 +161,23 @@ void APCG_DynamicSplineActor::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, MinRandomRotation) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, MaxRandomRotation) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, MeshOffsetDistance) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, SplineMesh))
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, SplineMesh) || 
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, ColliderZOffset) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, SplinePointType))
 	{
 		RerunConstructionScripts();
+
 		if (PCGComponent)
 		{
+			PCGComponent->CleanupLocal(true, true);
 			PCGComponent->NotifyPropertiesChangedFromBlueprint();
 		}
+	
 	}
 
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, SplineMesh) && !SplineMesh.IsNull() && DynamicMeshComponent)
 	{
-		DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, SplineMesh.LoadSynchronous()->GetBounds().BoxExtent.Z * 2.f));
+		DynamicMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, SplineMesh.LoadSynchronous()->GetBounds().BoxExtent.Z + ColliderZOffset));
 	}
 }
 

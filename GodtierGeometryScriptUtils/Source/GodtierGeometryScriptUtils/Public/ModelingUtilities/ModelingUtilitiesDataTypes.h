@@ -83,6 +83,9 @@ struct FSimpleCollisionOptions
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
 	double Width = 50.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	double ZOffset = 0.0;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
 	double ErrorTolerance = 1.0;
