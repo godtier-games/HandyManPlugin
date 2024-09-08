@@ -152,7 +152,9 @@ void USplineTool::Setup()
 	PlaneMechanic->Initialize(GetTargetWorld(), FFrame3d(FVector3d::Zero(), FVector3d::UnitX()));
 	PlaneMechanic->bShowGrid = Settings->bHitCustomPlane;
 	PlaneMechanic->CanUpdatePlaneFunc = [this] { return Settings->bHitCustomPlane; };
-	Settings->WatchProperty(Settings->bHitCustomPlane, [this](bool) {
+	
+	Settings->WatchProperty(Settings->bHitCustomPlane, [this](bool)
+	{
 		PlaneMechanic->bShowGrid = Settings->bHitCustomPlane;
 	});
 
@@ -204,22 +206,25 @@ void USplineTool::Setup()
 	});*/
 	
 	Settings->WatchProperty(Settings->InputGeometry, [this](TSoftObjectPtr<UStaticMesh>)
+	{
+		if (Settings->InputGeometry)
 		{
-			if (Settings->InputGeometry)
+			if (TargetSplineInterface.IsValid())
 			{
-				if (TargetSplineInterface.IsValid())
-				{
-					TargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
-				}
+				TargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
 			}
-		});
-	Settings->WatchProperty(Settings->MeshScaleRange, [this](FVector2D) {
+		}
+	});
+	
+	Settings->WatchProperty(Settings->MeshScaleRange, [this](FVector2D)
+	{
 		if (TargetSplineInterface.IsValid())
 		{
 			TargetSplineInterface.Get()->SetMeshScale(Settings->MeshScaleRange);
 			
 		}
 	});
+	
 	Settings->WatchProperty(Settings->DistanceOffset, [this](float)
 	{
 		if (TargetSplineInterface.IsValid())
@@ -227,69 +232,70 @@ void USplineTool::Setup()
 			TargetSplineInterface.Get()->SetMeshOffsetDistance(Settings->DistanceOffset);
 		}
 	});
+	
 	Settings->WatchProperty(Settings->bEnableRandomRotation, [this](bool)
-		{
+	{
 		if (TargetSplineInterface.IsValid())
 		{
 			TargetSplineInterface.Get()->SetEnableRandomRotation(Settings->bEnableRandomRotation);
 		}
-		});
+	});
 	
 	Settings->WatchProperty(Settings->bAimMeshAtNextPoint, [this](bool)
-		{
+	{
 			if (TargetSplineInterface.IsValid())
 			{
 				TargetSplineInterface.Get()->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
 				SetSplinePointsOnTargetActor();
 			}
-		});
+	});
 	Settings->WatchProperty(Settings->bClosedSpline, [this](bool)
+	{
+		if (TargetSplineInterface.IsValid())
 		{
-			if (TargetSplineInterface.IsValid())
-			{
-				TargetSplineInterface.Get()->SetCloseSpline(Settings->bClosedSpline);
-			}
-		});
+			TargetSplineInterface.Get()->SetCloseSpline(Settings->bClosedSpline);
+		}
+	});
 	
 	Settings->WatchProperty(Settings->MinRandomRotation, [this](FRotator)
+	{
+		if (TargetSplineInterface.IsValid())
 		{
-			if (TargetSplineInterface.IsValid())
-			{
-				TargetSplineInterface.Get()->SetMinRandomRotation(Settings->MinRandomRotation);
-			}
-		});
+			TargetSplineInterface.Get()->SetMinRandomRotation(Settings->MinRandomRotation);
+		}
+	});
 
 	Settings->WatchProperty(Settings->MaxRandomRotation, [this](FRotator)
+	{
+		if (TargetSplineInterface.IsValid())
 		{
-			if (TargetSplineInterface.IsValid())
-			{
-				TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
-			}
-		});
+			TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
+		}
+	});
 	Settings->WatchProperty(Settings->RandomizedSeed, [this](float)
+	{
+		if (TargetSplineInterface.IsValid())
 		{
-			if (TargetSplineInterface.IsValid())
-			{
-				TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
-			}
-		});
+			TargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
+		}
+	});
 	Settings->WatchProperty(Settings->SplineType, [this](TEnumAsByte<ESplinePointType::Type>)
+	{
+		if (TargetSplineInterface.IsValid() && TargetPCGInterface.IsValid())
 		{
-			if (TargetSplineInterface.IsValid() && TargetPCGInterface.IsValid())
-			{
-				TargetSplineInterface.Get()->SetSplinePointType(Settings->SplineType);
-				TargetPCGInterface->GetPCGComponent()->CleanupLocal(true);
-				TargetPCGInterface->GetPCGComponent()->GenerateLocal(true);
-			}
+			TargetSplineInterface.Get()->SetSplinePointType(Settings->SplineType);
+			TargetPCGInterface->GetPCGComponent()->CleanupLocal(true);
+			TargetPCGInterface->GetPCGComponent()->GenerateLocal(true);
+		}
 
-			if (WorkingSpline.IsValid())
+		if (WorkingSpline.IsValid())
+		{
+			for (int i = 0; i < WorkingSpline.Get()->GetNumberOfSplinePoints(); ++i)
 			{
-				for (int i = 0; i < WorkingSpline.Get()->GetNumberOfSplinePoints(); ++i)
-				{
-					WorkingSpline.Get()->SetSplinePointType(i, Settings->SplineType, false);
-				}
+				WorkingSpline.Get()->SetSplinePointType(i, Settings->SplineType, false);
 			}
-		});
+		}
+	});
 	
 	Settings->WatchProperty(Settings->ZOffset, [this](float)
 	{
