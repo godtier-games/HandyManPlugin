@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(BlueprintType, ClassGroup = (HandyMan))
 class HANDYMAN_API UPathFinding_AStarSettings : public UPCGSettings
 {
 	GENERATED_BODY()

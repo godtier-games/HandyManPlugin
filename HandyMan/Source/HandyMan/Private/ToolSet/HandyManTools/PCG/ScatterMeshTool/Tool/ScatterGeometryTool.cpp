@@ -16,10 +16,10 @@
 
 UScatterGeometryTool::UScatterGeometryTool(): PropertySet(nullptr)
 {
-	ToolName = FText::FromString("Scatter");
+	ToolName = FText::FromString("Mesh Scatter");
 	ToolTooltip = FText::FromString("Scatter geometry on selected static mesh actors.");
 	ToolCategory = FText::FromString("World Building");
-	ToolLongName = FText::FromString("Scatter Geometry");
+	ToolLongName = FText::FromString("Scatter Geometry On Mesh");
 }
 
 void UScatterGeometryTool::Setup()

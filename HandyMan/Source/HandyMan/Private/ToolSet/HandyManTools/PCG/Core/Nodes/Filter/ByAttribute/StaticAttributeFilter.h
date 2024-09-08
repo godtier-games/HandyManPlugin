@@ -12,7 +12,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(BlueprintType, ClassGroup = (HandyMan))
 class HANDYMAN_API UStaticAttributeFilter : public UPCGSettings
 {
 	GENERATED_BODY()

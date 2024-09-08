@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, ClassGroup = (HandyMan))
 class HANDYMAN_API UGroupRandomSelection : public UPCGSettings
 {
 	GENERATED_BODY()
@@ -23,7 +23,7 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GroupRandomSelection")); }
 	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGroupRandomSelectionSettings", "NodeTitle", "Group Random Selection"); }
 	virtual FText GetNodeTooltipText() const override { return NSLOCTEXT("PCGGroupRandomSelectionSettings", "NodeTooltip", "Split a point input in 2, randomly according to a ratio."); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
 #endif
 
 	virtual FName AdditionalTaskName() const override;

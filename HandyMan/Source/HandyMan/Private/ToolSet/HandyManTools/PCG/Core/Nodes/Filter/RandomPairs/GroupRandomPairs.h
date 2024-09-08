@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(BlueprintType, ClassGroup = (HandyMan))
 class HANDYMAN_API UGroupRandomPairsSettings : public UPCGSettings
 {
 	GENERATED_BODY()
@@ -23,7 +23,7 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GroupRandomPairsFromAttributes")); }
 	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGroupRandomPairsSettings", "NodeTitle", "Group Random Pairs From Attributes"); }
 	virtual FText GetNodeTooltipText() const override { return NSLOCTEXT("PCGGroupRandomPairsSettings", "NodeTooltip", "Filter and group points with a random pair. Use this to generate 2 points to create curves."); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::PointOps; }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
 #endif
 
 	virtual FName AdditionalTaskName() const override;

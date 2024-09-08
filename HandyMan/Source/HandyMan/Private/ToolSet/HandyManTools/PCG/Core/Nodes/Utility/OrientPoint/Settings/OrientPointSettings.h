@@ -9,8 +9,8 @@
 /**
  * 
  */
-UCLASS(MinimalAPI, BlueprintType, ClassGroup = ("Handy Man | Procedural"))
-class UOrientPointSettings : public UPCGSettings
+UCLASS(BlueprintType, ClassGroup = (HandyMan))
+class HANDYMAN_API UOrientPointSettings : public UPCGSettings
 {
 
 	GENERATED_BODY()
