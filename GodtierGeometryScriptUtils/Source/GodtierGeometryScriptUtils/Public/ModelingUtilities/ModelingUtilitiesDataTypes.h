@@ -62,6 +62,13 @@ struct FSweepOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bFlipOrientation = false;
 
+	/* If true, the target mesh will be reset to an empty mesh before the sweep operation
+	 * Set this to false if you are sweeping multiple times on the same mesh
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bResetTargetMesh = true;
+	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptPrimitiveUVMode UVMode = EGeometryScriptPrimitiveUVMode::Uniform;
 	

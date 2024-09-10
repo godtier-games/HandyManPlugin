@@ -114,7 +114,10 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 		return TargetMesh;
 	}
 
-	TargetMesh->Reset();
+	if (SweepOptions.bResetTargetMesh)
+	{
+		TargetMesh->Reset();
+	}
 	
 	if (Spline->GetNumberOfSplinePoints() < 2)
 	{

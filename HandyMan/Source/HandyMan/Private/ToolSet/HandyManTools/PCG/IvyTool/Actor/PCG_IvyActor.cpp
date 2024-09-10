@@ -87,6 +87,7 @@ void APCG_IvyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	
 	FSweepOptions SweepOptions;
 	SweepOptions.TargetMesh = TempMesh;
+	SweepOptions.bResetTargetMesh = false;
 	SweepOptions.ShapeType = ESweepShapeType::Circle;
 	SweepOptions.ShapeRadius = VineThickness;
 	SweepOptions.ShapeSegments = 8;
@@ -94,6 +95,7 @@ void APCG_IvyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	for (auto Item : Components)
 	{
 		SweepOptions.Spline = Item;
+		SweepOptions.SampleSize = Item->GetSplineLength() / 10;
 		CombinedSplinesMesh = UGodtierModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
 	}
 
