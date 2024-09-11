@@ -105,18 +105,18 @@ void USplineTool::SpawnOutputActorInstance(const USplineToolProperties* InSettin
 
 			if (LocalTargetSplineInterface.IsValid())
 			{
-				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
-				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(Settings->MaxRandomRotation);
-				LocalTargetSplineInterface.Get()->SetMinRandomRotation(Settings->MinRandomRotation);
-				LocalTargetSplineInterface.Get()->SetCloseSpline(Settings->bClosedSpline);
-				LocalTargetSplineInterface.Get()->SetAimMeshAtNextPoint(Settings->bAimMeshAtNextPoint);
-				LocalTargetSplineInterface.Get()->SetEnableRandomRotation(Settings->bEnableRandomRotation);
-				LocalTargetSplineInterface.Get()->SetMeshOffsetDistance(Settings->DistanceOffset);
-				LocalTargetSplineInterface.Get()->SetColliderZOffset(Settings->ZOffset);
-				LocalTargetSplineInterface.Get()->SetMeshScale(Settings->MeshScaleRange);
-				LocalTargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
+				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(InSettings->MaxRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMaxRandomRotation(InSettings->MaxRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMinRandomRotation(InSettings->MinRandomRotation);
+				LocalTargetSplineInterface.Get()->SetCloseSpline(InSettings->bClosedSpline);
+				LocalTargetSplineInterface.Get()->SetAimMeshAtNextPoint(InSettings->bAimMeshAtNextPoint);
+				LocalTargetSplineInterface.Get()->SetEnableRandomRotation(InSettings->bEnableRandomRotation);
+				LocalTargetSplineInterface.Get()->SetMeshOffsetDistance(InSettings->DistanceOffset);
+				LocalTargetSplineInterface.Get()->SetColliderZOffset(InSettings->ZOffset);
+				LocalTargetSplineInterface.Get()->SetMeshScale(InSettings->MeshScaleRange);
+				LocalTargetSplineInterface.Get()->SetSplineMesh(InSettings->InputGeometry);
 				LocalTargetSplineInterface.Get()->SetSplinePointType(InSettings->SplineType);
-				LocalTargetSplineInterface.Get()->SetSplineMesh(Settings->InputGeometry);
+				LocalTargetSplineInterface.Get()->SetSplineMesh(InSettings->InputGeometry);
 				LocalTargetSplineInterface.Get()->SetSplinePoints(PointTransforms);
 			}
 		}

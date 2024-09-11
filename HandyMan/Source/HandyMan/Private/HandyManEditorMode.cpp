@@ -12,7 +12,7 @@
 
 #include "EdModeInteractiveToolsContext.h"
 #include "HandyManAssetUtils.h"
-#include "HandyManPhysicsInterface.h"
+#include "Interfaces/HandyManPhysicsInterface.h"
 #include "HandyManSettings.h"
 #include "Modules/ModuleManager.h"
 #include "ILevelEditor.h"

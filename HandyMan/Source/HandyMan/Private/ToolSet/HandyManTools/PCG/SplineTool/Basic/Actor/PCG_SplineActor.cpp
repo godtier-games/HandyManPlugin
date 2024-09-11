@@ -63,6 +63,37 @@ void APCG_SplineActor::SetSplinePoints(const TArray<FTransform> Points)
 	}
 }
 
+void APCG_SplineActor::SetSplinePoints_Vector(const TArray<FVector> Points)
+{
+	if (!SplineComponent)
+	{
+		return;
+		
+	}
+	
+	SplineComponent->ClearSplinePoints(true);
+
+	SplineComponent->SetSplinePoints(Points, ESplineCoordinateSpace::World, true);
+
+	for (int i = 0; i < SplineComponent->GetNumberOfSplinePoints(); i++)
+	{
+		if(i == 0 || i == SplineComponent->GetNumberOfSplinePoints() - 1)
+		{
+			SplineComponent->SetSplinePointType(i, ESplinePointType::Linear);
+		}
+		else
+		{
+			SplineComponent->SetSplinePointType(i, SplinePointType);
+		}
+	}
+	
+
+	if (PCGComponent)
+	{
+		PCGComponent->NotifyPropertiesChangedFromBlueprint();
+	}
+}
+
 void APCG_SplineActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

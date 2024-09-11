@@ -131,6 +131,28 @@ void APCG_DynamicSplineActor::SetSplinePoints(const TArray<FTransform> Points)
 	RefreshDynamicCollision();
 }
 
+void APCG_DynamicSplineActor::SetSplinePoints_Vector(const TArray<FVector> Points)
+{
+	if(!SplineComponent)
+    {
+        return;
+    }
+
+	SplineComponent->SetSplinePoints(Points, ESplineCoordinateSpace::World, true);
+	
+	for (int i = 0; i < SplineComponent->GetNumberOfSplinePoints(); i++)
+	{
+		if(i == 0 || i == SplineComponent->GetNumberOfSplinePoints() - 1)
+		{
+			SplineComponent->SetSplinePointType(i, ESplinePointType::Linear);
+		}
+		else
+		{
+			SplineComponent->SetSplinePointType(i, SplinePointType);
+		}
+	}
+}
+
 void APCG_DynamicSplineActor::SetSplinePointType(const ESplinePointType::Type PointType)
 {
 	SplinePointType = PointType;

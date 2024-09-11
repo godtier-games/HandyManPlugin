@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ScriptableInteractiveTool.h"
+#include "Interfaces/HandyManToolInterface.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
 #include "HandyManInteractiveTool.generated.h"
 
@@ -11,7 +12,7 @@
  * 
  */
 UCLASS()
-class HANDYMAN_API UHandyManInteractiveTool : public UScriptableInteractiveTool
+class HANDYMAN_API UHandyManInteractiveTool : public UScriptableInteractiveTool, public IHandyManToolInterface
 {
 	GENERATED_BODY()
 
@@ -29,7 +30,7 @@ public:
 	const UHandyManSubsystem* GetHandyManAPI_Safe() const {return HandyManAPI;}
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
 
-	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override {return nullptr;};
+	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) override;
 	friend class UHandyManScriptableToolSet;
 
 

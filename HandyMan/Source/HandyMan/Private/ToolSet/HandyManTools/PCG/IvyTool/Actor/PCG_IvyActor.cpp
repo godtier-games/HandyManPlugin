@@ -56,11 +56,6 @@ void APCG_IvyActor::SetVineThickness(const float Thickness)
 	{
 		PCG->NotifyPropertiesChangedFromBlueprint();
 	}
-	/*for (int i = 0; i < Vines.Num(); i++)
-	{
-		Vines[i]->SetStartScale(FVector2D(Thickness, Thickness));
-		Vines[i]->SetEndScale(FVector2D(Thickness, Thickness));
-	}*/
 }
 
 void APCG_IvyActor::TransferMeshMaterials(TArray<UMaterialInterface*> Materials)

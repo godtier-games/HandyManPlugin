@@ -3,11 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TransactionUtil.h"
-#include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "Components/SplineComponent.h"
 #include "ToolSet/Core/HandyManToolBuilder.h"
-#include "ToolSet/DataTypes/HandyManDataTypes.h"
 #include "ToolSet/HandyManBaseClasses/HandyManInteractiveTool.h"
 #include "ToolSet/HandyManTools/PCG/SplineTool/Basic/Tool/HandyManSplineTool.h"
 #include "ToolSet/Utils/SplineUtils.h"

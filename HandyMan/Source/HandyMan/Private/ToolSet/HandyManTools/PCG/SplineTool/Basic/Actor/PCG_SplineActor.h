@@ -27,6 +27,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetSplinePoints(const TArray<FTransform> Points) override;
+	virtual void SetSplinePoints_Vector(const TArray<FVector> Points) override;
 
 	virtual void SetCloseSpline(bool bCloseLoop) override
 	{

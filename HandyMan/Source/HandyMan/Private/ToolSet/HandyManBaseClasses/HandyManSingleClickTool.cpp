@@ -66,6 +66,11 @@ void UHandyManSingleClickTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
+UBaseScriptableToolBuilder* UHandyManSingleClickTool::GetHandyManToolBuilderInstance(UObject* Outer)
+{
+	return GetNewCustomToolBuilderInstance(Outer);
+}
+
 void UHandyManSingleClickTool::Setup()
 {
 	
@@ -98,6 +103,9 @@ void UHandyManSingleClickTool::Setup()
 	{
 		MouseHoverBehavior = NewObject<UMouseHoverBehavior>();
 		MouseHoverBehavior->Initialize(this);
+		MouseHoverBehavior->Modifiers.RegisterModifier(1, FInputDeviceState::IsShiftKeyDown);
+		MouseHoverBehavior->Modifiers.RegisterModifier(2, FInputDeviceState::IsCtrlKeyDown);
+		MouseHoverBehavior->Modifiers.RegisterModifier(3, FInputDeviceState::IsAltKeyDown);
 		AddInputBehavior(MouseHoverBehavior);
 	}
 

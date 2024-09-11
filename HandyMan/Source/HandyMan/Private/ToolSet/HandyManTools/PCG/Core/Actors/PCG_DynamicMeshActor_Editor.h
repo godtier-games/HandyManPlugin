@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GeometryScriptingEditor/Public/GeometryActors/GeneratedDynamicMeshActor.h"
+#include "ToolSet/HandyManTools/PCG/Core/Interface/PCGToolInterface.h"
 #include "PCG_DynamicMeshActor_Editor.generated.h"
 
 class UPCGComponent;
 
 UCLASS()
-class HANDYMAN_API APCG_DynamicMeshActor_Editor : public AGeneratedDynamicMeshActor
+class HANDYMAN_API APCG_DynamicMeshActor_Editor : public AGeneratedDynamicMeshActor, public IPCGToolInterface
 {
 	GENERATED_BODY()
 
@@ -25,6 +26,5 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintPure, Category = "PCG")
-	virtual UPCGComponent* GetPCGComponent() const { return nullptr; }
+	virtual UPCGComponent* GetPCGComponent() const override { return nullptr; }
 };

@@ -71,10 +71,11 @@ void UHandyManScriptableToolSet::ReinitializeCustomScriptableTools()
 			ToolInfo.ToolCDO = Class->GetDefaultObject<UScriptableInteractiveTool>();
 
 			UBaseScriptableToolBuilder* ToolBuilder = nullptr;
-			if (Cast<UHandyManInteractiveTool>(ToolInfo.ToolCDO.Get()))
+			if (IHandyManToolInterface* HandyManTool = Cast<IHandyManToolInterface>(ToolInfo.ToolCDO.Get()))
 			{
-				ToolBuilder = Cast<UHandyManInteractiveTool>(ToolInfo.ToolCDO.Get())->GetNewCustomToolBuilderInstance(this);
+				ToolBuilder = HandyManTool->GetHandyManToolBuilderInstance(this);
 			}
+			
 			if (ToolBuilder == nullptr)
 			{
 				ToolBuilder = NewObject<UBaseScriptableToolBuilder>(this);

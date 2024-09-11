@@ -2,15 +2,22 @@
 
 
 #include "ModelingUtilities/GodtierModelingUtilities.h"
+
+#include "DynamicMeshActor.h"
 #include "DynamicMeshEditor.h"
 #include "MatrixTypes.h"
 #include "UDynamicMesh.h"
 #include "Components/SplineComponent.h"
 #include "CurveOps/TriangulateCurvesOp.h"
 #include "DynamicMesh/MeshTransforms.h"
+#include "Engine/StaticMeshActor.h"
 #include "Generators/SweepGenerator.h"
+#include "GeometryScript/MeshAssetFunctions.h"
+#include "GeometryScript/MeshBasicEditFunctions.h"
 #include "GeometryScript/MeshModelingFunctions.h"
+#include "GeometryScript/MeshRepairFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
+#include "GeometryScript/MeshSelectionQueryFunctions.h"
 #include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
 #include "Selections/GeometrySelection.h"
@@ -97,7 +104,7 @@ UGodtierModelingUtilities::UGodtierModelingUtilities(const FObjectInitializer& O
 {
 }
 
-UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions SweepOptions, ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug)
+UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions SweepOptions, const ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug)
 {
 	auto TargetMesh = SweepOptions.TargetMesh;
 	auto Spline = SweepOptions.Spline;
@@ -280,7 +287,7 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	return TargetMesh;
 }
 
-UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, UGeometryScriptDebug* Debug)
+UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, const ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug)
 {
 	auto TargetMesh = CollisionOptions.TargetMesh;
 	auto Spline = CollisionOptions.Spline;
@@ -315,7 +322,7 @@ UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FS
 	}
 
 	// GENERATE THE SPLINE CACHE DATA
-	Spline->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, CollisionOptions.ErrorTolerance * CollisionOptions.ErrorTolerance, SplineCache.Vertices);
+	Spline->ConvertSplineToPolyLine(Space, CollisionOptions.ErrorTolerance * CollisionOptions.ErrorTolerance, SplineCache.Vertices);
 	
 	if (SplineCache.Vertices.Num() < 2)
 	{
@@ -350,65 +357,47 @@ UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FS
 	return TargetMesh;
 }
 
-UDynamicMesh* UGodtierModelingUtilities::GenerateBoxColliderFromCurve(FSimpleCollisionOptions CollisionOptions, UGeometryScriptDebug* Debug)
+UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ADynamicMeshActor* ParentActor, AActor* TargetActor, const FVector NormalDirection, UGeometryScriptDebug* Debug)
 {
-	UDynamicMesh* TargetMesh = CollisionOptions.TargetMesh;
-	USplineComponent* Spline = CollisionOptions.Spline;
+	FGeometryScriptMeshSelection Selection;
+	FGeometryScriptMeshSelection NewSelection;
 
-	if (TargetMesh == nullptr)
+	UDynamicMesh* OutMesh = nullptr;
+
+	if(!ParentActor || !TargetActor) return nullptr;
+
+	auto TempMesh = ParentActor->AllocateComputeMesh();
+	TempMesh->Reset();
+	
+
+	if (TargetActor->IsA(ADynamicMeshActor::StaticClass()))
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GenerateBoxColliderFromCurve_NullMesh", "GenerateBoxColliderFromCurve: TargetMesh is Null"));
-		return TargetMesh;
+		TempMesh->SetMesh(*Cast<ADynamicMeshActor>(TargetActor)->GetDynamicMeshComponent()->GetMesh());
+	}
+	else if (TargetActor->IsA(AStaticMeshActor::StaticClass()))
+	{
+		
+		EGeometryScriptOutcomePins Outcome;
+		TempMesh->SetMesh(
+			*UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
+		(
+			Cast<AStaticMeshActor>(TargetActor)->GetStaticMeshComponent()->GetStaticMesh(),
+			TempMesh,
+			FGeometryScriptCopyMeshFromAssetOptions(),
+			FGeometryScriptMeshReadLOD(),
+			Outcome
+		)->ExtractMesh().Get());
 	}
 	
-	if (!Spline || Spline->GetNumberOfSplinePoints() < 2)
-	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidSweepPath", "AppendSweepPolyline: SweepPath array requires at least 2 positions"));
-		return TargetMesh;
-	}
+	UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByNormalAngle(TempMesh, Selection, NormalDirection);
 
+	UGeometryScriptLibrary_MeshSelectionFunctions::InvertMeshSelection(TempMesh, Selection, NewSelection);
 
-	TargetMesh->Reset();
-
-	FGeometryScriptPrimitiveOptions PrimitiveOptions;
-	PrimitiveOptions.PolygroupMode = EGeometryScriptPrimitivePolygroupMode::PerFace;
-	PrimitiveOptions.UVMode = EGeometryScriptPrimitiveUVMode::Uniform;
-	UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangleXY(TargetMesh, PrimitiveOptions, Spline->GetTransformAtSplinePoint(0, ESplineCoordinateSpace::World), CollisionOptions.Width, CollisionOptions.Height);
-
-	TArray<FVector> Points;
-	Spline->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, CollisionOptions.ErrorTolerance * CollisionOptions.ErrorTolerance, Points);
-
-	//UGeometryScriptLibrary_MeshTransformFunctions::RotateMesh(TargetMesh, FRotator(90, 0, 0), Spline->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::World));
+	int32 NumDeleted;
+		
+	return UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrianglesFromMesh(TempMesh, NewSelection, NumDeleted);
 	
-	for (int i = 1; i < Points.Num(); ++i)
-	{
-		FGeometryScriptMeshSelection Selection;
-		FGeometryScriptGroupLayer Layer;
-		Layer.bDefaultLayer = true;
-		int ID = i > 1 ? INT_MAX : 0;
-		
-		UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByPolygroup(TargetMesh, Layer, ID, Selection, EGeometryScriptMeshSelectionType::Polygroups);
-		FGeometryScriptMeshEditPolygroupOptions PolygroupOptions;
-		PolygroupOptions.GroupMode = EGeometryScriptMeshEditPolygroupMode::SetConstant;
-		PolygroupOptions.ConstantGroup = INT_MAX;
-
-		
-		FGeometryScriptMeshLinearExtrudeOptions ExtrudeOptions;
-		ExtrudeOptions.DirectionMode = EGeometryScriptLinearExtrudeDirection::AverageFaceNormal;
-		ExtrudeOptions.Distance = FVector::Dist(Points[i], Points[i - 1]);
-		ExtrudeOptions.AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
-		ExtrudeOptions.GroupOptions = PolygroupOptions;
-		UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshLinearExtrudeFaces(TargetMesh, ExtrudeOptions, Selection);
-
-		const FRotator Rotation = Points.IsValidIndex(i + 1) ? (Points[i + 1] - Points[i]).Rotation() : FRotationMatrix::MakeFromX(Points.Last()).Rotator();
-
-		UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByPolygroup(TargetMesh, Layer, INT_MAX, Selection, EGeometryScriptMeshSelectionType::Polygroups);
-
-		
-		UGeometryScriptLibrary_MeshTransformFunctions::RotateMeshSelection(TargetMesh, Selection, Rotation, Points[i]);
-	}
-
-	return TargetMesh;
+	
 }
 
 #undef LOCTEXT_NAMESPACE

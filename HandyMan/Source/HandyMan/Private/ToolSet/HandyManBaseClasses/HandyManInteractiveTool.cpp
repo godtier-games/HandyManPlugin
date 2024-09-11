@@ -33,6 +33,11 @@ void UHandyManInteractiveTool::PostEditChangeProperty(FPropertyChangedEvent& Pro
 #endif
 
 
+UBaseScriptableToolBuilder* UHandyManInteractiveTool::GetHandyManToolBuilderInstance(UObject* Outer)
+{
+	return GetNewCustomToolBuilderInstance(Outer);
+}
+
 void UHandyManInteractiveTool::Setup()
 {
 	if (UHandyManSettings* HandyMan = GetMutableDefault<UHandyManSettings>())

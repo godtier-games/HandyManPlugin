@@ -86,6 +86,9 @@ struct FSimpleCollisionOptions
 	TObjectPtr<USplineComponent> Spline = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
+	bool bOffsetFromCenter = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")
 	double Height = 50.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collider Options")

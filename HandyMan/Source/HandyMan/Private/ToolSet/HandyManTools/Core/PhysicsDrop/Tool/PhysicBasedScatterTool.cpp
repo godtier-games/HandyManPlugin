@@ -176,7 +176,6 @@ void UPhysicBasedScatterTool::Setup()
 	OnLevelActorsDeletedHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &ThisClass::OnLevelActorsDeleted);
 	OnPreBeginPieHandle = FEditorDelegates::PreBeginPIE.AddUObject(this, &ThisClass::OnPreBeginPie);
 	
-
 	CreateBrush();
 
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
@@ -319,7 +318,11 @@ void UPhysicBasedScatterTool::OnClickDrag(const FInputDeviceRay& DragPos)
 bool UPhysicBasedScatterTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
 {
 	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
-	Params.AddIgnoredActors(LastSpawnedActors);
+
+	if (!IsCtrlDown())
+	{
+		Params.AddIgnoredActors(LastSpawnedActors);
+	}
 
 	bool bBeenHit = GetWorld()->LineTraceSingleByChannel(
 		OutHit, 

@@ -7,6 +7,7 @@
 #include "ToolSet/Core/HandyManSubsystem.h"
 
 #if WITH_EDITOR
+
 void UHandyManClickDragTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -32,6 +33,9 @@ void UHandyManClickDragTool::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	}*/
 }
 
+
+#endif
+
 void UHandyManClickDragTool::Setup()
 {
 	
@@ -48,4 +52,15 @@ void UHandyManClickDragTool::Setup()
 	HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
 
 }
-#endif
+
+
+bool UHandyManClickDragTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
+{
+	return false;
+}
+
+UBaseScriptableToolBuilder* UHandyManClickDragTool::GetHandyManToolBuilderInstance(UObject* Outer)
+{
+	return GetNewCustomToolBuilderInstance(Outer);
+}
+

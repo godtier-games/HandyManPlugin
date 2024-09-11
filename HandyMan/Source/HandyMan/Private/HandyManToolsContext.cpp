@@ -3,7 +3,7 @@
 
 #include "HandyManToolsContext.h"
 
-#include "HandyManPhysicsInterface.h"
+#include "Interfaces/HandyManPhysicsInterface.h"
 
 void UHandyManToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
 {

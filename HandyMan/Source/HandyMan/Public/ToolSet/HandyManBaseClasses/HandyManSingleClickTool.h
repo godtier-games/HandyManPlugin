@@ -4,6 +4,7 @@
 
 #include "ScriptableInteractiveTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "Interfaces/HandyManToolInterface.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
 #include "HandyManSingleClickTool.generated.h"
 
@@ -16,7 +17,11 @@ class UHoudiniPublicAPI;*/
  * 
  */
 UCLASS(Abstract)
-class HANDYMAN_API UHandyManSingleClickTool : public UScriptableInteractiveTool, public IClickBehaviorTarget, public IHoverBehaviorTarget
+class HANDYMAN_API UHandyManSingleClickTool :
+public UScriptableInteractiveTool,
+public IClickBehaviorTarget,
+public IHoverBehaviorTarget,
+public IHandyManToolInterface
 {
 	GENERATED_BODY()
 
@@ -34,6 +39,8 @@ public:
 	
 	const UHandyManSubsystem* GetHandyManAPI_Safe() const {return HandyManAPI;}
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
+
+	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) override;
 	
 
 	virtual void Setup() override;

@@ -66,6 +66,7 @@ class HANDYMAN_API UPhysicBasedScatterTool : public UHandyManClickDragTool
 
 public:
 	UPhysicBasedScatterTool();
+	
 	void CreateBrush();
 
 	virtual void Setup() override;
@@ -269,7 +270,7 @@ private:
 	void ResetPrimitivePhysics(UPrimitiveComponent* InPrim, bool bResetTransform, bool bForceStatic=false);
 	
 	/** Traces the actor under cursor */
-	bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos);
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
 	
 	/** Resets all actors physics */
 	void ResetPhysics();

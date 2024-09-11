@@ -24,13 +24,13 @@ public:
 	virtual void PostInitializeComponents() override;
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetDisplayMesh(TSoftObjectPtr<UStaticMesh> Mesh) {MeshToGiveVines = Mesh;}
+	void SetDisplayMesh(const TSoftObjectPtr<UStaticMesh> Mesh) {MeshToGiveVines = Mesh;}
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetVineMaterial(TSoftObjectPtr<UMaterialInterface> Material) {VineMaterial = Material;};
+	void SetVineMaterial(const TSoftObjectPtr<UMaterialInterface> Material) {VineMaterial = Material;};
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetDisplayMeshTransform(const FTransform& NewTransform) {DisplayMesh->SetWorldTransform(NewTransform);};
+	void SetDisplayMeshTransform(const FTransform NewTransform) {DisplayMesh->SetWorldTransform(NewTransform);};
 	
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void SetVineThickness(const float Thickness);

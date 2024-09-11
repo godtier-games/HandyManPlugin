@@ -27,8 +27,11 @@ class HANDYMAN_API ISplineToolInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	UFUNCTION(BlueprintCallable, Category = "HandyMan")
+	UFUNCTION(BlueprintCallable, Category = "HandyMan", meta = (DisplayName = "SetSplinePointsFromTransform"))
 	virtual void SetSplinePoints(const TArray<FTransform> Points) = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "HandyMan", meta = (DisplayName = "SetSplinePointsFromVector"))
+	virtual void SetSplinePoints_Vector(const TArray<FVector> Points) = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "HandyMan")
 	virtual void SetCloseSpline(bool bCloseLoop) = 0;
