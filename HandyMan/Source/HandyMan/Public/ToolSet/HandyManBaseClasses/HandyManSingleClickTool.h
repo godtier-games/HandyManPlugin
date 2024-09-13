@@ -45,6 +45,7 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override {return false;}
 	
 	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
 

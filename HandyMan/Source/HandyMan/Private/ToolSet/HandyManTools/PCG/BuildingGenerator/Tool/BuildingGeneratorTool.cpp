@@ -16,8 +16,6 @@ UBuildingGeneratorTool::UBuildingGeneratorTool()
 	ToolTooltip = LOCTEXT("BuildingGeneratorToolDescription", "Generate buildings from an input mesh");
 	ToolLongName = LOCTEXT("BuildingGeneratorToolLongName", "Generate Building From Blockout");
 	ToolShutdownType = EScriptableToolShutdownType::AcceptCancel;
-	bWantMouseHover = true;
-	bUpdateModifiersDuringDrag = true;
 	ToolStartupRequirements = EScriptableToolStartupRequirements::ToolTarget;
 }
 
@@ -133,10 +131,6 @@ void UBuildingGeneratorTool::Setup()
 		
 		return;
 	}
-
-	GEngine->OnLevelActorAdded().AddUObject(this, &ThisClass::OnLevelActorsAdded);
-	GEngine->OnLevelActorDeleted().AddUObject(this, &ThisClass::OnLevelActorsDeleted);
-	FEditorDelegates::PreBeginPIE.AddUObject(this, &ThisClass::OnPreBeginPie);
 	
 	CreateBrush();
 
@@ -144,6 +138,8 @@ void UBuildingGeneratorTool::Setup()
 	Settings = Cast<UBuildingGeneratorPropertySet>(AddPropertySetOfType(UBuildingGeneratorPropertySet::StaticClass(), "Settings", PropertyCreationOutcome));
 
 	TargetActor = UE::ToolTarget::GetTargetActor(Targets[0]);
+
+	
 
 	Settings->WatchProperty(Settings->BuildingMaterial, [this](TSoftObjectPtr<UMaterialInterface>)
 	{
@@ -209,12 +205,37 @@ void UBuildingGeneratorTool::Setup()
 	
 	Settings->SilentUpdateWatched();
 
-	SpawnOutputActorInstance(Settings, TargetActor->GetActorTransform());
+
+	if (TargetActor->IsA(APCG_BuildingGenerator::StaticClass()))
+	{
+		// TODO: Enter a edit mode for that actor
+
+		// Spawn all gizmos for the array of FGeneratedOpening
+
+		// Restore any settings set from the tool back into the tool.
+	}
+	else
+	{
+		SpawnOutputActorInstance(Settings, TargetActor->GetActorTransform());
+	}
+
+	
 
 	
 }
 
-bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+FInputRayHit UBuildingGeneratorTool::TestCanHoverFunc_Implementation(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers)
+{
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+
+}
+
+
+void UBuildingGeneratorTool::OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
+{
+}
+
+bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
 {
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, DevicePos);
@@ -262,33 +283,19 @@ bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	return bWasHit;
 }
 
-bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
+void UBuildingGeneratorTool::OnEndHover()
 {
-	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
-
-	bool bBeenHit = GetWorld()->LineTraceSingleByChannel(
-		OutHit, 
-		DevicePos.WorldRay.Origin, 
-		DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * HALF_WORLD_MAX, 
-		ECollisionChannel::ECC_Visibility, Params);
-
-	if (bBeenHit)
-	{
-		BrushLastPosition = BrushPosition;
-		BrushPosition = OutHit.ImpactPoint;
-		BrushDirection = BrushLastPosition - BrushPosition;
-		BrushNormal = OutHit.ImpactNormal;
-	}
-
-	const bool bHitTargetActor = OutHit.GetActor() && OutputActor && OutHit.GetActor() == OutputActor;
-
-	return bBeenHit && bHitTargetActor;
 }
 
-void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos)
+FInputRayHit UBuildingGeneratorTool::CanClickDrag_Implementation(const FInputDeviceRay& PressPos,
+	const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-	Super::OnClickDrag(DragPos);
-	
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+}
+
+
+void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
+{
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, DragPos);
 
@@ -300,7 +307,6 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	const bool bIsEditingMeshes = bWasHit && IsValid(LastSelectedActor) && bIsEditing;
 
 	const float DistanceBetween = IsValid(LastSelectedActor) ? FVector::Dist(LastSelectedActor->GetActorLocation(), LatestPosition) : FVector::Dist(LastSpawnedPosition, LatestPosition);
-
 	
 	
 	if (bIsPlacingMeshes)
@@ -328,7 +334,7 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	}
 }
 
-void UBuildingGeneratorTool::OnDragBegin_Implementation(FInputDeviceRay StartPosition, const FScriptableToolModifierStates& Modifiers)
+void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
 
 	if (!PaintingMesh)
@@ -380,11 +386,65 @@ void UBuildingGeneratorTool::OnDragBegin_Implementation(FInputDeviceRay StartPos
 	
 }
 
-void UBuildingGeneratorTool::OnDragEnd_Implementation(FInputDeviceRay EndPosition, const FScriptableToolModifierStates& Modifiers)
+void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
 	bIsDestroying = false;
 	bIsPainting = false;
 	bIsEditing = false;
+}
+
+FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos,
+	const EScriptableToolMouseButton& Button)
+{
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+
+}
+
+void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
+{
+}
+
+bool UBuildingGeneratorTool::MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState)
+{
+	return true;
+}
+
+FInputRayHit UBuildingGeneratorTool::CanUseMouseWheel_Implementation(const FInputDeviceRay& PressPos)
+{
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+}
+
+void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
+{
+	
+}
+
+void UBuildingGeneratorTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
+{
+}
+
+
+bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
+{
+	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
+
+	bool bBeenHit = GetWorld()->LineTraceSingleByChannel(
+		OutHit, 
+		DevicePos.WorldRay.Origin, 
+		DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * HALF_WORLD_MAX, 
+		ECollisionChannel::ECC_Visibility, Params);
+
+	if (bBeenHit)
+	{
+		BrushLastPosition = BrushPosition;
+		BrushPosition = OutHit.ImpactPoint;
+		BrushDirection = BrushLastPosition - BrushPosition;
+		BrushNormal = OutHit.ImpactNormal;
+	}
+
+	const bool bHitTargetActor = OutHit.GetActor() && OutputActor && OutHit.GetActor() == OutputActor;
+
+	return bBeenHit && bHitTargetActor;
 }
 
 void UBuildingGeneratorTool::OnTick(float DeltaTime)

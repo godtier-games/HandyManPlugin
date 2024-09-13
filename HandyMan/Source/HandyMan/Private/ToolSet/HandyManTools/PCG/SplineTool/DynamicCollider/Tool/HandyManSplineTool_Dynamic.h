@@ -33,6 +33,8 @@ public:
 	USplineTool_Dynamic();
 
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override {return false;};
+
 
 	void SpawnActorInstance(const UDynamicSplineToolProperties* CurrentSettings);
 	virtual void SetSelectedActor(AActor* Actor) override;

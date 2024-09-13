@@ -362,8 +362,6 @@ UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ADynamicMesh
 	FGeometryScriptMeshSelection Selection;
 	FGeometryScriptMeshSelection NewSelection;
 
-	UDynamicMesh* OutMesh = nullptr;
-
 	if(!ParentActor || !TargetActor) return nullptr;
 
 	auto TempMesh = ParentActor->AllocateComputeMesh();

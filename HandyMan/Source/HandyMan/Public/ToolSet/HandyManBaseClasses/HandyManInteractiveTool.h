@@ -31,6 +31,7 @@ public:
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
 
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) override;
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override {return false;};
 	friend class UHandyManScriptableToolSet;
 
 

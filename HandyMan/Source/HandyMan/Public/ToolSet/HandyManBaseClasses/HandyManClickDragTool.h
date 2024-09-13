@@ -23,7 +23,7 @@ public:
 	UHandyManSubsystem* GetHandyManAPI() const {return HandyManAPI;}
 
 	/** Traces the actor under cursor */
-	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos);
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
 
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) override;
 	

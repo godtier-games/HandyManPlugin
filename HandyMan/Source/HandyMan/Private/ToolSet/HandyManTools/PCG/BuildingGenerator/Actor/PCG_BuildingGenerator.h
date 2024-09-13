@@ -36,6 +36,7 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
+	void CreateFloorAndRoofSplines();
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void SetBuildingMaterial(const TSoftObjectPtr<UMaterialInterface> Material) {BuildingMaterial = Material;}
@@ -75,9 +76,13 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void CreateSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath> Paths);
-	
-	/*UFUNCTION(meta=(CallInEditor="true"))
-	void BakeToStaticMesh();*/
+
+	/**
+	 *  Generates the splines from the generated mesh.
+	 *  This is useful if you want to create splines for each floor of the building to procedurally generate more meshes with PCG.
+	 */
+	UFUNCTION(meta=(CallInEditor="true"), Category="Parameters", DisplayName="Regenerate Splines")
+	void GenerateSplinesFromGeneratedMesh();
 	
 
 
@@ -92,6 +97,13 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UPCGComponent> PCG;
+
+	/* By default a spline will be generated for each floor of the building.
+	 * If this is set to false only a ground and roof spline will be generated.
+	 * Splines can be used by PCG to procedurally generate meshes for each floor.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
+	bool bGenerateSplinesForEachFloor = true;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	bool bHasOpenRoof = false;
@@ -102,10 +114,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	bool bUseConsistentFloorMaterial = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorMaterial"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorMaterial", EditConditionHides))
 	TSoftObjectPtr<UMaterialInterface> FloorMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorMaterial"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorMaterial", EditConditionHides))
 	TMap<uint8, TSoftObjectPtr<UMaterialInterface>> FloorMaterialMap;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
@@ -114,10 +126,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	bool bUseConsistentFloorHeight = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight", EditConditionHides))
 	float DesiredFloorHeight = 400.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorHeight"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorHeight", EditConditionHides))
 	TMap<uint8, float> DesiredFloorHeightMap;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
@@ -142,8 +154,16 @@ private:
 
 
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
+	void UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
 
+
+public:
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
 	
 };

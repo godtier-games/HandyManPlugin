@@ -5,8 +5,10 @@
 #include "Engine/StaticMeshActor.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
+#include "GeometryScript/MeshBooleanFunctions.h"
 #include "GeometryScript/MeshModelingFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
+#include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
 #include "ModelingUtilities/GodtierModelingUtilities.h"
 #include "PolyPathUtilities/GodtierPolyPathUtilities.h"
@@ -19,6 +21,9 @@ APCG_BuildingGenerator::APCG_BuildingGenerator()
 	PrimaryActorTick.bCanEverTick = false;
 
 	PCG = CreateDefaultSubobject<UPCGComponent>(TEXT("PCG"));
+
+	DynamicMeshComponent->CollisionType = CTF_UseComplexAsSimple;
+	DynamicMeshComponent->bEnableComplexCollision = true;
 	
 }
 
@@ -32,8 +37,10 @@ void APCG_BuildingGenerator::BeginPlay()
 void APCG_BuildingGenerator::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 {
 	GenerateExteriorWalls(TargetMesh);
-	GenerateRoofMesh(TargetMesh);
 	GenerateFloorMeshes(TargetMesh);
+	GenerateRoofMesh(TargetMesh);
+
+	ForceCookPCG();
 }
 
 void APCG_BuildingGenerator::OnConstruction(const FTransform& Transform)
@@ -44,6 +51,16 @@ void APCG_BuildingGenerator::OnConstruction(const FTransform& Transform)
 void APCG_BuildingGenerator::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+}
+
+void APCG_BuildingGenerator::CreateFloorAndRoofSplines()
+{
+	TArray<FVector> NormalDirections;
+	NormalDirections.Add(FVector(0, 0, 1));
+	NormalDirections.Add(FVector(0, 0, -1));
+	
+	auto PolyPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(OriginalMesh, NormalDirections, nullptr);
+	CreateSplinesFromPolyPaths(PolyPaths);
 }
 
 void APCG_BuildingGenerator::CacheInputActor(AActor* InputActor)
@@ -83,14 +100,7 @@ void APCG_BuildingGenerator::CacheInputActor(AActor* InputActor)
 		
 	}
 	
-	TArray<FVector> NormalDirections;
-	NormalDirections.Add(FVector(0, 0, 1));
-	NormalDirections.Add(FVector(0, 0, -1));
-	
-	auto PolyPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(OriginalMesh, NormalDirections, nullptr);
-	CreateSplinesFromPolyPaths(PolyPaths);
-
-	
+	CreateFloorAndRoofSplines();
 }
 
 void APCG_BuildingGenerator::SetFloorMaterial(const int32 Floor, const TSoftObjectPtr<UMaterialInterface> Material)
@@ -138,8 +148,8 @@ void APCG_BuildingGenerator::CreateSplinesFromPolyPaths(const TArray<FGeometrySc
 				continue;
 			}
 		
-			int32 IndexOfMaxValue;
-			const float MinValue = FMath::Min(ZValues, &IndexOfMaxValue);
+			int32 IndexOfMinValue;
+			const float MinValue = FMath::Min(ZValues, &IndexOfMinValue);
 
 			if (!FMath::IsNearlyEqual(Path.Path->GetData()[0].Z, MinValue)) continue;
 
@@ -151,8 +161,9 @@ void APCG_BuildingGenerator::CreateSplinesFromPolyPaths(const TArray<FGeometrySc
 			{
 				FloorSplines[CurrentFloor]->SetSplinePoints(PathArray, ESplineCoordinateSpace::Local, true);
 				ExpectedNumberOfSplines--;
+				TempPaths.RemoveAtSwap(i);
+				ZValues.RemoveAtSwap(IndexOfMinValue);
 				CurrentFloor++;
-				ZValues.RemoveAtSwap(IndexOfMaxValue);
 			}
 			else
 			{
@@ -167,7 +178,7 @@ void APCG_BuildingGenerator::CreateSplinesFromPolyPaths(const TArray<FGeometrySc
 				FloorSplines.Add(CurrentFloor, Spline);
 				ExpectedNumberOfSplines--;
 				TempPaths.RemoveAtSwap(i);
-				ZValues.RemoveAtSwap(IndexOfMaxValue);
+				ZValues.RemoveAtSwap(IndexOfMinValue);
 				CurrentFloor++;
 			}
 		}
@@ -184,14 +195,32 @@ void APCG_BuildingGenerator::CreateSplinesFromPolyPaths(const TArray<FGeometrySc
 
 	GenerateExteriorWalls(nullptr);
 
-	if (!bHasOpenRoof)
-	{
-		GenerateRoofMesh(GetDynamicMeshComponent()->GetDynamicMesh());
-	}
-	
 	GenerateFloorMeshes(GetDynamicMeshComponent()->GetDynamicMesh());
+
+	GenerateRoofMesh(GetDynamicMeshComponent()->GetDynamicMesh());
 	
-	ForceCookPCG();
+	
+}
+
+void APCG_BuildingGenerator::GenerateSplinesFromGeneratedMesh()
+{
+	TArray<FVector> NormalDirections;
+	NormalDirections.Add(FVector(0, 0, 1));
+	NormalDirections.Add(FVector(0, 0, -1));
+
+	auto TempMesh = AllocateComputeMesh();
+	TempMesh->Reset();
+	TempMesh->SetMesh(*GetDynamicMeshComponent()->GetMesh());
+
+	// Merge this mesh so that faces have a singular border.
+	FGeometryScriptMeshSelfUnionOptions SelfUnionOptions;
+	SelfUnionOptions.bFillHoles = false;
+	TempMesh = UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshSelfUnion(TempMesh, SelfUnionOptions);
+	
+	auto PolyPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(TempMesh, NormalDirections, nullptr);
+	
+	CreateSplinesFromPolyPaths(PolyPaths);
+	ReleaseAllComputeMeshes();
 }
 
 void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
@@ -201,23 +230,36 @@ void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
 		return;
 	}
 
+	// TODO - Here I would like to procedurally place smart meshes along the roof spline.
+}
+
+void APCG_BuildingGenerator::UseTopFaceForFloor(UDynamicMesh* TargetMesh, const double FloorHeight)
+{
+	// Duplicate the roof mesh
 	auto RoofMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(this, OriginalActor);
 
+	// Move it down to ground level
+	RoofMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(RoofMesh, FVector(0, 0, -BuildingHeight));
+		
+		
+	// Move it up to its floor level
+	RoofMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(RoofMesh, FVector(0, 0, (FloorHeight - WallThickness)));
+
+	// Extrude the mesh to give it some thickness
 	FGeometryScriptMeshSelection Selection;
 	UGeometryScriptLibrary_MeshSelectionFunctions::CreateSelectAllMeshSelection(RoofMesh, Selection);
 
 	FGeometryScriptMeshLinearExtrudeOptions ExtrudeOptions;
-	
-	ExtrudeOptions.Direction = FVector(0, 0, -1);
+	ExtrudeOptions.Direction = FVector(0, 0, 1);
 	ExtrudeOptions.Distance = WallThickness;
 	ExtrudeOptions.AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
 	
 	RoofMesh = UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshLinearExtrudeFaces(RoofMesh, ExtrudeOptions, Selection);
 
+	// Append it to the existing mesh.
 	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, RoofMesh, FTransform::Identity);
-
-	ReleaseAllComputeMeshes();
 	
+	ReleaseAllComputeMeshes();
 }
 
 void APCG_BuildingGenerator::GenerateFloorMeshes(UDynamicMesh* TargetMesh)
@@ -226,6 +268,50 @@ void APCG_BuildingGenerator::GenerateFloorMeshes(UDynamicMesh* TargetMesh)
 	{
 		return;
 	}
+
+
+	for (int i = 0; i < NumberOfFloors; ++i)
+	{
+		// Skip the base floor this will be generated either from the underlying geometry or from PCG - TODO : Make this an option?
+		double FloorHeight = 0;
+		if (bUseConsistentFloorHeight)
+		{
+			FloorHeight = i * DesiredFloorHeight;
+		}
+		else
+		{
+			if (DesiredFloorHeightMap.Contains(i))
+			{
+				FloorHeight = DesiredFloorHeightMap[i];
+			}
+		}
+		
+		if(i == 0) continue;
+
+
+		if (bGenerateSplinesForEachFloor)
+		{
+			if (FloorSplines.Contains(i))
+			{
+				// Move the spline to the correct height
+			}
+			else
+			{
+				// Generate a new spline from the base spline and move it up to the floor height.
+			}
+		}
+		
+		UseTopFaceForFloor(TargetMesh, FloorHeight);
+		
+	}
+	
+	
+	// If the building has an open roof do not create the mesh for it.
+	if (!bHasOpenRoof)
+	{
+		UseTopFaceForFloor(TargetMesh, BuildingHeight);
+	}
+	
 }
 
 void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
@@ -261,52 +347,93 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 	
 }
 
+#if WITH_EDITOR
+void APCG_BuildingGenerator::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, NumberOfFloors))
+	{
+		SetNumberOfFloors(NumberOfFloors);
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, DesiredFloorHeight))
+	{
+		SetDesiredFloorHeight(DesiredFloorHeight);
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, BuildingHeight))
+	{
+		SetDesiredBuildingHeight(BuildingHeight);
+	}
+}
+#endif
+
 
 void APCG_BuildingGenerator::ForceCookPCG()
 {
 	PCG->CleanupLocalImmediate(true, true);
 	PCG->NotifyPropertiesChangedFromBlueprint();
+	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::SetNumberOfFloors(const int32 NewFloorCount)
 {
 	NumberOfFloors = NewFloorCount;
-
-	// Technically this should get the input meshes roof mesh, Move it up by the height of the floor and then convert that new mesh to a poly path
-	// We then want to create the splines again from the poly paths;
-	ForceCookPCG();
+	if (bUseConsistentFloorHeight)
+	{
+		DesiredFloorHeight = BuildingHeight / NumberOfFloors;
+	}
+	else
+	{
+		
+	}
+	
 }
 
 void APCG_BuildingGenerator::SetHasOpenRoof(const bool HasOpenRoof)
 {
     bHasOpenRoof = HasOpenRoof;
-    ForceCookPCG();
 }
 
 void APCG_BuildingGenerator::SetUseConsistentFloorMaterials(const bool UseConsistentFloorMaterials)
 {
 	bUseConsistentFloorMaterial = UseConsistentFloorMaterials;
-	ForceCookPCG();
+	
 }
 
 void APCG_BuildingGenerator::SetUseConsistentFloorHeight(const bool UseConsistentFloorHeight)
 {
 	bUseConsistentFloorHeight = UseConsistentFloorHeight;
-	ForceCookPCG();
+	
 }
 
 void APCG_BuildingGenerator::SetDesiredFloorHeight(const float NewFloorHeight)
 {
     DesiredFloorHeight = NewFloorHeight;
     NumberOfFloors = FMath::Floor(BuildingHeight / DesiredFloorHeight);
-    ForceCookPCG();
+    
 }
 
 void APCG_BuildingGenerator::SetDesiredBuildingHeight(const float NewBuildingHeight)
 {
+	FVector Origin;
+	FVector Extent;
+	OriginalActor->GetActorBounds(false, Origin, Extent);
+	const float LastHeight = Extent.Z * 2;
+	
     BuildingHeight = NewBuildingHeight;
     DesiredFloorHeight = BuildingHeight / NumberOfFloors;
-    ForceCookPCG();
+
+	float multiplier = LastHeight > BuildingHeight ? -1 : 1;
+	const float Delta = FMath::Abs(NewBuildingHeight - LastHeight);
+
+	// Update the Input mesh since we use it to generate meshes repeatedly.
+	FGeometryScriptMeshSelection Selection;
+	UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByNormalAngle(OriginalMesh, Selection);
+	OriginalMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMeshSelection(OriginalMesh, Selection, FVector(0, 0, Delta * multiplier));
+	
+	CreateFloorAndRoofSplines();
 };
 
 

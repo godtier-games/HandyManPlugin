@@ -5,19 +5,20 @@
 #include "CoreMinimal.h"
 #include "Behaviors/ScriptableToolBehaviorDelegates.h"
 #include "ToolSet/HandyManBaseClasses/HandyManClickDragTool.h"
+#include "ToolSet/HandyManBaseClasses/HandyManModularTool.h"
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
+#include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataTypes/BuildingGeneratorTypes.h"
 #include "BuildingGeneratorTool.generated.h"
 
 class IPCGToolInterface;
 class APCG_BuildingGenerator;
 class UBuildingGeneratorPropertySet;
 
-
 /**
  * 
  */
 UCLASS()
-class HANDYMAN_API UBuildingGeneratorTool : public UHandyManClickDragTool
+class HANDYMAN_API UBuildingGeneratorTool : public UHandyManModularTool
 {
 	GENERATED_BODY()
 
@@ -31,11 +32,58 @@ public:
 	
 	virtual void Setup() override;
 
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Hover"))
+	FInputRayHit TestCanHoverFunc(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Begin Hover"))
+	void OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
+	
 	// IHoverBehaviorTarget API
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Update Hover"))
+	bool OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
 
-	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Hover"))
+	void OnEndHover();
 
+
+	
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Mouse Drag"))
+	FInputRayHit CanClickDrag(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
+	
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Update Mouse Drag"))
+	void OnClickDrag(const FInputDeviceRay& DragPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button = EScriptableToolMouseButton::LeftButton);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Start Mouse Drag"))
+	void OnDragBegin(const FInputDeviceRay& StartPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Mouse Drag"))
+	void OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
+
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Click"))
+	FInputRayHit CanClickFunc(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Hit By Click"))
+	void OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton);
+
+	UFUNCTION(BlueprintCallable)
+	bool MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState);
+
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Use Mouse Wheel"))
+	FInputRayHit CanUseMouseWheel(const FInputDeviceRay& PressPos);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Mouse Wheel Up"))
+	void OnMouseWheelUp(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers);
+
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Mouse Wheel Down"))
+	void OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers);
+
+
+	
+	
 	bool bCanSpawn = false;
 
 	FVector LatestPosition = FVector::Zero();
@@ -46,9 +94,9 @@ public:
 	UPROPERTY()
 	APCG_BuildingGenerator* OutputActor;
 
-	virtual void OnDragBegin_Implementation(FInputDeviceRay StartPosition, const FScriptableToolModifierStates& Modifiers) override;
+	FInputRayHit LastHit;
 
-	virtual void OnDragEnd_Implementation(FInputDeviceRay EndPosition, const FScriptableToolModifierStates& Modifiers) override;
+
 
 	virtual void OnTick(float DeltaTime) override;
 	
@@ -59,6 +107,8 @@ public:
 	virtual bool HasCancel() const override {return true;}
 
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
+
+	
 	
 	void HandleAccept();
 	void HandleCancel();
@@ -169,7 +219,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Building")
 	bool bHasOpenRoof = false;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Building")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Openings")
+	TArray<FDynamicOpening> Openings;
 	
 
 	

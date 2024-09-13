@@ -34,6 +34,7 @@ public:
 	USplineTool();
 
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override {return false;};
 
 	void SpawnWorkingActorInstance(const USplineToolProperties* InSettings);
 	void SpawnOutputActorInstance(const USplineToolProperties* InSettings, const FTransform& SpawnTransform);

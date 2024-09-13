@@ -26,4 +26,6 @@ public:
 
 	// return instance of custom tool builder. Should only be called on CDO.
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) = 0;
+
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) = 0;
 };

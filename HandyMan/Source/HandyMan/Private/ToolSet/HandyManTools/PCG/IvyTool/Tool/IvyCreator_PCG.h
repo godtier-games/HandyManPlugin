@@ -20,8 +20,7 @@ public:
 
 	virtual void Setup() override;
 
-	// Click
-	//virtual FInputRayHit TestIfHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
+	
 	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
 
 	// Hover API
