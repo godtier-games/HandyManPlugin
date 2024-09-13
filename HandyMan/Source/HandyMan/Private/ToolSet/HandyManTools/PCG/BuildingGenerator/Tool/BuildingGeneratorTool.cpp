@@ -6,6 +6,7 @@
 #include "ModelingToolTargetUtil.h"
 #include "Engine/StaticMeshActor.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/Actor/PCG_BuildingGenerator.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGeneratorTool"
@@ -76,9 +77,7 @@ void UBuildingGeneratorTool::SpawnOutputActorInstance(const UBuildingGeneratorPr
 			{
 				TargetPCGInterface.Get()->GetPCGComponent()->GenerateLocal(true);
 			}
-
 			
-
 			OutputActor = (SpawnedActor);
 		}
 		
@@ -174,6 +173,14 @@ void UBuildingGeneratorTool::Setup()
 		}
 	});
 	
+	Settings->WatchProperty(Settings->DesiredNumberOfFloors, [this](int32)
+	{
+		if (IsValid(OutputActor))
+		{
+			OutputActor->SetNumberOfFloors(Settings->DesiredNumberOfFloors);
+		}
+	});
+	
 	Settings->WatchProperty(Settings->bHasOpenRoof, [this](bool)
 	{
 		if (IsValid(OutputActor))
@@ -240,7 +247,7 @@ bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, con
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, DevicePos);
 
-	auto Rotation = Hit.Normal.Rotation();
+	auto Rotation = (Hit.Normal).GetSafeNormal().Rotation();
 	auto PickedMesh = PaintingMesh;
 	
 	if (IsValid(PickedMesh))
@@ -252,7 +259,11 @@ bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, con
 				Brush->RegisterComponentWithWorld(GetWorld());
 			}
 
-			Brush->SetStaticMesh(PickedMesh);
+			if (PickedMesh != Brush->GetStaticMesh())
+			{
+				Brush->SetStaticMesh(PickedMesh);
+			}
+			
 			Brush->SetWorldLocation(Hit.Location);
 			Brush->SetWorldScale3D(FVector(1.0f, 1.0f, 1.0f));
 
@@ -307,65 +318,57 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 	const bool bIsEditingMeshes = bWasHit && IsValid(LastSelectedActor) && bIsEditing;
 
 	const float DistanceBetween = IsValid(LastSelectedActor) ? FVector::Dist(LastSelectedActor->GetActorLocation(), LatestPosition) : FVector::Dist(LastSpawnedPosition, LatestPosition);
-	
-	
-	if (bIsPlacingMeshes)
+
+
+	switch (Button)
 	{
-		// If the user has the shift key down, toggle aligning the mesh to the surface
-		// If the user has the ctrl key down, delete the mesh
-	}
-	else if (bIsEditingMeshes)
-	{
-		// If the user has the shift key down, scale the mesh
-		// If the user has the ctrl + shift key down, rotate the mesh
-		// If the user has the ctrl key down, Enable snapping
-	}
-	else if (bIsDestroying)
-	{
-		// Check if hit actor is a static mesh actor with the same mesh as our painting mesh
-		// If it is, delete the actor
-		if (Hit.GetActor() && Hit.GetActor()->IsA(AStaticMeshActor::StaticClass())
-			&& Cast<AStaticMeshActor>(Hit.GetActor())->GetStaticMeshComponent()->GetStaticMesh()
-			&& LastSpawnedActors.Contains(Hit.GetActor()))
+	case EScriptableToolMouseButton::LeftButton:
 		{
-			LastSpawnedActors.RemoveSingle(Hit.GetActor());
-			Hit.GetActor()->Destroy();
+			if (!IsAltDown())
+			{
+				if (IsShiftDown() && !IsCtrlDown())
+				{
+					// If the user has the shift key down, scale the mesh
+
+				}
+				else if (IsShiftDown() && IsCtrlDown())
+				{
+					// If the user has the ctrl + shift key down, rotate the mesh
+
+				}
+				else if (IsCtrlDown() && !IsShiftDown())
+				{
+					// If the user has the ctrl key down, Enable snapping
+				}
+			}
 		}
+		
+		break;
+	case EScriptableToolMouseButton::RightButton:
+		break;
+	case EScriptableToolMouseButton::MiddleButton:
+		{
+			// Check if hit actor is a static mesh actor with the same mesh as our painting mesh
+			// If it is, delete the actor
+			if (Hit.GetActor() && Hit.GetActor()->IsA(AStaticMeshActor::StaticClass())
+				&& Cast<AStaticMeshActor>(Hit.GetActor())->GetStaticMeshComponent()->GetStaticMesh()
+				&& LastSpawnedActors.Contains(Hit.GetActor()))
+			{
+				LastSpawnedActors.RemoveSingle(Hit.GetActor());
+				EToolsFrameworkOutcomePins OutCome;
+				DestroyTRSGizmo(Hit.GetActor()->GetFName().ToString(), OutCome);
+				Hit.GetActor()->Destroy();
+				
+			}
+		}
+		break;
 	}
 }
 
 void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
 
-	if (!PaintingMesh)
-	{
-		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			LOCTEXT("UBuildingGeneratorTool", "You are trying to add meshes to the building but no mesh is selected. Please select a mesh by dragging it into the scene from the asset or content browser."));
-		return;
-	}
-		
-	FHitResult Hit;
-	const bool bWasHit = Trace(Hit, StartPosition);
-		
-	if (bWasHit && IsValid(PaintingMesh))
-	{
-		bIsPainting = true;
-
-		LastSpawnedPosition = Hit.Location;
-		auto Rotation = Hit.Normal.Rotation();
-
-		FActorSpawnParameters Params = FActorSpawnParameters();
-		FString name = FString::Format(TEXT("Actor_{0}"), { PaintingMesh->GetFName().ToString() });
-		FName fname = MakeUniqueObjectName(nullptr, AStaticMeshActor::StaticClass(), FName(*name));
-		Params.Name = fname;
-		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-
-		AStaticMeshActor* actor = GetWorld()->SpawnActor<AStaticMeshActor>(Hit.Location, Rotation, Params);
-
-		actor->SetActorLabel(fname.ToString());
-		LastSpawnedActors.Add(actor);
-		actor->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
-	}
+	
 	
 	/*// if right click is pressed spawn an actor into the world and set it as the selected mesh
 	if (Modifiers.bShiftDown == EScriptableToolMouseButton::RightButton)
@@ -393,15 +396,111 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 	bIsEditing = false;
 }
 
-FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos,
-	const EScriptableToolMouseButton& Button)
+FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
 {
-	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	if (IsShiftDown())
+	{
+		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	}
 
+	return FInputRayHit();
 }
 
 void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
 {
+	if (!PaintingMesh)
+	{
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
+			LOCTEXT("UBuildingGeneratorTool", "You are trying to add meshes to the building but no mesh is selected. Please select a mesh by dragging it into the scene from the asset or content browser."));
+		return;
+	}
+		
+	FHitResult Hit;
+	const bool bWasHit = Trace(Hit, ClickPos);
+		
+	if (bWasHit && IsValid(PaintingMesh))
+	{
+
+		FDynamicOpening OpeningRef;
+
+		for (int i = 0; i < Settings->Openings.Num(); ++i)
+		{
+			UObject* NextMesh = Settings->Openings[i].Mesh;
+
+			if (!IsValid(NextMesh))
+			{
+				return;
+			}
+
+			if (NextMesh->IsA(AActor::StaticClass()))
+			{
+				TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
+
+				if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
+				{
+					if (Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh() == PaintingMesh)
+					{
+						OpeningRef = Settings->Openings[i];
+						break;
+					}
+				}
+			}
+			else if (NextMesh->IsA(UStaticMesh::StaticClass()))
+			{
+				if (Cast<UStaticMesh>(NextMesh) == PaintingMesh)
+				{
+					OpeningRef = Settings->Openings[i];
+					break;
+				}
+			}
+		}
+	
+		bIsPainting = true;
+
+		LastSpawnedPosition = Hit.Location;
+		auto Rotation = Hit.Normal.Rotation();
+
+		
+		// If our Mesh is a static mesh actor then we need to spawn a static mesh actor else its just an actor and we should spawn it as is.
+		UClass* ClassToSpawn = OpeningRef.Mesh.IsA(UStaticMesh::StaticClass()) ? AStaticMeshActor::StaticClass() : OpeningRef.Mesh.GetClass();
+
+		FActorSpawnParameters Params = FActorSpawnParameters();
+		FString name = FString::Format(TEXT("Actor_{0}"), { PaintingMesh->GetFName().ToString() });
+		FName fname = MakeUniqueObjectName(nullptr, ClassToSpawn, FName(*name));
+		Params.Name = fname;
+		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+
+		AActor* actor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Hit.Location, Rotation, Params);
+
+		actor->SetActorLabel(fname.ToString());
+		LastSpawnedActors.Add(actor);
+		if (actor->IsA(AStaticMeshActor::StaticClass()))
+		{
+			Cast<AStaticMeshActor>(actor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
+		}
+
+		const FTransform SpawnTransform = FTransform(Rotation, Hit.Location, BrushScale);
+
+		FGeneratedOpening NewOpening;
+		NewOpening.Transform = SpawnTransform;
+		NewOpening.Mesh = actor;
+		NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bShouldCutHoleInTargetMesh;
+		NewOpening.BaseShape = OpeningRef.BaseShape;
+		
+		if (OutputActor)
+		{
+			OutputActor->AddGeneratedOpeningEntry(NewOpening);
+		}
+
+		CachedOpenings.Add(NewOpening);
+
+		// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
+		EToolsFrameworkOutcomePins OutCome;
+		FScriptableToolGizmoOptions GizmoOptions;
+		GizmoOptions.bAllowNegativeScaling = false;
+		
+		CreateTRSGizmo(actor->GetFName().ToString(), SpawnTransform, GizmoOptions, OutCome);
+	}
 }
 
 bool UBuildingGeneratorTool::MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState)
@@ -411,18 +510,195 @@ bool UBuildingGeneratorTool::MouseBehaviorModiferCheckFunc(const FInputDeviceSta
 
 FInputRayHit UBuildingGeneratorTool::CanUseMouseWheel_Implementation(const FInputDeviceRay& PressPos)
 {
-	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	// Only return a hit if the player is holding the shift modifier key else let them use the scroll how they would naturally
+
+	if (IsShiftDown())
+	{
+		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	}
+
+	return FInputRayHit();
 }
 
 void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
 {
+	// Get the current index of the selected mesh and increment it by 1 to select the next mesh
+	// If this is the last mesh in the array then loop back to the first mesh
+
+	if (Settings->Openings.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
+			LOCTEXT("UBuildingGeneratorTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
+		return;
+	}
+
+	int32 NextIndex = LastOpeningIndex + 1;
+	
+	if (NextIndex == Settings->Openings.Num())
+	{
+		NextIndex = 0;
+	}
+
+	LastOpeningIndex = NextIndex;
+
+	// Get the mesh and spawn it as the type of actor necessary
+	UObject* NextMesh = Settings->Openings[NextIndex].Mesh;
+
+	if (!IsValid(NextMesh))
+	{
+		return;
+	}
+
+	if (NextMesh->IsA(AActor::StaticClass()))
+	{
+		// Get The static mesh component and set the brushes mesh to the static mesh
+		TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
+
+		if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
+		{
+			PaintingMesh = Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh();
+			Brush->SetStaticMesh(PaintingMesh);
+			Brush->SetWorldScale3D(FVector::One());
+		}
+	}
+	else if (NextMesh->IsA(UStaticMesh::StaticClass()))
+	{
+		// Get The static mesh and set the brushes mesh to the static mesh
+		PaintingMesh = Cast<UStaticMesh>(NextMesh);
+		Brush->SetStaticMesh(PaintingMesh);
+		Brush->SetWorldScale3D(FVector::One());
+	}
+	else
+	{
+		// Error Dialogue
+	}
 	
 }
 
 void UBuildingGeneratorTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
 {
+	if (Settings->Openings.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
+			LOCTEXT("UBuildingGeneratorTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
+		return;
+	}
+
+	int32 NextIndex = LastOpeningIndex - 1;
+	
+	if (NextIndex < 0)
+	{
+		NextIndex = Settings->Openings.Num() - 1;
+	}
+
+	LastOpeningIndex = NextIndex;
+
+	// Get the mesh and spawn it as the type of actor necessary
+	UObject* NextMesh = Settings->Openings[NextIndex].Mesh;
+
+	if (!IsValid(NextMesh))
+	{
+		return;
+	}
+
+	if (NextMesh->IsA(AActor::StaticClass()))
+	{
+		// Get The static mesh component and set the brushes mesh to the static mesh
+		TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
+
+		if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
+		{
+			PaintingMesh = Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh();
+			Brush->SetStaticMesh(PaintingMesh);
+			Brush->SetWorldScale3D(FVector::One());
+		}
+	}
+	else if (NextMesh->IsA(UStaticMesh::StaticClass()))
+	{
+		// Get The static mesh and set the brushes mesh to the static mesh
+		PaintingMesh = Cast<UStaticMesh>(NextMesh);
+		Brush->SetStaticMesh(PaintingMesh);
+		Brush->SetWorldScale3D(FVector::One());
+	}
+	else
+	{
+		// Error Dialogue
+	}
 }
 
+void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
+{
+	Super::OnGizmoTransformChanged_Handler(GizmoIdentifier, NewTransform);
+
+	// TODO : This doesn't work currently it crashes the engine.
+	if (Settings)
+	{
+		const FVector& Loc = NewTransform.GetLocation();
+		const FVector& Offset = FVector::UpVector * 100.0f;
+	
+		FHitResult Hit;
+	
+		if (GetToolWorld()->LineTraceSingleByChannel(Hit, Loc + Offset, Loc - Offset, ECC_Visibility))
+		{
+			if (Hit.GetActor() && Hit.GetActor()->IsA(APCG_BuildingGenerator::StaticClass()))
+			{
+				SetGizmoTransform(GizmoIdentifier, FTransform(NewTransform.GetRotation(), Hit.Location, NewTransform.GetScale3D()), false);
+			}
+		}
+
+
+		for (int i = 0; i < LastSpawnedActors.Num(); ++i)
+		{
+			AActor* Actor = LastSpawnedActors[i];
+			
+			if (Actor->GetFName().IsEqual(FName(*GizmoIdentifier)))
+			{
+				Actor->SetActorTransform(NewTransform);
+			}
+		}
+
+		for (int i = 0; i < CachedOpenings.Num(); ++i)
+		{
+			FName Actor = CachedOpenings[i].Mesh.GetFName();
+			
+			if (Actor.IsEqual(FName(*GizmoIdentifier)))
+			{
+				CachedOpenings[i].Transform = NewTransform;
+			}
+		}
+
+		
+	}
+	
+}
+
+void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
+{
+	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
+
+	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform)
+	{
+		for (int i = 0; i < LastSpawnedActors.Num(); ++i)
+		{
+			AActor* Actor = LastSpawnedActors[i];
+			
+			if (Actor->GetFName().IsEqual(FName(*GizmoIdentifier)))
+			{
+				Actor->SetActorTransform(CurrentTransform);
+			}
+		}
+
+		for (int i = 0; i < CachedOpenings.Num(); ++i)
+		{
+			FName Actor = CachedOpenings[i].Mesh.GetFName();
+			
+			if (Actor.IsEqual(FName(*GizmoIdentifier)))
+			{
+				CachedOpenings[i].Transform = CurrentTransform;
+			}
+		}
+	}
+}
 
 bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
 {
@@ -447,6 +723,7 @@ bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& De
 	return bBeenHit && bHitTargetActor;
 }
 
+
 void UBuildingGeneratorTool::OnTick(float DeltaTime)
 {
 	Super::OnTick(DeltaTime);
@@ -458,6 +735,9 @@ void UBuildingGeneratorTool::OnTick(float DeltaTime)
 void UBuildingGeneratorTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Super::Shutdown(ShutdownType);
+	
+	Brush->UnregisterComponent();
+	Brush->SetStaticMesh(nullptr);
 }
 
 void UBuildingGeneratorTool::UpdateAcceptWarnings(EAcceptWarning Warning)

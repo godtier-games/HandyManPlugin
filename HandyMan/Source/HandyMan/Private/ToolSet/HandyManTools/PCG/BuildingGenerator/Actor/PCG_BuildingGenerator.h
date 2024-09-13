@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataTypes/BuildingGeneratorTypes.h"
 #include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_DynamicMeshActor_Editor.h"
 #include "ToolSet/HandyManTools/PCG/SplineTool/DynamicCollider/Actor/PCG_DynamicSplineActor.h"
 #include "PCG_BuildingGenerator.generated.h"
@@ -25,6 +26,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void Destroyed() override;
 
 public:
 
@@ -67,7 +69,12 @@ public:
 	
 	
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetWallThickness(const float Thickness) {WallThickness = Thickness;};
+	void SetWallThickness(const float Thickness)
+	{
+		WallThickness = Thickness;
+		RerunConstructionScripts();
+
+	};
 
 	/*UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void TransferMeshMaterials(const TArray<UMaterialInterface*> Materials);*/
@@ -84,6 +91,15 @@ public:
 	UFUNCTION(meta=(CallInEditor="true"), Category="Parameters", DisplayName="Regenerate Splines")
 	void GenerateSplinesFromGeneratedMesh();
 	
+	/**
+	 *  Any generated opening that is strictly an AStaticMeshActor will be baked to an ISM.
+	 *  This is useful if you want to get some performance back from this actor.
+	 */
+	UFUNCTION(meta=(CallInEditor="true"), Category="Parameters", DisplayName="Bake Openings")
+	void BakeOpeningsToStatic();
+	
+	void AddGeneratedOpeningEntry(const FGeneratedOpening& Entry);
+	void RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry);
 
 
 protected:
@@ -152,11 +168,16 @@ private:
 	UPROPERTY()
 	AActor* OriginalActor = nullptr;
 
+	UPROPERTY()
+	TArray<FGeneratedOpening> GeneratedOpenings;
+
 
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
 	void UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
+	void TryToCutHolesInMesh(UDynamicMesh* TargetMesh);
+
 
 
 public:

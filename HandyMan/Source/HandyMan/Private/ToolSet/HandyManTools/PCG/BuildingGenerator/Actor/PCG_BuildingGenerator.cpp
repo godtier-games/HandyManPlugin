@@ -34,6 +34,18 @@ void APCG_BuildingGenerator::BeginPlay()
 	
 }
 
+void APCG_BuildingGenerator::Destroyed()
+{
+	for (const auto Opening : GeneratedOpenings)
+	{
+		if (Opening.Mesh)
+		{
+			Opening.Mesh->Destroy();
+		}
+	}
+	Super::Destroyed();
+}
+
 void APCG_BuildingGenerator::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 {
 	GenerateExteriorWalls(TargetMesh);
@@ -223,6 +235,21 @@ void APCG_BuildingGenerator::GenerateSplinesFromGeneratedMesh()
 	ReleaseAllComputeMeshes();
 }
 
+void APCG_BuildingGenerator::BakeOpeningsToStatic()
+{
+	
+}
+
+void APCG_BuildingGenerator::AddGeneratedOpeningEntry(const FGeneratedOpening& Entry)
+{
+	GeneratedOpenings.Add(Entry);
+}
+
+void APCG_BuildingGenerator::RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry)
+{
+	GeneratedOpenings.Remove(Entry);
+}
+
 void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
 {
 	if (!TargetMesh)
@@ -339,11 +366,20 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 		CombinedSplinesMesh = UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
 	}
 
+	TryToCutHolesInMesh(CombinedSplinesMesh);
+
 	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh ? TargetMesh : GetDynamicMeshComponent()->GetDynamicMesh(), CombinedSplinesMesh, FTransform::Identity);
 	if (!BuildingMaterial.ToString().IsEmpty())
 	{
 		DynamicMeshComponent->SetMaterial(0, BuildingMaterial.LoadSynchronous());
 	}
+
+	
+	
+}
+
+void APCG_BuildingGenerator::TryToCutHolesInMesh(UDynamicMesh* TargetMesh)
+{
 	
 }
 
@@ -374,7 +410,6 @@ void APCG_BuildingGenerator::ForceCookPCG()
 {
 	PCG->CleanupLocalImmediate(true, true);
 	PCG->NotifyPropertiesChangedFromBlueprint();
-	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::SetNumberOfFloors(const int32 NewFloorCount)
@@ -389,6 +424,7 @@ void APCG_BuildingGenerator::SetNumberOfFloors(const int32 NewFloorCount)
 		
 	}
 	
+	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::SetHasOpenRoof(const bool HasOpenRoof)

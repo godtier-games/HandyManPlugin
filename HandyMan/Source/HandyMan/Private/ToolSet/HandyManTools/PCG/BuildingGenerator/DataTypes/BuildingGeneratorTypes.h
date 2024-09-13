@@ -8,19 +8,47 @@
 
 class UDynamicMesh;
 
+UENUM(BlueprintType)
+enum class EMeshBaseShape : uint8
+{
+	/* Base shape is a cube or rectangle */
+	Box,
+
+	/* Base shape is cylindrical or spherical */
+	Round,
+
+	/* Combination of Box and Round */
+	Combination
+};
+
 USTRUCT()
 struct HANDYMAN_API FGeneratedOpening
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FTransform Transform;
+	FTransform Transform = FTransform::Identity;
 
 	UPROPERTY()
 	TObjectPtr<AActor> Mesh;
 
 	UPROPERTY()
-	TObjectPtr<UDynamicMesh> BooleanMesh;
+	bool bShouldCutHoleInTargetMesh = false;
+
+	UPROPERTY()
+	EMeshBaseShape BaseShape = EMeshBaseShape::Box;
+
+	bool operator==(const FGeneratedOpening& Other) const
+	{
+		return Other.Mesh == Mesh && Other.Transform.Equals(Transform);
+	}
+
+	bool operator!=(const FGeneratedOpening& Other) const
+	{
+		return !(Other == *this);
+	}
+
+
 };
 
 USTRUCT(BlueprintType)
@@ -33,4 +61,7 @@ struct HANDYMAN_API FDynamicOpening
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bShouldCutHoleInTargetMesh = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (EditCondition = "bShouldCutHoleInTargetMesh", EditConditionHides))
+	EMeshBaseShape BaseShape = EMeshBaseShape::Box;
 };

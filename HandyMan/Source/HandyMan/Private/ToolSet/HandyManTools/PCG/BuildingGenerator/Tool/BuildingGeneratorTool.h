@@ -32,23 +32,23 @@ public:
 	
 	virtual void Setup() override;
 
-	
+
+	///~ Hover Behavior
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Hover"))
 	FInputRayHit TestCanHoverFunc(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers);
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Begin Hover"))
 	void OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
 	
-	// IHoverBehaviorTarget API
+	///~ IHoverBehaviorTarget API
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Update Hover"))
 	bool OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Hover"))
 	void OnEndHover();
 
-
 	
-
+	///~ Click Drag Behavior
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Mouse Drag"))
 	FInputRayHit CanClickDrag(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
 	
@@ -62,9 +62,11 @@ public:
 	void OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
 
 
+	///~ Single Click Behavior
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Click"))
 	FInputRayHit CanClickFunc(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button);
 
+	
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Hit By Click"))
 	void OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton);
 
@@ -72,6 +74,7 @@ public:
 	bool MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState);
 
 
+	///~ Mouse Wheel Behavior
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Use Mouse Wheel"))
 	FInputRayHit CanUseMouseWheel(const FInputDeviceRay& PressPos);
 
@@ -80,6 +83,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Mouse Wheel Down"))
 	void OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers);
+
+
+	///~ Gizmo Behavior
+	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
+	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
 
 
 	
@@ -108,6 +116,8 @@ public:
 
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
 
+
+
 	
 	
 	void HandleAccept();
@@ -127,6 +137,8 @@ public:
 #pragma endregion
 
 private:
+
+	int32 LastOpeningIndex = 0;
 
 	/** Last place actor world position */
 	FVector LastSpawnedPosition;
@@ -161,6 +173,9 @@ private:
 	
 	/** Cursor Last world position */
 	FVector BrushLastPosition;
+
+	/** Brush actor rotation */
+	FVector BrushScale = FVector(1.f, 1.f, 1.f);
 	
 	/** Brush actor color */
 	FLinearColor BrushColor = FLinearColor::Blue;
@@ -175,6 +190,9 @@ private:
 	
 
 	TWeakInterfacePtr<IPCGToolInterface> TargetPCGInterface;
+
+	UPROPERTY()
+	TArray<FGeneratedOpening> CachedOpenings;
 
 	
 };
@@ -221,8 +239,5 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Openings")
 	TArray<FDynamicOpening> Openings;
-	
-
-	
 };
 
