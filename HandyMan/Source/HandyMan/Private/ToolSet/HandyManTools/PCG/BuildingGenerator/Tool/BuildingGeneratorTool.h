@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Behaviors/ScriptableToolBehaviorDelegates.h"
-#include "ToolSet/HandyManBaseClasses/HandyManClickDragTool.h"
 #include "ToolSet/HandyManBaseClasses/HandyManModularTool.h"
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataTypes/BuildingGeneratorTypes.h"

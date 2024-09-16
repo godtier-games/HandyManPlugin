@@ -10,6 +10,7 @@
 #include "GeometryScript/MeshSelectionFunctions.h"
 #include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
+#include "GeometryScript/SceneUtilityFunctions.h"
 #include "ModelingUtilities/GodtierModelingUtilities.h"
 #include "PolyPathUtilities/GodtierPolyPathUtilities.h"
 
@@ -87,40 +88,28 @@ void APCG_BuildingGenerator::CreateFloorAndRoofSplines()
 
 void APCG_BuildingGenerator::CacheInputActor(AActor* InputActor)
 {
-	if (ADynamicMeshActor* MeshActor_Dynamic = Cast<ADynamicMeshActor>(InputActor))
-	{
-		OriginalMesh = MeshActor_Dynamic->GetDynamicMeshComponent()->GetDynamicMesh();
-		OriginalActor = MeshActor_Dynamic;
+	OriginalMesh = NewObject<UDynamicMesh>(this);
+	EGeometryScriptOutcomePins Outcome;
+	FGeometryScriptCopyMeshFromComponentOptions Options;
+	FTransform LocalToWorld;
+	
+	OriginalMesh = UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponent
+	(
+		InputActor->GetRootComponent(),
+		OriginalMesh,
+		Options,
+		false,
+		LocalToWorld,
+		Outcome
+	);
+	
+	OriginalActor = InputActor;
+	FVector Origin;
+	FVector Extent;
+	InputActor->GetActorBounds(false, Origin, Extent);
+	BuildingHeight = Extent.Z * 2;
 
-		FVector Origin;
-		FVector Extent;
-		MeshActor_Dynamic->GetActorBounds(false, Origin, Extent);
-		BuildingHeight = Extent.Z * 2;
-
-		DesiredFloorHeight = BuildingHeight / NumberOfFloors;
-	}
-	else if (AStaticMeshActor* MeshActor_Static = Cast<AStaticMeshActor>(InputActor))
-	{
-		EGeometryScriptOutcomePins Outcome;
-		OriginalMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
-		(
-			MeshActor_Static->GetStaticMeshComponent()->GetStaticMesh(),
-			OriginalMesh,
-			FGeometryScriptCopyMeshFromAssetOptions(),
-			FGeometryScriptMeshReadLOD(),
-			Outcome
-		);
-
-		OriginalActor = MeshActor_Static;
-
-		FVector Origin;
-		FVector Extent;
-		MeshActor_Static->GetActorBounds(false, Origin, Extent);
-		BuildingHeight = Extent.Z * 2;
-
-		DesiredFloorHeight = BuildingHeight / NumberOfFloors;
-		
-	}
+	DesiredFloorHeight = BuildingHeight / NumberOfFloors;
 
 	InputActor->SetIsTemporarilyHiddenInEditor(true);
 	CreateFloorAndRoofSplines();
@@ -260,6 +249,13 @@ void APCG_BuildingGenerator::AddGeneratedOpeningEntry(const FGeneratedOpening& E
 void APCG_BuildingGenerator::RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry)
 {
 	GeneratedOpenings.Remove(Entry);
+	RerunConstructionScripts();
+}
+
+void APCG_BuildingGenerator::UpdatedGeneratedOpenings(const TArray<FGeneratedOpening>& Entries)
+{
+	GeneratedOpenings.Empty();
+	GeneratedOpenings.Append(Entries);
 	RerunConstructionScripts();
 }
 
@@ -415,7 +411,7 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 			TargetMesh,
 			GetActorTransform(),
 			BoolMesh,
-			Opening.Transform,
+			Opening.Mesh->GetActorTransform(),
 			Opening.bShouldCutHoleInTargetMesh ? EGeometryScriptBooleanOperation::Subtract : EGeometryScriptBooleanOperation::Union,
 			BooleanOptions
 		);

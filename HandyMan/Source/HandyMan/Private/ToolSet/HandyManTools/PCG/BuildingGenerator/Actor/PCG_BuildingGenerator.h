@@ -38,7 +38,6 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
-	void CreateFloorAndRoofSplines();
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
 	void SetBuildingMaterial(const TSoftObjectPtr<UMaterialInterface> Material) {BuildingMaterial = Material;}
@@ -100,6 +99,7 @@ public:
 	
 	void AddGeneratedOpeningEntry(const FGeneratedOpening& Entry);
 	void RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry);
+	void UpdatedGeneratedOpenings(const TArray<FGeneratedOpening>& Entries);
 
 
 protected:
@@ -177,6 +177,8 @@ private:
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
 	void AppendOpeningToMesh(UDynamicMesh* TargetMesh);
+	void CreateFloorAndRoofSplines();
+
 
 
 

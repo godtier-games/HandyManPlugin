@@ -4,6 +4,7 @@
 #include "BuildingGeneratorTool.h"
 
 #include "ModelingToolTargetUtil.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Engine/StaticMeshActor.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -329,7 +330,13 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 	case EScriptableToolMouseButton::LeftButton:
 		{
 
+			Brush->SetVisibility(true);
 			UpdateBrush(DragPos);
+
+			for (const auto& Gizmo : Gizmos)
+			{
+				Gizmo.Value->SetVisibility(false);
+			}
 			// Update the location of the brush since hover won't be called during drag
 			
 			/*if (!IsAltDown())
@@ -362,10 +369,23 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 				&& Cast<AStaticMeshActor>(Hit.GetActor())->GetStaticMeshComponent()->GetStaticMesh()
 				&& LastSpawnedActors.Contains(Hit.GetActor()))
 			{
+				const FName ActorName = Hit.GetActor()->GetFName();
 				LastSpawnedActors.RemoveSingle(Hit.GetActor());
 				EToolsFrameworkOutcomePins OutCome;
 				DestroyTRSGizmo(Hit.GetActor()->GetFName().ToString(), OutCome);
 				Hit.GetActor()->Destroy();
+
+				for (int i = 0; i < CachedOpenings.Num(); ++i)
+				{
+					if(!CachedOpenings[i].Mesh.GetFName().IsEqual(ActorName)) continue;
+					CachedOpenings.RemoveAt(i);
+					break;
+				}
+
+				if (OutputActor)
+				{
+					OutputActor->UpdatedGeneratedOpenings(CachedOpenings);
+				}
 				
 			}
 		}
@@ -403,8 +423,10 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 	{
 		return;
 	}
-	
-	if (!PaintingMesh)
+
+	if (Button == EScriptableToolMouseButton::LeftButton)
+	{
+			if (!PaintingMesh)
 	{
 		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
 			LOCTEXT("UBuildingGeneratorTool", "You are trying to add meshes to the building but no mesh is selected. Please select a mesh by dragging it into the scene from the asset or content browser."));
@@ -506,23 +528,80 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 		FScriptableToolGizmoOptions GizmoOptions;
 		GizmoOptions.bAllowNegativeScaling = false;
 		
-		CreateTRSGizmo(actor->GetFName().ToString(), SpawnTransform, GizmoOptions, OutCome);
+		CreateTRSGizmo(actor->GetFName().ToString(), actor->GetActorTransform(), GizmoOptions, OutCome);
+		SetGizmoVisible(actor->GetFName().ToString(), false);
+	}
 	}
 }
 
 FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
 {
-	if (IsShiftDown())
+	if (!IsShiftDown())
 	{
-		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+		return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
 	}
+	
+	FVector Start = PressPos.WorldRay.Origin;
+	FVector End = PressPos.WorldRay.Origin + PressPos.WorldRay.Direction * HALF_WORLD_MAX;
+	FHitResult Hit;
 
-	return FInputRayHit();
+	if (GetToolWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
+	{
+		if (IsValid(Hit.GetActor()))
+		{
+			bool bHasHitAnOpening = false;
+			for (const auto& Opening : CachedOpenings)
+			{
+				if(!Opening.Mesh.GetFName().IsEqual(Hit.GetActor()->GetFName())) continue;
+				bHasHitAnOpening = true;
+			}
+
+			if (bHasHitAnOpening)
+			{
+				return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+			}
+		}
+	}
+	
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
+
+	
 }
 
 void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
 {
-	// Fill along the wall normals
+	FVector Start = ClickPos.WorldRay.Origin;
+	FVector End = ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * HALF_WORLD_MAX;
+	FHitResult Hit;
+
+	if (GetToolWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
+	{
+		if (IsValid(Hit.GetActor()))
+		{
+			FString Identifier = "";
+			for (const auto& Opening : CachedOpenings)
+			{
+				if(!Opening.Mesh.GetFName().IsEqual(Hit.GetActor()->GetFName())) continue;
+				Identifier = Hit.GetActor()->GetFName().ToString();
+			}
+
+			if (Identifier.IsEmpty()) {return;}
+
+			for (const auto& Gizmo : Gizmos)
+			{
+				if(!Identifier.Equals(Gizmo.Key))
+				{
+					Gizmo.Value->SetVisibility(false);
+				}
+				else
+				{
+					Gizmo.Value->SetVisibility(true);
+					// Turn off the brush so the user can see the gizmo
+					Brush->SetVisibility(false);
+				}
+			}
+		}
+	}
 }
 
 bool UBuildingGeneratorTool::MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState)
@@ -655,7 +734,7 @@ void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdenti
 	// TODO : This doesn't work currently it crashes the engine.
 	if (Settings)
 	{
-		const FVector& Loc = NewTransform.GetLocation();
+		/*const FVector& Loc = NewTransform.GetLocation();
 		const FVector& Offset = FVector::UpVector * 100.0f;
 	
 		FHitResult Hit;
@@ -667,6 +746,7 @@ void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdenti
 				SetGizmoTransform(GizmoIdentifier, FTransform(NewTransform.GetRotation(), Hit.Location, NewTransform.GetScale3D()), false);
 			}
 		}
+		*/
 
 
 		
@@ -691,7 +771,7 @@ void UBuildingGeneratorTool::UpdateOpeningTransforms(const FString& GizmoIdentif
 			FVector Origin;
 			FVector Extent;
 			Actor->GetActorBounds(false, Origin, Extent);
-			FVector Offset = OpeningRef.bShouldLayFlush ? ((Actor->GetActorForwardVector() * Extent)) : FVector::ZeroVector;
+			FVector Offset =/* OpeningRef.bShouldLayFlush ? ((Actor->GetActorForwardVector() * Extent)) :*/ FVector::ZeroVector;
 
 			FTransform FinalTransform = CurrentTransform;
 			FinalTransform.SetLocation(FinalTransform.GetLocation() - Offset);
@@ -745,7 +825,7 @@ void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoId
 	{
 	
 		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);
-
+		OutputActor->RerunConstructionScripts();
 	}
 }
 
