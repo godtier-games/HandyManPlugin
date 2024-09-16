@@ -242,7 +242,7 @@ void UBuildingGeneratorTool::OnBeginHover(const FInputDeviceRay& DevicePos, cons
 {
 }
 
-bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
+bool UBuildingGeneratorTool::UpdateBrush(const FInputDeviceRay& DevicePos)
 {
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, DevicePos);
@@ -289,9 +289,13 @@ bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, con
 	}
 
 	BrushMI->SetVectorParameterValue(TEXT("HighlightColor"), bWasHit ? FLinearColor::Green : FLinearColor::Red);
-	
 
 	return bWasHit;
+}
+
+bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
+{
+	return UpdateBrush(DevicePos);
 }
 
 void UBuildingGeneratorTool::OnEndHover()
@@ -324,7 +328,11 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 	{
 	case EScriptableToolMouseButton::LeftButton:
 		{
-			if (!IsAltDown())
+
+			UpdateBrush(DragPos);
+			// Update the location of the brush since hover won't be called during drag
+			
+			/*if (!IsAltDown())
 			{
 				if (IsShiftDown() && !IsCtrlDown())
 				{
@@ -340,7 +348,7 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 				{
 					// If the user has the ctrl key down, Enable snapping
 				}
-			}
+			}*/
 		}
 		
 		break;
@@ -368,7 +376,7 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
 
-	
+	bIsPainting = true;
 	
 	/*// if right click is pressed spawn an actor into the world and set it as the selected mesh
 	if (Modifiers.bShiftDown == EScriptableToolMouseButton::RightButton)
@@ -391,23 +399,11 @@ void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, c
 
 void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-	bIsDestroying = false;
-	bIsPainting = false;
-	bIsEditing = false;
-}
-
-FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
-{
-	if (IsShiftDown())
+	if (!bIsPainting)
 	{
-		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+		return;
 	}
-
-	return FInputRayHit();
-}
-
-void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
-{
+	
 	if (!PaintingMesh)
 	{
 		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
@@ -416,7 +412,7 @@ void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, c
 	}
 		
 	FHitResult Hit;
-	const bool bWasHit = Trace(Hit, ClickPos);
+	const bool bWasHit = Trace(Hit, EndPosition);
 		
 	if (bWasHit && IsValid(PaintingMesh))
 	{
@@ -472,6 +468,8 @@ void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, c
 
 		AActor* actor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Hit.Location, Rotation, Params);
 
+	
+
 		actor->SetActorLabel(fname.ToString());
 		LastSpawnedActors.Add(actor);
 		if (actor->IsA(AStaticMeshActor::StaticClass()))
@@ -479,13 +477,22 @@ void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, c
 			Cast<AStaticMeshActor>(actor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
 		}
 
-		const FTransform SpawnTransform = FTransform(Rotation, Hit.Location, BrushScale);
+		FVector Origin;
+		FVector Extent;
+		actor->GetActorBounds(false, Origin, Extent);
+		
+		FVector Offset = OpeningRef.bShouldLayFlush ? ((actor->GetActorForwardVector() * Extent)) : FVector::ZeroVector;
+		const FTransform SpawnTransform = FTransform(Rotation, Hit.Location - Offset, BrushScale);
+		actor->SetActorTransform(SpawnTransform);
+		
 
 		FGeneratedOpening NewOpening;
 		NewOpening.Transform = SpawnTransform;
 		NewOpening.Mesh = actor;
-		NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bShouldCutHoleInTargetMesh;
+		NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
+		NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
 		NewOpening.BaseShape = OpeningRef.BaseShape;
+		NewOpening.bShouldLayFlush = OpeningRef.bShouldLayFlush;
 		
 		if (OutputActor)
 		{
@@ -501,6 +508,21 @@ void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, c
 		
 		CreateTRSGizmo(actor->GetFName().ToString(), SpawnTransform, GizmoOptions, OutCome);
 	}
+}
+
+FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
+{
+	if (IsShiftDown())
+	{
+		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	}
+
+	return FInputRayHit();
+}
+
+void UBuildingGeneratorTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
+{
+	// Fill along the wall normals
 }
 
 bool UBuildingGeneratorTool::MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState)
@@ -647,29 +669,72 @@ void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdenti
 		}
 
 
-		for (int i = 0; i < LastSpawnedActors.Num(); ++i)
-		{
-			AActor* Actor = LastSpawnedActors[i];
-			
-			if (Actor->GetFName().IsEqual(FName(*GizmoIdentifier)))
-			{
-				Actor->SetActorTransform(NewTransform);
-			}
-		}
-
-		for (int i = 0; i < CachedOpenings.Num(); ++i)
-		{
-			FName Actor = CachedOpenings[i].Mesh.GetFName();
-			
-			if (Actor.IsEqual(FName(*GizmoIdentifier)))
-			{
-				CachedOpenings[i].Transform = NewTransform;
-			}
-		}
-
+		
+		
+		UpdateOpeningTransforms(GizmoIdentifier, NewTransform);
 		
 	}
 	
+}
+
+void UBuildingGeneratorTool::UpdateOpeningTransforms(const FString& GizmoIdentifier, const FTransform& CurrentTransform)
+{
+
+	for (int i = 0; i < CachedOpenings.Num(); ++i)
+	{
+		FName ActorName = CachedOpenings[i].Mesh.GetFName();
+		AActor* Actor = CachedOpenings[i].Mesh;
+		const FGeneratedOpening& OpeningRef = CachedOpenings[i];
+			
+		if (ActorName.IsEqual(FName(*GizmoIdentifier)))
+		{
+			FVector Origin;
+			FVector Extent;
+			Actor->GetActorBounds(false, Origin, Extent);
+			FVector Offset = OpeningRef.bShouldLayFlush ? ((Actor->GetActorForwardVector() * Extent)) : FVector::ZeroVector;
+
+			FTransform FinalTransform = CurrentTransform;
+			FinalTransform.SetLocation(FinalTransform.GetLocation() - Offset);
+			CachedOpenings[i].Transform = FinalTransform;
+			Actor->SetActorTransform(FinalTransform);
+		}
+	}
+}
+
+void UBuildingGeneratorTool::UpdateOpeningTransforms(const AActor* Opening, const FTransform& CurrentTransform)
+{
+	for (int i = 0; i < LastSpawnedActors.Num(); ++i)
+	{
+		AActor* Actor = LastSpawnedActors[i];
+			
+		if (Actor->GetFName().IsEqual(Opening->GetFName()))
+		{
+			FVector Origin;
+			FVector Extent;
+			Actor->GetActorBounds(false, Origin, Extent);
+				
+			FTransform FinalTransform = CurrentTransform;
+			FinalTransform.SetLocation(FinalTransform.GetLocation() - ((Actor->GetActorForwardVector() * Extent)));
+			Actor->SetActorTransform(FinalTransform);
+		}
+	}
+
+	for (int i = 0; i < CachedOpenings.Num(); ++i)
+	{
+		FName ActorName = CachedOpenings[i].Mesh.GetFName();
+		AActor* Actor = CachedOpenings[i].Mesh;
+			
+		if (ActorName.IsEqual(Opening->GetFName()))
+		{
+			FVector Origin;
+			FVector Extent;
+			Actor->GetActorBounds(false, Origin, Extent);
+				
+			FTransform FinalTransform = CurrentTransform;
+			FinalTransform.SetLocation(FinalTransform.GetLocation() - ((Actor->GetActorForwardVector() * Extent)));
+			CachedOpenings[i].Transform = FinalTransform;
+		}
+	}
 }
 
 void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
@@ -678,25 +743,9 @@ void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoId
 
 	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform)
 	{
-		for (int i = 0; i < LastSpawnedActors.Num(); ++i)
-		{
-			AActor* Actor = LastSpawnedActors[i];
-			
-			if (Actor->GetFName().IsEqual(FName(*GizmoIdentifier)))
-			{
-				Actor->SetActorTransform(CurrentTransform);
-			}
-		}
+	
+		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);
 
-		for (int i = 0; i < CachedOpenings.Num(); ++i)
-		{
-			FName Actor = CachedOpenings[i].Mesh.GetFName();
-			
-			if (Actor.IsEqual(FName(*GizmoIdentifier)))
-			{
-				CachedOpenings[i].Transform = CurrentTransform;
-			}
-		}
 	}
 }
 

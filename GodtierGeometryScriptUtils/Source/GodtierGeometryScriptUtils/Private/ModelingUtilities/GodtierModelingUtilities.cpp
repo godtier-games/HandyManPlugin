@@ -12,16 +12,14 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "Engine/StaticMeshActor.h"
 #include "Generators/SweepGenerator.h"
+#include "GeometryScript/CollisionFunctions.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
 #include "GeometryScript/MeshModelingFunctions.h"
-#include "GeometryScript/MeshRepairFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
-#include "GeometryScript/MeshSelectionQueryFunctions.h"
 #include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
-#include "Selections/GeometrySelection.h"
-
+	
 using namespace UE::Geometry;
 
 #pragma region MeshPrimitiveFunctions
@@ -357,45 +355,121 @@ UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FS
 	return TargetMesh;
 }
 
-UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ADynamicMeshActor* ParentActor, AActor* TargetActor, const FVector NormalDirection, UGeometryScriptDebug* Debug)
+UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(UDynamicMesh* ComputeMesh, AActor* TargetActor, const FVector NormalDirection, UGeometryScriptDebug* Debug)
 {
 	FGeometryScriptMeshSelection Selection;
 	FGeometryScriptMeshSelection NewSelection;
 
-	if(!ParentActor || !TargetActor) return nullptr;
+	if(!ComputeMesh || !TargetActor) return nullptr;
 
-	auto TempMesh = ParentActor->AllocateComputeMesh();
-	TempMesh->Reset();
+	ComputeMesh->Reset();
 	
 
 	if (TargetActor->IsA(ADynamicMeshActor::StaticClass()))
 	{
-		TempMesh->SetMesh(*Cast<ADynamicMeshActor>(TargetActor)->GetDynamicMeshComponent()->GetMesh());
+		ComputeMesh->SetMesh(*Cast<ADynamicMeshActor>(TargetActor)->GetDynamicMeshComponent()->GetMesh());
 	}
 	else if (TargetActor->IsA(AStaticMeshActor::StaticClass()))
 	{
 		
 		EGeometryScriptOutcomePins Outcome;
-		TempMesh->SetMesh(
+		ComputeMesh->SetMesh(
 			*UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
 		(
 			Cast<AStaticMeshActor>(TargetActor)->GetStaticMeshComponent()->GetStaticMesh(),
-			TempMesh,
+			ComputeMesh,
 			FGeometryScriptCopyMeshFromAssetOptions(),
 			FGeometryScriptMeshReadLOD(),
 			Outcome
 		)->ExtractMesh().Get());
 	}
 	
-	UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByNormalAngle(TempMesh, Selection, NormalDirection);
+	UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByNormalAngle(ComputeMesh, Selection, NormalDirection);
 
-	UGeometryScriptLibrary_MeshSelectionFunctions::InvertMeshSelection(TempMesh, Selection, NewSelection);
+	UGeometryScriptLibrary_MeshSelectionFunctions::InvertMeshSelection(ComputeMesh, Selection, NewSelection);
 
 	int32 NumDeleted;
 		
-	return UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrianglesFromMesh(TempMesh, NewSelection, NumDeleted);
+	return UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrianglesFromMesh(ComputeMesh, NewSelection, NumDeleted);
 	
 	
+}
+
+UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* ComputeMesh, AActor* TargetActor, const EMeshBooleanShape BaseShape, const float IntersectionOffset, UGeometryScriptDebug* Debug)
+{
+	if(!ComputeMesh || !TargetActor) return nullptr;
+	ComputeMesh->Reset();
+
+	FVector Origin;
+	FVector BoxExtent;
+	TargetActor->GetActorBounds(false, Origin, BoxExtent);
+
+	FVector NewScale = TargetActor->GetActorUpVector() + TargetActor->GetActorRightVector() + (TargetActor->GetActorForwardVector() * (1 + IntersectionOffset));
+
+	if (TargetActor->GetComponentByClass(UStaticMeshComponent::StaticClass()))
+	{
+		TArray<UStaticMeshComponent*> OutComponents;
+		TargetActor->GetComponents(UStaticMeshComponent::StaticClass(), OutComponents);
+
+		for (const auto Component : OutComponents)
+		{
+			EGeometryScriptOutcomePins Outcome;
+			auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
+			(
+				Component->GetStaticMesh(),
+				ComputeMesh,
+				FGeometryScriptCopyMeshFromAssetOptions(),
+				FGeometryScriptMeshReadLOD(),
+				Outcome
+			);
+
+			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, FTransform::Identity);
+		}
+
+		UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(ComputeMesh, NewScale);
+	}
+	
+
+	if (BaseShape != EMeshBooleanShape::Exact)
+	{
+		FGeometryScriptCollisionFromMeshOptions Options;
+		switch (BaseShape)
+		{
+		case EMeshBooleanShape::Box:
+			{
+				Options.Method = EGeometryScriptCollisionGenerationMethod::AlignedBoxes;
+			}
+			break;
+		case EMeshBooleanShape::Round:
+			{
+				Options.Method = EGeometryScriptCollisionGenerationMethod::MinimalSpheres;
+			}
+			break;
+		case EMeshBooleanShape::NonUniformBox:
+			{
+				Options.Method = EGeometryScriptCollisionGenerationMethod::ConvexHulls;
+			}
+			break;
+		}
+
+		Options.bSimplifyHulls = false;
+		Options.ConvexHullTargetFaceCount = 50;
+		
+		auto SimpleCollision = UGeometryScriptLibrary_CollisionFunctions::GenerateCollisionFromMesh(ComputeMesh, Options);
+
+		FGeometryScriptPrimitiveOptions PrimitiveOptions;
+		PrimitiveOptions.UVMode = EGeometryScriptPrimitiveUVMode::Uniform;
+		
+		FGeometryScriptSimpleCollisionTriangulationOptions TriangulationOptions;
+		TriangulationOptions.CapsuleCircleSteps = 12;
+		TriangulationOptions.CapsuleHemisphereSteps = 10;
+		TriangulationOptions.SphereStepsPerSide = 24;
+
+		ComputeMesh->Reset();
+		return UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleCollisionShapes(ComputeMesh, PrimitiveOptions, FTransform::Identity, SimpleCollision, TriangulationOptions);
+	}
+	
+	return ComputeMesh;
 }
 
 #undef LOCTEXT_NAMESPACE

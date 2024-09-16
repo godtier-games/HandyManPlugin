@@ -43,6 +43,12 @@ void APCG_BuildingGenerator::Destroyed()
 			Opening.Mesh->Destroy();
 		}
 	}
+
+	if (OriginalActor)
+	{
+		OriginalActor->SetIsTemporarilyHiddenInEditor(false);
+	}
+	
 	Super::Destroyed();
 }
 
@@ -53,6 +59,10 @@ void APCG_BuildingGenerator::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	GenerateRoofMesh(TargetMesh);
 
 	ForceCookPCG();
+	
+	Super::RebuildGeneratedMesh(TargetMesh);
+	
+	
 }
 
 void APCG_BuildingGenerator::OnConstruction(const FTransform& Transform)
@@ -111,7 +121,8 @@ void APCG_BuildingGenerator::CacheInputActor(AActor* InputActor)
 		DesiredFloorHeight = BuildingHeight / NumberOfFloors;
 		
 	}
-	
+
+	InputActor->SetIsTemporarilyHiddenInEditor(true);
 	CreateFloorAndRoofSplines();
 }
 
@@ -243,11 +254,13 @@ void APCG_BuildingGenerator::BakeOpeningsToStatic()
 void APCG_BuildingGenerator::AddGeneratedOpeningEntry(const FGeneratedOpening& Entry)
 {
 	GeneratedOpenings.Add(Entry);
+	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry)
 {
 	GeneratedOpenings.Remove(Entry);
+	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
@@ -263,7 +276,8 @@ void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
 void APCG_BuildingGenerator::UseTopFaceForFloor(UDynamicMesh* TargetMesh, const double FloorHeight)
 {
 	// Duplicate the roof mesh
-	auto RoofMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(this, OriginalActor);
+	auto* ComputeMesh = AllocateComputeMesh();
+	auto RoofMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ComputeMesh, OriginalActor);
 
 	// Move it down to ground level
 	RoofMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(RoofMesh, FVector(0, 0, -BuildingHeight));
@@ -366,7 +380,7 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 		CombinedSplinesMesh = UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
 	}
 
-	TryToCutHolesInMesh(CombinedSplinesMesh);
+	AppendOpeningToMesh(CombinedSplinesMesh);
 
 	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh ? TargetMesh : GetDynamicMeshComponent()->GetDynamicMesh(), CombinedSplinesMesh, FTransform::Identity);
 	if (!BuildingMaterial.ToString().IsEmpty())
@@ -378,9 +392,42 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 	
 }
 
-void APCG_BuildingGenerator::TryToCutHolesInMesh(UDynamicMesh* TargetMesh)
+void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 {
-	
+	// Iterate over the generated openings
+	for (const auto& Opening : GeneratedOpenings)
+	{
+		if(!Opening.bShouldApplyBoolean) continue;
+
+		auto* ComputeMesh = AllocateComputeMesh();
+
+
+		const float Offset = Opening.bShouldCutHoleInTargetMesh ? .35f : 0.f;
+		
+		auto* BoolMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BaseShape, Offset , nullptr);
+
+		// Cut this mesh from the target mesh
+		FGeometryScriptMeshBooleanOptions BooleanOptions;
+		BooleanOptions.bFillHoles = false;
+		
+		UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean
+		(
+			TargetMesh,
+			GetActorTransform(),
+			BoolMesh,
+			Opening.Transform,
+			Opening.bShouldCutHoleInTargetMesh ? EGeometryScriptBooleanOperation::Subtract : EGeometryScriptBooleanOperation::Union,
+			BooleanOptions
+		);
+
+		if (!Opening.bShouldCutHoleInTargetMesh && Opening.bShouldApplyBoolean)
+		{
+			// Hide the actor in the world outliner
+			Opening.Mesh->SetIsTemporarilyHiddenInEditor(true);
+		}
+	}
+	// For each opening get its base shape and create a dynamic mesh from it.
+	// Use the dynamic mesh to cut a hole in the target mesh.
 }
 
 #if WITH_EDITOR
@@ -402,6 +449,7 @@ void APCG_BuildingGenerator::PostEditChangeProperty(struct FPropertyChangedEvent
 	{
 		SetDesiredBuildingHeight(BuildingHeight);
 	}
+	
 }
 #endif
 
@@ -430,17 +478,23 @@ void APCG_BuildingGenerator::SetNumberOfFloors(const int32 NewFloorCount)
 void APCG_BuildingGenerator::SetHasOpenRoof(const bool HasOpenRoof)
 {
     bHasOpenRoof = HasOpenRoof;
+	RerunConstructionScripts();
+
 }
 
 void APCG_BuildingGenerator::SetUseConsistentFloorMaterials(const bool UseConsistentFloorMaterials)
 {
 	bUseConsistentFloorMaterial = UseConsistentFloorMaterials;
+	RerunConstructionScripts();
+
 	
 }
 
 void APCG_BuildingGenerator::SetUseConsistentFloorHeight(const bool UseConsistentFloorHeight)
 {
 	bUseConsistentFloorHeight = UseConsistentFloorHeight;
+	RerunConstructionScripts();
+
 	
 }
 
@@ -448,7 +502,8 @@ void APCG_BuildingGenerator::SetDesiredFloorHeight(const float NewFloorHeight)
 {
     DesiredFloorHeight = NewFloorHeight;
     NumberOfFloors = FMath::Floor(BuildingHeight / DesiredFloorHeight);
-    
+	RerunConstructionScripts();
+
 }
 
 void APCG_BuildingGenerator::SetDesiredBuildingHeight(const float NewBuildingHeight)
@@ -470,6 +525,8 @@ void APCG_BuildingGenerator::SetDesiredBuildingHeight(const float NewBuildingHei
 	OriginalMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMeshSelection(OriginalMesh, Selection, FVector(0, 0, Delta * multiplier));
 	
 	CreateFloorAndRoofSplines();
+	RerunConstructionScripts();
+
 };
 
 

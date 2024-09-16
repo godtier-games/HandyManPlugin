@@ -39,7 +39,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Begin Hover"))
 	void OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
-	
+
 	///~ IHoverBehaviorTarget API
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On Update Hover"))
 	bool OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers);
@@ -88,10 +88,11 @@ public:
 	///~ Gizmo Behavior
 	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
 	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
+	
+	void UpdateOpeningTransforms(const FString& GizmoIdentifier, const FTransform& CurrentTransform);
+	void UpdateOpeningTransforms(const AActor* Opening, const FTransform& CurrentTransform);
 
 
-	
-	
 	bool bCanSpawn = false;
 
 	FVector LatestPosition = FVector::Zero();
@@ -104,6 +105,8 @@ public:
 
 	FInputRayHit LastHit;
 
+
+	bool UpdateBrush(const FInputDeviceRay& DevicePos);
 
 
 	virtual void OnTick(float DeltaTime) override;

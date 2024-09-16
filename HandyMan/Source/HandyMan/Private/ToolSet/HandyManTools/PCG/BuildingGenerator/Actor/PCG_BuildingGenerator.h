@@ -176,7 +176,7 @@ private:
 	void UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
-	void TryToCutHolesInMesh(UDynamicMesh* TargetMesh);
+	void AppendOpeningToMesh(UDynamicMesh* TargetMesh);
 
 
 
