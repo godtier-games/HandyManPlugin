@@ -413,6 +413,8 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 		CopyOptions.bUseBuildScale = false;
 		for (const auto Component : OutComponents)
 		{
+			const FVector CurrentScale = Component->GetRelativeScale3D();
+			
 			Component->SetRelativeScale3D(FVector(1 + IntersectionOffset, Component->GetRelativeScale3D().Y, Component->GetRelativeScale3D().Z));
 			
 			EGeometryScriptOutcomePins Outcome;
@@ -426,6 +428,8 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 			);
 
 			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, FTransform::Identity);
+
+			Component->SetRelativeScale3D(CurrentScale);
 		}
 
 		//UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(ComputeMesh, NewScale);

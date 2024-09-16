@@ -226,10 +226,10 @@ public:
 	bool bUseConsistentFloorHeight = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Building", meta=(EditCondition="bUseConsistentFloorHeight"))
-	float DesiredFloorHeight = 400.f;
+	float BaseFloorHeight = 400.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Building", meta=(EditCondition="!bUseConsistentFloorHeight"))
-	TMap<uint8, float> DesiredFloorHeightMap;
+	float DesiredFloorClearance = 400.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Building")
 	int32 DesiredNumberOfFloors = 1;

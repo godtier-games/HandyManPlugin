@@ -3,6 +3,7 @@
 
 #include "BuildingGeneratorTool.h"
 
+#include "ActorGroupingUtils.h"
 #include "ModelingToolTargetUtil.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Engine/StaticMeshActor.h"
@@ -158,14 +159,20 @@ void UBuildingGeneratorTool::Setup()
 		}
 	});
 	
-	Settings->WatchProperty(Settings->DesiredFloorHeight, [this](float)
+	Settings->WatchProperty(Settings->BaseFloorHeight, [this](float)
 	{
 		if (IsValid(OutputActor))
 		{
-			OutputActor->SetDesiredFloorHeight(Settings->DesiredFloorHeight);
+			OutputActor->SetBaseFloorHeight(Settings->BaseFloorHeight);
 		}
 	});
-
+	Settings->WatchProperty(Settings->DesiredFloorClearance, [this](float)
+	{
+		if (IsValid(OutputActor))
+		{
+			OutputActor->SetDesiredFloorClearance(Settings->DesiredFloorClearance);
+		}
+	});
 	Settings->WatchProperty(Settings->WallThickness, [this](float)
 	{
 		if (IsValid(OutputActor))
@@ -216,6 +223,7 @@ void UBuildingGeneratorTool::Setup()
 
 	if (TargetActor->IsA(APCG_BuildingGenerator::StaticClass()))
 	{
+		bIsEditing = true;
 		OutputActor = Cast<APCG_BuildingGenerator>(TargetActor);
 
 		// Spawn all gizmos for the array of FGeneratedOpening
@@ -223,10 +231,11 @@ void UBuildingGeneratorTool::Setup()
 		{
 			FScriptableToolGizmoOptions GizmoOptions;
 			GizmoOptions.bAllowNegativeScaling = false;
-			CreateTRSGizmo(Opening.Mesh->GetFName().ToString(), Opening.Transform, GizmoOptions, PropertyCreationOutcome);
+			CreateTRSGizmo(Opening.Mesh->GetFName().ToString(), Opening.Mesh->GetActorTransform(), GizmoOptions, PropertyCreationOutcome);
 
 			CachedOpenings.Add(Opening);
 			LastSpawnedActors.Add(Opening.Mesh);
+			Opening.Mesh->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		}
 
 		HideAllGizmos();
@@ -264,7 +273,7 @@ void UBuildingGeneratorTool::Setup()
 
 FInputRayHit UBuildingGeneratorTool::TestCanHoverFunc_Implementation(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers)
 {
-	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 
 }
 
@@ -336,7 +345,7 @@ void UBuildingGeneratorTool::OnEndHover()
 FInputRayHit UBuildingGeneratorTool::CanClickDrag_Implementation(const FInputDeviceRay& PressPos,
 	const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-	return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 }
 
 
@@ -349,9 +358,6 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 
 	auto Rotation = Hit.Normal.Rotation();
 	
-	const bool bIsPlacingMeshes = bWasHit && IsValid(LastSelectedActor) && bIsPainting;
-	const bool bIsEditingMeshes = bWasHit && IsValid(LastSelectedActor) && bIsEditing;
-
 	const float DistanceBetween = IsValid(LastSelectedActor) ? FVector::Dist(LastSelectedActor->GetActorLocation(), LatestPosition) : FVector::Dist(LastSpawnedPosition, LatestPosition);
 
 
@@ -433,7 +439,6 @@ void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, c
 
 	if (MouseButton == EScriptableToolMouseButton::LeftButton)
 	{
-		bIsEditing = true;
 	}
 
 	if (MouseButton == EScriptableToolMouseButton::MiddleButton)
@@ -516,7 +521,7 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
 		AActor* actor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Hit.Location, Rotation, Params);
-
+		actor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
 	
 
 		actor->SetActorLabel(fname.ToString());
@@ -662,7 +667,7 @@ FInputRayHit UBuildingGeneratorTool::CanUseMouseWheel_Implementation(const FInpu
 
 	if (IsShiftDown())
 	{
-		return UScriptableToolsUtilityLibrary::MakeInputRayHit(0.0, nullptr);
+		return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 	}
 
 	return FInputRayHit();
@@ -883,7 +888,7 @@ bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& De
 	bool bBeenHit = GetWorld()->LineTraceSingleByChannel(
 		OutHit, 
 		DevicePos.WorldRay.Origin, 
-		DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * HALF_WORLD_MAX, 
+		DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * WORLD_MAX, 
 		ECollisionChannel::ECC_Visibility, Params);
 
 	if (bBeenHit)
@@ -911,6 +916,18 @@ void UBuildingGeneratorTool::OnTick(float DeltaTime)
 void UBuildingGeneratorTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Super::Shutdown(ShutdownType);
+
+	switch (ShutdownType)
+	{
+	case EToolShutdownType::Completed:
+		break;
+	case EToolShutdownType::Accept:
+		HandleAccept();
+		break;
+	case EToolShutdownType::Cancel:
+		HandleCancel();
+		break;
+	}
 	
 	Brush->UnregisterComponent();
 	Brush->SetStaticMesh(nullptr);
@@ -928,10 +945,30 @@ bool UBuildingGeneratorTool::CanAccept() const
 
 void UBuildingGeneratorTool::HandleAccept()
 {
+	if (OutputActor)
+	{
+		GEditor->SelectActor(OutputActor, true, true);
+
+		// Select all of the actors that were generated by this tool
+		for (const auto& Opening : CachedOpenings)
+		{
+			if(!Opening.Mesh) continue;
+			Opening.Mesh->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
+		}
+
+	}
+
+	
+	
 }
 
 void UBuildingGeneratorTool::HandleCancel()
 {
+	if (OutputActor && !bIsEditing)
+	{
+		OutputActor->Destroy();
+		OutputActor = nullptr;
+	}
 }
 
 void UBuildingGeneratorTool::OnPreBeginPie(bool InStarted)

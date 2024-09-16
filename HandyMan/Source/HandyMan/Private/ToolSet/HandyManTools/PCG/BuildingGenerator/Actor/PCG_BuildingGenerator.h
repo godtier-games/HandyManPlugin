@@ -61,7 +61,10 @@ public:
 	void SetUseConsistentFloorHeight(const bool UseConsistentFloorHeight);
 
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetDesiredFloorHeight(const float NewFloorHeight);
+	void SetBaseFloorHeight(const float NewFloorHeight);
+
+	UFUNCTION(BlueprintCallable, Category="Handy Man")
+	void SetDesiredFloorClearance(const float NewClearance);
 
 	UFUNCTION(BlueprintCallable, Category ="Handy Man")
 	void SetDesiredBuildingHeight(const float NewBuildingHeight);
@@ -79,10 +82,10 @@ public:
 	void TransferMeshMaterials(const TArray<UMaterialInterface*> Materials);*/
 
 
-	
-	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void CreateSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath> Paths);
 
+	void CreateBaseSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
+	void CreateFloorSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
+	
 	/**
 	 *  Generates the splines from the generated mesh.
 	 *  This is useful if you want to create splines for each floor of the building to procedurally generate more meshes with PCG.
@@ -109,6 +112,7 @@ public:
 protected:
 
 	void ForceCookPCG();
+	void RecalculateFloorClearance();
 
 	FDelegateHandle DelegateHandle;
 
@@ -147,11 +151,11 @@ protected:
 	bool bUseConsistentFloorHeight = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight", EditConditionHides))
-	float DesiredFloorHeight = 400.f;
+	float BaseFloorHeight = 500.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorHeight", EditConditionHides))
-	TMap<uint8, float> DesiredFloorHeightMap;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight", EditConditionHides))
+	float DesiredFloorClearance = 240.f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	int32 NumberOfFloors = 1;
 
@@ -162,6 +166,9 @@ private:
 
 	UPROPERTY()
 	TMap<uint8, TObjectPtr<USplineComponent>> FloorSplines;
+
+	UPROPERTY()
+	TMap<uint8, TObjectPtr<USplineComponent>> BaseSplines;
 	
 	UPROPERTY()
 	TArray<FGeometryScriptPolyPath> FloorPolyPaths;
@@ -177,7 +184,8 @@ private:
 
 
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
-	void UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
+	
+	TArray<FGeometryScriptPolyPath> UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
 	void AppendOpeningToMesh(UDynamicMesh* TargetMesh);
