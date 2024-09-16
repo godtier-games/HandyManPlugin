@@ -37,10 +37,12 @@ void APCG_BuildingGenerator::BeginPlay()
 
 void APCG_BuildingGenerator::Destroyed()
 {
-	for (const auto Opening : GeneratedOpenings)
+	for (const auto Entry : GeneratedOpenings)
 	{
-		if (Opening.Mesh)
+		for (const auto Opening : Entry.Value.Openings)
 		{
+			if (!Opening.Mesh) continue;
+			
 			Opening.Mesh->Destroy();
 		}
 	}
@@ -242,21 +244,113 @@ void APCG_BuildingGenerator::BakeOpeningsToStatic()
 
 void APCG_BuildingGenerator::AddGeneratedOpeningEntry(const FGeneratedOpening& Entry)
 {
-	GeneratedOpenings.Add(Entry);
+	if (Entry.Mesh.IsA(AStaticMeshActor::StaticClass()))
+	{
+		auto Key = Cast<AStaticMeshActor>(Entry.Mesh)->GetStaticMeshComponent()->GetStaticMesh();
+		if(!GeneratedOpenings.Contains(Key))
+		{
+			GeneratedOpenings.Add(Key, FGeneratedOpeningArray(Entry));
+		}
+		else
+		{
+			GeneratedOpenings[Key].Openings.Add(Entry);
+		}
+			
+	}
+	else
+	{
+		if (!GeneratedOpenings.Contains(Entry.Mesh))
+		{
+			GeneratedOpenings.Add(Entry.Mesh, FGeneratedOpeningArray(Entry));
+		}
+		else
+		{
+			GeneratedOpenings[Entry.Mesh].Openings.Add(Entry);
+		}
+	}
+		
+	
 	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry)
 {
-	GeneratedOpenings.Remove(Entry);
+	if (GeneratedOpenings.Contains(Entry.Mesh))
+	{
+		GeneratedOpenings[Entry.Mesh].Openings.RemoveSingle(Entry);
+	}
+	else if (Entry.Mesh.IsA(AStaticMeshActor::StaticClass()))
+	{
+		auto Key = Cast<AStaticMeshActor>(Entry.Mesh)->GetStaticMeshComponent()->GetStaticMesh();
+		if(!GeneratedOpenings.Contains(Key)) return;
+		GeneratedOpenings[Key].Openings.RemoveSingle(Entry);
+	}
+	
 	RerunConstructionScripts();
 }
 
 void APCG_BuildingGenerator::UpdatedGeneratedOpenings(const TArray<FGeneratedOpening>& Entries)
 {
 	GeneratedOpenings.Empty();
-	GeneratedOpenings.Append(Entries);
+	for (const auto Entry : Entries)
+	{
+		if (Entry.Mesh.IsA(AStaticMeshActor::StaticClass()))
+		{
+			auto Key = Cast<AStaticMeshActor>(Entry.Mesh)->GetStaticMeshComponent()->GetStaticMesh();
+			if(!GeneratedOpenings.Contains(Key))
+			{
+				GeneratedOpenings.Add(Key, FGeneratedOpeningArray(Entry));
+			}
+			else
+			{
+				GeneratedOpenings[Key].Openings.Add(Entry);
+			}
+			
+		}
+		else
+		{
+			if (!GeneratedOpenings.Contains(Entry.Mesh))
+			{
+				GeneratedOpenings.Add(Entry.Mesh, FGeneratedOpeningArray(Entry));
+			}
+			else
+			{
+				GeneratedOpenings[Entry.Mesh].Openings.Add(Entry);
+			}
+		}
+		
+	}
 	RerunConstructionScripts();
+}
+
+TArray<FGeneratedOpening> APCG_BuildingGenerator::GetGeneratedOpenings(const UObject* Key) const
+{
+	if (GeneratedOpenings.Contains(Key))
+	{
+		return GeneratedOpenings[Key].Openings;
+	}
+
+	return TArray<FGeneratedOpening>();
+}
+
+TArray<FGeneratedOpening> APCG_BuildingGenerator::GetGeneratedOpenings() const
+{
+	TArray<FGeneratedOpening> OutArray;
+
+	for (const auto Entry : GeneratedOpenings)
+	{
+		for (const auto Opening : Entry.Value.Openings)
+		{
+			OutArray.Add(Opening);
+		}
+	}
+
+	return OutArray;
+}
+
+TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> APCG_BuildingGenerator::GetGeneratedOpeningsMap() const
+{
+	return GeneratedOpenings;
 }
 
 void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
@@ -391,35 +485,38 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 {
 	// Iterate over the generated openings
-	for (const auto& Opening : GeneratedOpenings)
+	for (const auto& Entry : GeneratedOpenings)
 	{
-		if(!Opening.bShouldApplyBoolean) continue;
-
-		auto* ComputeMesh = AllocateComputeMesh();
-
-
-		const float Offset = Opening.bShouldCutHoleInTargetMesh ? .35f : 0.f;
-		
-		auto* BoolMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BaseShape, Offset , nullptr);
-
-		// Cut this mesh from the target mesh
-		FGeometryScriptMeshBooleanOptions BooleanOptions;
-		BooleanOptions.bFillHoles = false;
-		
-		UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean
-		(
-			TargetMesh,
-			GetActorTransform(),
-			BoolMesh,
-			Opening.Mesh->GetActorTransform(),
-			Opening.bShouldCutHoleInTargetMesh ? EGeometryScriptBooleanOperation::Subtract : EGeometryScriptBooleanOperation::Union,
-			BooleanOptions
-		);
-
-		if (!Opening.bShouldCutHoleInTargetMesh && Opening.bShouldApplyBoolean)
+		for (const auto Opening : Entry.Value.Openings)
 		{
-			// Hide the actor in the world outliner
-			Opening.Mesh->SetIsTemporarilyHiddenInEditor(true);
+			if(!Opening.bShouldApplyBoolean) continue;
+
+			auto* ComputeMesh = AllocateComputeMesh();
+
+
+			const float Offset = Opening.bShouldCutHoleInTargetMesh ? .35f : 0.f;
+		
+			auto* BoolMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BooleanShape, Offset , nullptr);
+
+			// Cut this mesh from the target mesh
+			FGeometryScriptMeshBooleanOptions BooleanOptions;
+			BooleanOptions.bFillHoles = false;
+		
+			UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean
+			(
+				TargetMesh,
+				GetActorTransform(),
+				BoolMesh,
+				Opening.Mesh->GetActorTransform(),
+				Opening.bShouldCutHoleInTargetMesh ? EGeometryScriptBooleanOperation::Subtract : EGeometryScriptBooleanOperation::Union,
+				BooleanOptions
+			);
+
+			if (!Opening.bShouldCutHoleInTargetMesh && Opening.bShouldApplyBoolean)
+			{
+				// Hide the actor in the world outliner
+				Opening.Mesh->SetIsTemporarilyHiddenInEditor(true);
+			}
 		}
 	}
 	// For each opening get its base shape and create a dynamic mesh from it.

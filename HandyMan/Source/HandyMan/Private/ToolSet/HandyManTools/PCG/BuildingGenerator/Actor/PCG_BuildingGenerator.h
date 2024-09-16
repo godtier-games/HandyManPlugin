@@ -101,6 +101,10 @@ public:
 	void RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry);
 	void UpdatedGeneratedOpenings(const TArray<FGeneratedOpening>& Entries);
 
+	TArray<FGeneratedOpening> GetGeneratedOpenings(const UObject* Key) const;
+	TArray<FGeneratedOpening> GetGeneratedOpenings() const;
+	TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> GetGeneratedOpeningsMap() const;
+	
 
 protected:
 
@@ -169,7 +173,7 @@ private:
 	AActor* OriginalActor = nullptr;
 
 	UPROPERTY()
-	TArray<FGeneratedOpening> GeneratedOpenings;
+	TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> GeneratedOpenings;
 
 
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
@@ -178,9 +182,6 @@ private:
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
 	void AppendOpeningToMesh(UDynamicMesh* TargetMesh);
 	void CreateFloorAndRoofSplines();
-
-
-
 
 public:
 

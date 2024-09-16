@@ -216,11 +216,41 @@ void UBuildingGeneratorTool::Setup()
 
 	if (TargetActor->IsA(APCG_BuildingGenerator::StaticClass()))
 	{
-		// TODO: Enter a edit mode for that actor
+		OutputActor = Cast<APCG_BuildingGenerator>(TargetActor);
 
 		// Spawn all gizmos for the array of FGeneratedOpening
+		for (const auto& Opening : OutputActor->GetGeneratedOpenings())
+		{
+			FScriptableToolGizmoOptions GizmoOptions;
+			GizmoOptions.bAllowNegativeScaling = false;
+			CreateTRSGizmo(Opening.Mesh->GetFName().ToString(), Opening.Transform, GizmoOptions, PropertyCreationOutcome);
 
-		// Restore any settings set from the tool back into the tool.
+			CachedOpenings.Add(Opening);
+			LastSpawnedActors.Add(Opening.Mesh);
+		}
+
+		HideAllGizmos();
+
+		if (Settings)
+		{
+			// Restore any settings set from the tool back into the tool.
+			for (const auto& Item : OutputActor->GetGeneratedOpeningsMap())
+			{
+				FDynamicOpening Opening;
+				Opening.Mesh = Item.Key;
+				Opening.BooleanShape = Item.Value.Openings[0].BooleanShape;
+				Opening.bIsSubtractiveBoolean = Item.Value.Openings[0].bShouldCutHoleInTargetMesh;
+				Opening.bShouldApplyBoolean = Item.Value.Openings[0].bShouldApplyBoolean;
+				Opening.bShouldLayFlush = Item.Value.Openings[0].bShouldLayFlush;
+				Opening.bShouldSnapToGroundSurface = Item.Value.Openings[0].bShouldSnapToGroundSurface;
+				Settings->Openings.Add(Opening);
+			}
+
+			// TODO : Fill out the rest of the settings from the actor - NEEDS GETTER FUNCTIONS -
+
+		}
+
+		
 	}
 	else
 	{
@@ -333,10 +363,7 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 			Brush->SetVisibility(true);
 			UpdateBrush(DragPos);
 
-			for (const auto& Gizmo : Gizmos)
-			{
-				Gizmo.Value->SetVisibility(false);
-			}
+			HideAllGizmos();
 			// Update the location of the brush since hover won't be called during drag
 			
 			/*if (!IsAltDown())
@@ -513,7 +540,7 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 		NewOpening.Mesh = actor;
 		NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
 		NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
-		NewOpening.BaseShape = OpeningRef.BaseShape;
+		NewOpening.BooleanShape = OpeningRef.BooleanShape;
 		NewOpening.bShouldLayFlush = OpeningRef.bShouldLayFlush;
 		
 		if (OutputActor)
@@ -534,12 +561,22 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 	}
 }
 
+void UBuildingGeneratorTool::HideAllGizmos()
+{
+	for (const auto& Gizmo : Gizmos)
+	{
+		Gizmo.Value->SetVisibility(false);
+	}
+}
+
 FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
 {
 	if (!IsShiftDown())
 	{
 		return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
 	}
+
+	
 	
 	FVector Start = PressPos.WorldRay.Origin;
 	FVector End = PressPos.WorldRay.Origin + PressPos.WorldRay.Direction * HALF_WORLD_MAX;
@@ -549,6 +586,16 @@ FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDev
 	{
 		if (IsValid(Hit.GetActor()))
 		{
+			if (Hit.GetActor()->IsA(APCG_BuildingGenerator::StaticClass()))
+			{
+				Brush->SetVisibility(true);
+
+				HideAllGizmos();
+				
+				return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+			}
+
+			
 			bool bHasHitAnOpening = false;
 			for (const auto& Opening : CachedOpenings)
 			{
@@ -821,7 +868,7 @@ void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoId
 {
 	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
 
-	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform)
+	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform || ChangeType == EScriptableToolGizmoStateChangeType::UndoRedo)
 	{
 	
 		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);

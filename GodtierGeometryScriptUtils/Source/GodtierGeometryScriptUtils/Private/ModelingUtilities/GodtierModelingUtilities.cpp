@@ -403,22 +403,24 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 	FVector Origin;
 	FVector BoxExtent;
 	TargetActor->GetActorBounds(false, Origin, BoxExtent);
-
-	FVector NewScale = TargetActor->GetActorUpVector() + TargetActor->GetActorRightVector() + (TargetActor->GetActorForwardVector() * (1 + IntersectionOffset));
-
+	
 	if (TargetActor->GetComponentByClass(UStaticMeshComponent::StaticClass()))
 	{
 		TArray<UStaticMeshComponent*> OutComponents;
 		TargetActor->GetComponents(UStaticMeshComponent::StaticClass(), OutComponents);
 
+		FGeometryScriptCopyMeshFromAssetOptions CopyOptions;
+		CopyOptions.bUseBuildScale = false;
 		for (const auto Component : OutComponents)
 		{
+			Component->SetRelativeScale3D(FVector(1 + IntersectionOffset, Component->GetRelativeScale3D().Y, Component->GetRelativeScale3D().Z));
+			
 			EGeometryScriptOutcomePins Outcome;
 			auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
 			(
 				Component->GetStaticMesh(),
 				ComputeMesh,
-				FGeometryScriptCopyMeshFromAssetOptions(),
+				CopyOptions,
 				FGeometryScriptMeshReadLOD(),
 				Outcome
 			);
@@ -426,7 +428,7 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, FTransform::Identity);
 		}
 
-		UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(ComputeMesh, NewScale);
+		//UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(ComputeMesh, NewScale);
 	}
 	
 

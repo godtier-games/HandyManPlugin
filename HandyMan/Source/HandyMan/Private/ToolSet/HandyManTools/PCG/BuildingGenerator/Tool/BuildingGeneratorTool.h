@@ -59,6 +59,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Mouse Drag"))
 	void OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
+	void HideAllGizmos();
 
 
 	///~ Single Click Behavior

@@ -25,13 +25,16 @@ struct HANDYMAN_API FGeneratedOpening
 	bool bShouldLayFlush = false;
 
 	UPROPERTY()
+	bool bShouldSnapToGroundSurface = false;
+
+	UPROPERTY()
 	bool bShouldApplyBoolean = false;
 
 	UPROPERTY()
 	bool bShouldCutHoleInTargetMesh = false;
 
 	UPROPERTY()
-	EMeshBooleanShape BaseShape = EMeshBooleanShape::Box;
+	EMeshBooleanShape BooleanShape = EMeshBooleanShape::Box;
 
 	bool operator==(const FGeneratedOpening& Other) const
 	{
@@ -43,6 +46,43 @@ struct HANDYMAN_API FGeneratedOpening
 		return !(Other == *this);
 	}
 };
+
+USTRUCT()
+struct HANDYMAN_API FGeneratedOpeningArray
+{
+	GENERATED_BODY()
+
+	FGeneratedOpeningArray() = default;
+
+	FGeneratedOpeningArray(const TArray<FGeneratedOpening>& InOpenings)
+	{
+		Openings = InOpenings;
+	}
+
+	FGeneratedOpeningArray(const FGeneratedOpening& Entry)
+	{
+		Openings.Add(Entry);
+	}
+
+	UPROPERTY()
+	TArray<FGeneratedOpening> Openings;
+
+	bool Contains(const FGeneratedOpening& Other) const
+	{
+		for (int i = 0; i < Openings.Num(); ++i)
+		{
+			if(Openings[i].Mesh && Other.Mesh && Openings[i].Mesh.GetFName() == Other.Mesh.GetFName())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+};
+
+
+
 
 USTRUCT(BlueprintType)
 struct HANDYMAN_API FDynamicOpening
@@ -56,13 +96,16 @@ struct HANDYMAN_API FDynamicOpening
 	bool bShouldLayFlush = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bShouldSnapToGroundSurface = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bShouldApplyBoolean = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (EditCondition = "bShouldApplyBoolean", EditConditionHides))
 	bool bIsSubtractiveBoolean = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (EditCondition = "bShouldApplyBoolean", EditConditionHides))
-	EMeshBooleanShape BaseShape = EMeshBooleanShape::Exact;
+	EMeshBooleanShape BooleanShape = EMeshBooleanShape::Exact;
 };
 
 USTRUCT()
