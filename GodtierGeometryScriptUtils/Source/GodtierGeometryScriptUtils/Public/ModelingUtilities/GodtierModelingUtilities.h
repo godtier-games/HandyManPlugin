@@ -27,7 +27,7 @@ class GODTIERGEOMETRYSCRIPTUTILS_API UGodtierModelingUtilities : public UBluepri
 	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, const ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod, DisplayName = "Extract Planar Mesh From Mesh", Keywords = "Sweep Geometry Pipe Curve"), Category = "GodtierGeometryScriptUtils | Modeling Utilities")
-    static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* GenerateMeshFromPlanarFace(UDynamicMesh* ComputeMesh, AActor* TargetActor, const FVector NormalDirection = FVector::UpVector, UGeometryScriptDebug* Debug = nullptr);
+    static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* GenerateMeshFromPlanarFace(UDynamicMesh* ComputeMesh, UDynamicMesh* FromMesh, const FVector NormalDirection = FVector::UpVector, UGeometryScriptDebug* Debug = nullptr);
 
 	/*Take an input mesh, and use it to generate a collision mesh, then convert that collision to a mesh that can be used as a boolean mesh
 	 * If the boolean shape is set to "Exact", the input mesh will be used as the base shape for the boolean operation

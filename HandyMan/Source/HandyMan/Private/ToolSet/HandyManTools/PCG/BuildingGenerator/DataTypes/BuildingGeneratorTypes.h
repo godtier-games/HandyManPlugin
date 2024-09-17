@@ -9,6 +9,19 @@
 
 class UDynamicMesh;
 
+UENUM(BlueprintType)
+enum class EMeshFitStyle : uint8
+{
+	/* The mesh will be placed centered on the desired wall matching the wall's thickness */
+	Flush,
+
+	/* The mesh will be placed on the front side of the desired wall */
+	In_Front,
+
+	/* The mesh will be placed centered on the desired wall offset equally on both sides */
+	Centered,
+};
+
 
 USTRUCT()
 struct HANDYMAN_API FGeneratedOpening
@@ -22,7 +35,10 @@ struct HANDYMAN_API FGeneratedOpening
 	TObjectPtr<AActor> Mesh;
 	
 	UPROPERTY()
-	bool bShouldLayFlush = false;
+	EMeshFitStyle Fit = EMeshFitStyle::Flush;
+
+	UPROPERTY()
+	float CenteredOffset = 0.0f;
 
 	UPROPERTY()
 	bool bShouldSnapToGroundSurface = false;
@@ -45,7 +61,31 @@ struct HANDYMAN_API FGeneratedOpening
 	{
 		return !(Other == *this);
 	}
+	
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << Mesh;
+		Transform.Serialize(Ar);
+		Ar << Fit;
+		Ar << CenteredOffset;
+		Ar.SerializeBits(&bShouldSnapToGroundSurface, 1);
+		Ar.SerializeBits(&bShouldApplyBoolean, 1);
+		Ar.SerializeBits(&bShouldCutHoleInTargetMesh, 1);
+		Ar << BooleanShape;
+		
+		return true;
+	}
+
 };
+template<>
+struct TStructOpsTypeTraits<FGeneratedOpening> : public TStructOpsTypeTraitsBase2<FGeneratedOpening>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
+};
+
 
 USTRUCT()
 struct HANDYMAN_API FGeneratedOpeningArray
@@ -93,7 +133,10 @@ struct HANDYMAN_API FDynamicOpening
 	TObjectPtr<UObject> Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	bool bShouldLayFlush = false;
+	EMeshFitStyle Fit = EMeshFitStyle::Flush;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (EditCondition = "Fit == EMeshFitStyle::Centered", EditConditionHides))
+	float CenteredOffset = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bShouldSnapToGroundSurface = false;

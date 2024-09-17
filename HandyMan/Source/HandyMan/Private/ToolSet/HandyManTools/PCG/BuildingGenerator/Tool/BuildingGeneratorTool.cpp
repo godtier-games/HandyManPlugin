@@ -229,6 +229,8 @@ void UBuildingGeneratorTool::Setup()
 		// Spawn all gizmos for the array of FGeneratedOpening
 		for (const auto& Opening : OutputActor->GetGeneratedOpenings())
 		{
+			if(!Opening.Mesh) continue;
+			
 			FScriptableToolGizmoOptions GizmoOptions;
 			GizmoOptions.bAllowNegativeScaling = false;
 			CreateTRSGizmo(Opening.Mesh->GetFName().ToString(), Opening.Mesh->GetActorTransform(), GizmoOptions, PropertyCreationOutcome);
@@ -250,7 +252,7 @@ void UBuildingGeneratorTool::Setup()
 				Opening.BooleanShape = Item.Value.Openings[0].BooleanShape;
 				Opening.bIsSubtractiveBoolean = Item.Value.Openings[0].bShouldCutHoleInTargetMesh;
 				Opening.bShouldApplyBoolean = Item.Value.Openings[0].bShouldApplyBoolean;
-				Opening.bShouldLayFlush = Item.Value.Openings[0].bShouldLayFlush;
+				Opening.Fit = Item.Value.Openings[0].Fit;
 				Opening.bShouldSnapToGroundSurface = Item.Value.Openings[0].bShouldSnapToGroundSurface;
 				Settings->Openings.Add(Opening);
 			}
@@ -531,13 +533,46 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 			Cast<AStaticMeshActor>(actor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
 		}
 
-		FVector Origin;
+		FVector Origin; 
 		FVector Extent;
 		actor->GetActorBounds(false, Origin, Extent);
+		FVector Offset = FVector::ZeroVector;
+		FVector MeshScale = FVector::OneVector;
+		switch (OpeningRef.Fit)
+		{
+		case EMeshFitStyle::Flush:
+			{
+				Offset = actor->GetActorForwardVector() * (Extent);
+				const float CurrentX = (Extent * actor->GetActorForwardVector() * 2).Size();
+				if (Settings->WallThickness > CurrentX)
+				{
+					MeshScale = FVector(Settings->WallThickness / CurrentX, 1.0f, 1.0f);
+				}
+			}
+			break;
+		case EMeshFitStyle::In_Front:
+			break;
+		case EMeshFitStyle::Centered:
+			{
+				Offset = actor->GetActorForwardVector() * (Extent);
+				const float CurrentX = (Extent * actor->GetActorForwardVector() * 2).Size();
+				if (Settings->WallThickness > CurrentX)
+				{
+					MeshScale = FVector(Settings->WallThickness / CurrentX, 1.0f, 1.0f);
+				}
+				else
+				{
+					MeshScale = FVector(1.0f + (OpeningRef.CenteredOffset * .01f), 1.0f, 1.0f);
+				}
+			}
+			break;
+		}
 		
-		FVector Offset = OpeningRef.bShouldLayFlush ? ((actor->GetActorForwardVector() * Extent)) : FVector::ZeroVector;
-		const FTransform SpawnTransform = FTransform(Rotation, Hit.Location - Offset, BrushScale);
+		const FTransform SpawnTransform = FTransform(Rotation, Hit.Location, FVector::One());
 		actor->SetActorTransform(SpawnTransform);
+		actor->GetRootComponent()->SetRelativeScale3D(MeshScale);
+		//actor->GetRootComponent()->AddLocalOffset(-Offset);
+
 		
 
 		FGeneratedOpening NewOpening;
@@ -546,7 +581,7 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 		NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
 		NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
 		NewOpening.BooleanShape = OpeningRef.BooleanShape;
-		NewOpening.bShouldLayFlush = OpeningRef.bShouldLayFlush;
+		NewOpening.Fit = OpeningRef.Fit;
 		
 		if (OutputActor)
 		{

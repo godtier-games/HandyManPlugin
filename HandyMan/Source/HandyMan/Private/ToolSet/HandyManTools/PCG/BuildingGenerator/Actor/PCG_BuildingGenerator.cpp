@@ -7,10 +7,14 @@
 #include "GeometryScript/MeshBasicEditFunctions.h"
 #include "GeometryScript/MeshBooleanFunctions.h"
 #include "GeometryScript/MeshModelingFunctions.h"
+#include "GeometryScript/MeshQueryFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
+#include "GeometryScript/MeshSelectionQueryFunctions.h"
 #include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
 #include "GeometryScript/SceneUtilityFunctions.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "ModelingUtilities/GodtierModelingUtilities.h"
 #include "PolyPathUtilities/GodtierPolyPathUtilities.h"
 #include "SplineUtilities/GodtierSplineUtilities.h"
@@ -48,20 +52,37 @@ void APCG_BuildingGenerator::Destroyed()
 		}
 	}
 
-	if (OriginalActor)
+#if WITH_EDITOR
+	if (OriginalMesh)
 	{
-		OriginalActor->SetIsTemporarilyHiddenInEditor(false);
+		FActorSpawnParameters Params = FActorSpawnParameters();
+		FString name = FString::Format(TEXT("DynamicActor_{0}"), { GetFName().ToString() });
+		FName fname = MakeUniqueObjectName(nullptr, ADynamicMeshActor::StaticClass(), FName(*name));
+		Params.Name = fname;
+		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+		
+		if (auto NewDynamicActor = GetWorld()->SpawnActor<ADynamicMeshActor>(GetActorLocation(), GetActorRotation(), Params))
+		{
+			NewDynamicActor->GetDynamicMeshComponent()->SetDynamicMesh(OriginalMesh);
+		}
 	}
+#endif
+	
 	
 	Super::Destroyed();
 }
 
+void APCG_BuildingGenerator::BeginDestroy()
+{
+	Super::BeginDestroy();
+}
+
 void APCG_BuildingGenerator::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 {
+	ReleaseAllComputeMeshes();
 	GenerateExteriorWalls(TargetMesh);
 	GenerateFloorMeshes(TargetMesh);
 	GenerateRoofMesh(TargetMesh);
-
 	ForceCookPCG();
 	
 	Super::RebuildGeneratedMesh(TargetMesh);
@@ -106,13 +127,10 @@ void APCG_BuildingGenerator::CacheInputActor(AActor* InputActor)
 		Outcome
 	);
 	
-	OriginalActor = InputActor;
-	FVector Origin;
-	FVector Extent;
-	InputActor->GetActorBounds(false, Origin, Extent);
-	BuildingHeight = Extent.Z * 2;
-	
-	InputActor->SetIsTemporarilyHiddenInEditor(true);
+	const auto Bounds = UGeometryScriptLibrary_MeshQueryFunctions::GetMeshBoundingBox(OriginalMesh);
+	BuildingHeight = Bounds.GetExtent().Z * 2;
+
+	InputActor->Destroy();
 	CreateFloorAndRoofSplines();
 }
 
@@ -444,7 +462,7 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 {
 	// Duplicate the roof mesh
 	auto* ComputeMesh = AllocateComputeMesh();
-	auto FloorMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ComputeMesh, OriginalActor);
+	auto FloorMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ComputeMesh, OriginalMesh);
 
 	// Move it down to ground level
 	FloorMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(FloorMesh, FVector(0, 0, -BuildingHeight));
@@ -563,29 +581,48 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 	// Iterate over the generated openings
 	for (const auto& Entry : GeneratedOpenings)
 	{
+		float CurrentSizeX = 1.f;
+
+		FVector Extent;
+
+		if (Entry.Key.IsA(UStaticMesh::StaticClass()))
+		{
+			Extent = Cast<UStaticMesh>(Entry.Key)->GetBoundingBox().GetExtent();
+			CurrentSizeX = Cast<UStaticMesh>(Entry.Key)->GetBoundingBox().GetExtent().X;
+		}
+
+		// TODO : Handle Actors being used as openings
+
+		
 		for (const auto Opening : Entry.Value.Openings)
 		{
 			if(!Opening.bShouldApplyBoolean) continue;
 
-			auto* ComputeMesh = AllocateComputeMesh();
+			if(!Opening.Mesh) continue;
 
-			float CurrentSizeX = Opening.Mesh->GetActorRelativeScale3D().X;
+			auto* ComputeMesh = AllocateComputeMesh();
+			ComputeMesh->Reset();
+
+			/*float CurrentSizeX = Opening.Mesh->GetActorRelativeScale3D().X;
 
 			FVector Origin;
 			FVector Extent;
 			Opening.Mesh->GetActorBounds(false, Origin, Extent);
 
-			CurrentSizeX = (Opening.Mesh->GetRootComponent()->GetRelativeRotation().Vector().GetSafeNormal() * Extent).Size();
+			CurrentSizeX = Extent.X;*/
 
 			float ScaleOffset = .35f;
 			if (WallThickness > CurrentSizeX)
 			{
-				ScaleOffset = (WallThickness/CurrentSizeX - 1) + .15f;
+				ScaleOffset = FMath::Max((WallThickness/CurrentSizeX), 5.f);
 			}
 
 			const float Offset = Opening.bShouldCutHoleInTargetMesh ? ScaleOffset : 0.f;
 		
-			auto* BoolMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BooleanShape, Offset , nullptr);
+			ComputeMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BooleanShape, Offset , nullptr);
+
+			const auto RelativeTransform = UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform());
+			UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(ComputeMesh, RelativeTransform, false);
 
 			// Cut this mesh from the target mesh
 			FGeometryScriptMeshBooleanOptions BooleanOptions;
@@ -594,9 +631,9 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 			UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean
 			(
 				TargetMesh,
-				GetActorTransform(),
-				BoolMesh,
-				Opening.Mesh->GetActorTransform(),
+				FTransform::Identity,
+				ComputeMesh,
+				FTransform::Identity,
 				Opening.bShouldCutHoleInTargetMesh ? EGeometryScriptBooleanOperation::Subtract : EGeometryScriptBooleanOperation::Union,
 				BooleanOptions
 			);
@@ -606,10 +643,51 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 				// Hide the actor in the world outliner
 				Opening.Mesh->SetIsTemporarilyHiddenInEditor(true);
 			}
+
+			if (bMaintainOpeningProportions)
+			{
+				FVector MeshScale = FVector::OneVector;
+				switch (Opening.Fit)
+				{
+				case EMeshFitStyle::Flush:
+					{
+						const float CurrentX = (Extent.X* 2);
+						if (WallThickness > CurrentX)
+						{
+							MeshScale = FVector(WallThickness / CurrentX, 1.0f, 1.0f);
+						}
+					}
+					break;
+				case EMeshFitStyle::In_Front:
+					break;
+				case EMeshFitStyle::Centered:
+					{
+						const float CurrentX = (Extent.X* 2);
+						if (WallThickness > CurrentX)
+						{
+							MeshScale = FVector(WallThickness / CurrentX, 1.0f, 1.0f);
+						}
+						else
+						{
+							MeshScale = FVector(1.0f + Opening.CenteredOffset, 1.0f, 1.0f);
+						}
+					}
+					break;
+				}
+
+				Opening.Mesh->GetRootComponent()->SetRelativeScale3D(MeshScale);
+			}
+
+			/*bool bDebugBooleanMeshes = true;
+
+			if (bDebugBooleanMeshes)
+			{
+				UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, BoolMesh, UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform()));
+			}*/
 		}
 	}
-	// For each opening get its base shape and create a dynamic mesh from it.
-	// Use the dynamic mesh to cut a hole in the target mesh.
+
+	
 }
 
 #if WITH_EDITOR
@@ -678,16 +756,12 @@ void APCG_BuildingGenerator::SetUseConsistentFloorMaterials(const bool UseConsis
 {
 	bUseConsistentFloorMaterial = UseConsistentFloorMaterials;
 	RerunConstructionScripts();
-
-	
 }
 
 void APCG_BuildingGenerator::SetUseConsistentFloorHeight(const bool UseConsistentFloorHeight)
 {
 	bUseConsistentFloorHeight = UseConsistentFloorHeight;
 	RerunConstructionScripts();
-
-	
 }
 
 void APCG_BuildingGenerator::SetBaseFloorHeight(const float NewFloorHeight)
@@ -711,10 +785,8 @@ void APCG_BuildingGenerator::SetDesiredFloorClearance(const float NewClearance)
 
 void APCG_BuildingGenerator::SetDesiredBuildingHeight(const float NewBuildingHeight)
 {
-	FVector Origin;
-	FVector Extent;
-	OriginalActor->GetActorBounds(false, Origin, Extent);
-	const float LastHeight = Extent.Z * 2;
+	const auto Bounds = UGeometryScriptLibrary_MeshQueryFunctions::GetMeshBoundingBox(OriginalMesh);
+	const float LastHeight = Bounds.GetExtent().Z * 2;
 	
     BuildingHeight = NewBuildingHeight;
 	float multiplier = LastHeight > BuildingHeight ? -1 : 1;

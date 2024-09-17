@@ -15,6 +15,7 @@
 #include "GeometryScript/CollisionFunctions.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
+#include "GeometryScript/MeshDecompositionFunctions.h"
 #include "GeometryScript/MeshModelingFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
 #include "GeometryScript/MeshTransformFunctions.h"
@@ -355,34 +356,19 @@ UDynamicMesh* UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(FS
 	return TargetMesh;
 }
 
-UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(UDynamicMesh* ComputeMesh, AActor* TargetActor, const FVector NormalDirection, UGeometryScriptDebug* Debug)
+UDynamicMesh* UGodtierModelingUtilities::GenerateMeshFromPlanarFace(UDynamicMesh* ComputeMesh, UDynamicMesh* FromMesh, const FVector NormalDirection, UGeometryScriptDebug* Debug)
 {
 	FGeometryScriptMeshSelection Selection;
 	FGeometryScriptMeshSelection NewSelection;
 
-	if(!ComputeMesh || !TargetActor) return nullptr;
+	if(!ComputeMesh || !FromMesh) return nullptr;
 
 	ComputeMesh->Reset();
-	
 
-	if (TargetActor->IsA(ADynamicMeshActor::StaticClass()))
-	{
-		ComputeMesh->SetMesh(*Cast<ADynamicMeshActor>(TargetActor)->GetDynamicMeshComponent()->GetMesh());
-	}
-	else if (TargetActor->IsA(AStaticMeshActor::StaticClass()))
-	{
-		
-		EGeometryScriptOutcomePins Outcome;
-		ComputeMesh->SetMesh(
-			*UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
-		(
-			Cast<AStaticMeshActor>(TargetActor)->GetStaticMeshComponent()->GetStaticMesh(),
-			ComputeMesh,
-			FGeometryScriptCopyMeshFromAssetOptions(),
-			FGeometryScriptMeshReadLOD(),
-			Outcome
-		)->ExtractMesh().Get());
-	}
+	UDynamicMesh* MeshCopy;
+	UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(FromMesh, ComputeMesh, MeshCopy);
+
+	ComputeMesh->SetMesh(*MeshCopy->ExtractMesh().Get());
 	
 	UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsByNormalAngle(ComputeMesh, Selection, NormalDirection);
 
@@ -399,10 +385,6 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 {
 	if(!ComputeMesh || !TargetActor) return nullptr;
 	ComputeMesh->Reset();
-
-	FVector Origin;
-	FVector BoxExtent;
-	TargetActor->GetActorBounds(false, Origin, BoxExtent);
 	
 	if (TargetActor->GetComponentByClass(UStaticMeshComponent::StaticClass()))
 	{
@@ -414,8 +396,9 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 		for (const auto Component : OutComponents)
 		{
 			const FVector CurrentScale = Component->GetRelativeScale3D();
-			
-			Component->SetRelativeScale3D(FVector(1 + IntersectionOffset, Component->GetRelativeScale3D().Y, Component->GetRelativeScale3D().Z));
+			const FVector NewScale = FVector(1 + IntersectionOffset, 1, 1);
+
+			Component->SetRelativeScale3D(NewScale);
 			
 			EGeometryScriptOutcomePins Outcome;
 			auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
@@ -427,12 +410,18 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 				Outcome
 			);
 
-			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, FTransform::Identity);
+			/*UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(CopiedMesh, FTransform::Identity);
+			
+			UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(CopiedMesh, NewScale);*/
 
+			FTransform Transform( FRotator::ZeroRotator,FVector::Zero(), NewScale);
+			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, Transform);
+			
 			Component->SetRelativeScale3D(CurrentScale);
 		}
-
-		//UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(ComputeMesh, NewScale);
+		
+		
+		
 	}
 	
 

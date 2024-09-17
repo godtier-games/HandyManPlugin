@@ -14,7 +14,7 @@
  *  This actor generates a building based on a block out mesh. The mesh generated is completely procedural and can be modified by changing the parameters in the PCG component.
  *  There is also the option to bake this mesh to a static mesh asset. Which should be done to reduce the overhead of the procedural generation.
  */
-UCLASS(PrioritizeCategories="Parameters")
+UCLASS(PrioritizeCategories=("Parameters", "HandyMan", "PCG"))
 class HANDYMAN_API APCG_BuildingGenerator : public APCG_DynamicMeshActor_Editor
 {
 	GENERATED_BODY()
@@ -27,6 +27,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void Destroyed() override;
+	virtual void BeginDestroy() override;
+
 
 public:
 
@@ -75,16 +77,7 @@ public:
 	{
 		WallThickness = Thickness;
 		RerunConstructionScripts();
-
 	};
-
-	/*UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void TransferMeshMaterials(const TArray<UMaterialInterface*> Materials);*/
-
-
-
-	void CreateBaseSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
-	void CreateFloorSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
 	
 	/**
 	 *  Generates the splines from the generated mesh.
@@ -147,14 +140,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	float WallThickness = 50.f;
 
+	/* If true the openings scale will be altered to fit the wall's thickness based on its fit settings.
+	 * This will only affect the forward Axis of the opening.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
+	bool bMaintainOpeningProportions = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	bool bUseConsistentFloorHeight = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight", EditConditionHides))
 	float BaseFloorHeight = 500.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="bUseConsistentFloorHeight", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", meta=(EditCondition="!bUseConsistentFloorHeight", EditConditionHides))
 	float DesiredFloorClearance = 240.f;
+
+	// If this is set to true the building height will be automatically calculated based on the number of floors and the floor height.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
+	bool bAutoScaleBuildingHeight = false;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	int32 NumberOfFloors = 1;
@@ -175,14 +178,13 @@ private:
 
 	UPROPERTY()
 	UDynamicMesh* OriginalMesh = nullptr;
-
-	UPROPERTY()
-	AActor* OriginalActor = nullptr;
-
+	
 	UPROPERTY()
 	TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> GeneratedOpenings;
 
-
+	
+	void CreateBaseSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
+	void CreateFloorSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
 	
 	TArray<FGeometryScriptPolyPath> UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
