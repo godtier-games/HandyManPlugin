@@ -28,4 +28,6 @@ public:
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) = 0;
 
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) = 0;
+
+	virtual bool Trace(TArray<FHitResult>& OutHit, const FInputDeviceRay& DevicePos) {return false;};
 };

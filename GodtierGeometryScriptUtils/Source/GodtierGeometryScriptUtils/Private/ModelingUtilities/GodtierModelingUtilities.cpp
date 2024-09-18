@@ -395,10 +395,7 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 		CopyOptions.bUseBuildScale = false;
 		for (const auto Component : OutComponents)
 		{
-			const FVector CurrentScale = Component->GetRelativeScale3D();
 			const FVector NewScale = FVector(1 + IntersectionOffset, 1, 1);
-
-			Component->SetRelativeScale3D(NewScale);
 			
 			EGeometryScriptOutcomePins Outcome;
 			auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMeshV2
@@ -413,8 +410,6 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 			FTransform Transform( FRotator::ZeroRotator,FVector::Zero(), NewScale);
 
 			UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(CopiedMesh, Transform);
-			
-			Component->SetRelativeScale3D(CurrentScale);
 		}
 		
 	}

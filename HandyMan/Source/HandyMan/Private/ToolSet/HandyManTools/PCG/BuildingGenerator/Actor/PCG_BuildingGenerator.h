@@ -78,6 +78,14 @@ public:
 		WallThickness = Thickness;
 		RerunConstructionScripts();
 	};
+
+
+	/**
+	 *  Triggers the dynamic mesh to calculate again
+	 *  This is useful if you are making manual edits to things this actor references for procedural booleans/generation
+	 */
+	UFUNCTION(meta=(CallInEditor="true"), Category="Parameters", DisplayName="Generate")
+	void RegenerateMesh();
 	
 	/**
 	 *  Generates the splines from the generated mesh.
@@ -187,7 +195,7 @@ private:
 	void CreateFloorSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);
 	void GenerateRoofMesh(UDynamicMesh* TargetMesh);
 	
-	TArray<FGeometryScriptPolyPath> UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight);
+	TArray<FGeometryScriptPolyPath> UseTopFaceForFloor(UDynamicMesh* TargetMesh, double FloorHeight, const bool bApplyAfterExtrude = false);
 	void GenerateFloorMeshes(UDynamicMesh* TargetMesh);
 	void GenerateExteriorWalls(UDynamicMesh* TargetMesh);
 	void AppendOpeningToMesh(UDynamicMesh* TargetMesh);

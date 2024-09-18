@@ -311,6 +311,11 @@ void APCG_BuildingGenerator::CreateFloorSplinesFromPolyPaths(const TArray<FGeome
 
 }
 
+void APCG_BuildingGenerator::RegenerateMesh()
+{
+	RerunConstructionScripts();
+}
+
 void APCG_BuildingGenerator::GenerateSplinesFromGeneratedMesh()
 {
 	TArray<FVector> NormalDirections;
@@ -458,7 +463,7 @@ void APCG_BuildingGenerator::GenerateRoofMesh(UDynamicMesh* TargetMesh)
 	// TODO - Here I would like to procedurally place smart meshes along the roof spline.
 }
 
-TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDynamicMesh* TargetMesh, const double FloorHeight)
+TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDynamicMesh* TargetMesh, const double FloorHeight, const bool bApplyAfterExtrude)
 {
 	// Duplicate the roof mesh
 	auto* ComputeMesh = AllocateComputeMesh();
@@ -475,9 +480,13 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 	FGeometryScriptMeshSelection Selection;
 	UGeometryScriptLibrary_MeshSelectionFunctions::CreateSelectAllMeshSelection(FloorMesh, Selection);
 
-	TArray<FGeometryScriptPolyPath> ArrayOfPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(
+	TArray<FGeometryScriptPolyPath> ArrayOfPaths;
+	if (!bApplyAfterExtrude)
+	{
+		ArrayOfPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(
 		FloorMesh, {FVector(0, 0, 1)}, nullptr);
 	
+	}
 
 	FGeometryScriptMeshLinearExtrudeOptions ExtrudeOptions;
 	ExtrudeOptions.Direction = FVector(0, 0, 1);
@@ -485,6 +494,12 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 	ExtrudeOptions.AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
 	
 	FloorMesh = UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshLinearExtrudeFaces(FloorMesh, ExtrudeOptions, Selection);
+
+	if (bApplyAfterExtrude)
+	{
+		ArrayOfPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(
+		FloorMesh, {FVector(0, 0, 1)}, nullptr);
+	}
 
 	// Append it to the existing mesh.
 	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, FloorMesh, FTransform::Identity);
@@ -520,7 +535,7 @@ void APCG_BuildingGenerator::GenerateFloorMeshes(UDynamicMesh* TargetMesh)
 			continue;
 		}
 		
-		NewFloorPaths.Append(UseTopFaceForFloor(TargetMesh, FloorHeight));
+		NewFloorPaths.Append(UseTopFaceForFloor(TargetMesh, FloorHeight, true));
 		
 	}
 
@@ -665,13 +680,14 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 				case EMeshFitStyle::Centered:
 					{
 						const float CurrentX = (Extent.X* 2);
-						if (WallThickness > CurrentX)
+						if (!FMath::IsNearlyEqual(WallThickness, CurrentX))
 						{
-							MeshScale = FVector(WallThickness / CurrentX, 1.0f, 1.0f);
+							const auto XScale = (WallThickness / CurrentX) + (Opening.CenteredOffset * .01f);
+							MeshScale = FVector(XScale, Opening.Mesh->GetRootComponent()->GetRelativeScale3D().Y, Opening.Mesh->GetRootComponent()->GetRelativeScale3D().Z);
 						}
 						else
 						{
-							MeshScale = FVector(1.0f + Opening.CenteredOffset, 1.0f, 1.0f);
+							MeshScale = FVector(1.0f + (Opening.CenteredOffset * .01f), Opening.Mesh->GetRootComponent()->GetRelativeScale3D().Y, Opening.Mesh->GetRootComponent()->GetRelativeScale3D().Z);
 						}
 					}
 					break;

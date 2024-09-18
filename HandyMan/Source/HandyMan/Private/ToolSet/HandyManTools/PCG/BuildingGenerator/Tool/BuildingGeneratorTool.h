@@ -90,7 +90,6 @@ public:
 	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
 	
 	void UpdateOpeningTransforms(const FString& GizmoIdentifier, const FTransform& CurrentTransform);
-	void UpdateOpeningTransforms(const AActor* Opening, const FTransform& CurrentTransform);
 
 
 	bool bCanSpawn = false;
@@ -105,10 +104,19 @@ public:
 
 	FInputRayHit LastHit;
 
+	FVector SnapStartLocation;
+	FRotator SnapStartRotation;
+	bool bIsSnapping;
+	bool bIsFirstSnapFrame;
+	FVector2D LastScreenPosition;
+	float LastDistanceBetween;
+
 
 	bool UpdateBrush(const FInputDeviceRay& DevicePos);
 
-
+	UPROPERTY()
+	AActor* LastHoveredOpening = nullptr;
+	
 	virtual void OnTick(float DeltaTime) override;
 	
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -118,6 +126,7 @@ public:
 	virtual bool HasCancel() const override {return true;}
 
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
+	virtual bool Trace(TArray<FHitResult>& OutHit, const FInputDeviceRay& DevicePos) override;
 
 
 
@@ -195,7 +204,20 @@ private:
 	TWeakInterfacePtr<IPCGToolInterface> TargetPCGInterface;
 
 	UPROPERTY()
-	TArray<FGeneratedOpening> CachedOpenings;
+	FGeneratedOpeningArray CachedOpenings;
+
+	UPROPERTY()
+	FGeneratedOpeningArray EditedOpenings;
+
+	/** Last placed acotr list */
+	UPROPERTY()
+	TArray<AActor*> SpawnedActorsToDestroy;
+	
+	UPROPERTY()
+	TArray<AActor*> EditModeSpawnedActors;
+
+	UPROPERTY()
+	FVector CopiedScale = FVector::ZeroVector;
 
 	
 };

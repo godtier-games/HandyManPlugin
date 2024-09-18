@@ -54,7 +54,7 @@ struct HANDYMAN_API FGeneratedOpening
 
 	bool operator==(const FGeneratedOpening& Other) const
 	{
-		return Other.Mesh == Mesh && Other.Transform.Equals(Transform);
+		return Other.Mesh.GetFName().IsEqual(Mesh.GetFName());
 	}
 
 	bool operator!=(const FGeneratedOpening& Other) const
@@ -111,7 +111,20 @@ struct HANDYMAN_API FGeneratedOpeningArray
 	{
 		for (int i = 0; i < Openings.Num(); ++i)
 		{
-			if(Openings[i].Mesh && Other.Mesh && Openings[i].Mesh.GetFName() == Other.Mesh.GetFName())
+			if(Openings[i].Mesh && Other.Mesh && Openings[i].Mesh.GetFName().IsEqual(Other.Mesh->GetFName()))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool Contains(const AActor* Other) const
+	{
+		for (int i = 0; i < Openings.Num(); ++i)
+		{
+			if(Openings[i].Mesh && Other && Openings[i].Mesh.GetFName().IsEqual(Other->GetFName()))
 			{
 				return true;
 			}
