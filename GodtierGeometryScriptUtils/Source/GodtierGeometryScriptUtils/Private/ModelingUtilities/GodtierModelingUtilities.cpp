@@ -410,17 +410,12 @@ UDynamicMesh* UGodtierModelingUtilities::CreateDynamicBooleanMesh(UDynamicMesh* 
 				Outcome
 			);
 
-			/*UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(CopiedMesh, FTransform::Identity);
-			
-			UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(CopiedMesh, NewScale);*/
-
 			FTransform Transform( FRotator::ZeroRotator,FVector::Zero(), NewScale);
-			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(ComputeMesh, CopiedMesh, Transform);
+
+			UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(CopiedMesh, Transform);
 			
 			Component->SetRelativeScale3D(CurrentScale);
 		}
-		
-		
 		
 	}
 	

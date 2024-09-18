@@ -579,6 +579,7 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 {
 	// Iterate over the generated openings
+	auto* Booleans = AllocateComputeMesh();
 	for (const auto& Entry : GeneratedOpenings)
 	{
 		float CurrentSizeX = 1.f;
@@ -624,6 +625,7 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 			const auto RelativeTransform = UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform());
 			UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(ComputeMesh, RelativeTransform, false);
 
+			UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(Booleans, ComputeMesh, FTransform::Identity);
 			// Cut this mesh from the target mesh
 			FGeometryScriptMeshBooleanOptions BooleanOptions;
 			BooleanOptions.bFillHoles = false;
@@ -682,7 +684,7 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 
 			if (bDebugBooleanMeshes)
 			{
-				UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, BoolMesh, UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform()));
+				UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, Booleans, UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform()));
 			}*/
 		}
 	}
