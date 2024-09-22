@@ -15,10 +15,10 @@
 
 UIvyCreator_PCG::UIvyCreator_PCG(): PropertySet(nullptr)
 {
-	ToolName = FText::FromString("Ivy Creator");
-	ToolTooltip = FText::FromString("Procedurally Place Ivy on selected Static Meshes");
-	ToolCategory = FText::FromString("Houdini | World Building");
-	ToolLongName = FText::FromString("Ivy Creator");
+	ToolName = LOCTEXT("ToolName", "Vine Tool");
+	ToolTooltip = LOCTEXT("Tooltip", "Procedurally Place Ivy on selected Static Meshes");
+	ToolCategory = LOCTEXT("ToolCategory", "Flora");
+	ToolLongName = LOCTEXT("LongToolName", "Vine Tool");
 }
 
 void UIvyCreator_PCG::Setup()
