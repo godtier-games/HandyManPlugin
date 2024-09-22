@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GeometryScript/MeshDeformFunctions.h"
 #include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_DynamicMeshActor_Runtime.h"
 #include "RuntimeIslandGenerator.generated.h"
 
@@ -48,6 +49,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Island Generation")
 	FLinearColor GrassColor = FLinearColor::Green;
 
+	UPROPERTY(EditAnywhere, Category = "Island Generation")
+	bool bUseHeightMap = false;
+
+	UPROPERTY(EditAnywhere, Category = "Island Generation", meta=(EditCondition="bUseHeightMap", EditConditionHides))
+	TObjectPtr<UTexture2D> HeightMap;
+
+	UPROPERTY(EditAnywhere, Category = "Island Generation", meta=(EditCondition="bUseHeightMap", EditConditionHides))
+	FGeometryScriptDisplaceFromTextureOptions DisplaceOptions;
+
 public:
 	void SetShouldGenerateOnConstruction(const bool ShouldGenerate);
 	void SetRandomSeed(const int32 InRandomSeed);
@@ -58,6 +68,9 @@ public:
 	void SetShouldFlattenIsland(const bool ShouldFlatten);
 	void SetMaterialParameterCollection(const TObjectPtr<UMaterialParameterCollection>& NewCollection);
 	void SetGrassColor(const FLinearColor& Color);
+	void SetShouldUseHeightMap(const bool ShouldUseHeightMap);
+	void SetHeightMap(UTexture2D* NewHeightMap);
+	void SetDisplacementOptions(const FGeometryScriptDisplaceFromTextureOptions& Options);
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

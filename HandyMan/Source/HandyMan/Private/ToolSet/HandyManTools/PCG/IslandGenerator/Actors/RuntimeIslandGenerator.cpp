@@ -93,6 +93,25 @@ void ARuntimeIslandGenerator::SetGrassColor(const FLinearColor& Color)
 	GenerateIsland();
 }
 
+void ARuntimeIslandGenerator::SetShouldUseHeightMap(const bool ShouldUseHeightMap)
+{
+	bUseHeightMap = ShouldUseHeightMap;
+	GenerateIsland();
+}
+
+void ARuntimeIslandGenerator::SetDisplacementOptions(const FGeometryScriptDisplaceFromTextureOptions& Options)
+{
+	DisplaceOptions = Options;
+	GenerateIsland();
+
+}
+
+void ARuntimeIslandGenerator::SetHeightMap(UTexture2D* NewHeightMap)
+{
+	HeightMap = NewHeightMap;
+	GenerateIsland();
+}
+
 // Called every frame
 void ARuntimeIslandGenerator::Tick(float DeltaTime)
 {
@@ -167,6 +186,11 @@ void ARuntimeIslandGenerator::GenerateIsland()
 		(FlattenedMesh, 0, FTransform(FRotator::ZeroRotator, FVector::Zero(), FVector(100.f)), FGeometryScriptMeshSelection());
 	}
 
+	if (HeightMap)
+	{
+		UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromTextureMap(OutputMesh, HeightMap,  FGeometryScriptMeshSelection(), DisplaceOptions);
+	}
+
 	ReleaseAllComputeMeshes();
 
 	AddActorWorldOffset(FVector(0,0,0.05));
@@ -178,6 +202,8 @@ void ARuntimeIslandGenerator::GenerateIsland()
 			MaterialParameterCollectionInstance->SetVectorParameterValue(FName("GrassColour"), GrassColor);
 		}	
 	}
+
+	
 	
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GeometryScript/MeshDeformFunctions.h"
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
 #include "IslandGeneratorTool.generated.h"
 
@@ -74,6 +75,15 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Island Generation")
 	FLinearColor GrassColor = FLinearColor::Green;
+
+	UPROPERTY(EditAnywhere, Category = "Island Generation")
+	bool bUseHeightMap = false;
+
+	UPROPERTY(EditAnywhere, Category = "Island Generation", meta=(EditCondition="bUseHeightMap", EditConditionHides))
+	TObjectPtr<UTexture2D> HeightMap;
+
+	UPROPERTY(EditAnywhere, Category = "Island Generation", meta=(EditCondition="bUseHeightMap", EditConditionHides))
+	FGeometryScriptDisplaceFromTextureOptions DisplaceOptions;
 };
 
 
