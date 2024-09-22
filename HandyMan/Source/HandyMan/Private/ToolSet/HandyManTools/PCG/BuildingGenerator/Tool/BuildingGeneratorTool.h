@@ -60,6 +60,7 @@ public:
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Mouse Drag"))
 	void OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
 	void HideAllGizmos();
+	void ResetBrush();
 
 
 	///~ Single Click Behavior
@@ -104,14 +105,15 @@ public:
 
 	FInputRayHit LastHit;
 
-	FVector SnapStartLocation;
-	FRotator SnapStartRotation;
-	bool bIsSnapping;
-	bool bIsFirstSnapFrame;
-	FVector2D LastScreenPosition;
-	float LastDistanceBetween;
-
-
+	FVector SnapStartLocation = FVector::Zero();
+	FRotator SnapStartRotation = FRotator::ZeroRotator;
+	bool bIsSnapping = false;
+	bool bIsCopying = false;
+	bool bIsSnappingOnRightAxis = false;
+	FVector SnappingDirection = FVector::Zero();
+	FVector2D LastFrameScreenPosition = FVector2D::ZeroVector;
+	
+	
 	bool UpdateBrush(const FInputDeviceRay& DevicePos);
 
 	UPROPERTY()
@@ -127,6 +129,11 @@ public:
 
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
 	virtual bool Trace(TArray<FHitResult>& OutHit, const FInputDeviceRay& DevicePos) override;
+
+
+	void SpawnOpeningFromReference(FDynamicOpening OpeningRef, UE::Math::TRotator<double> Rotation);
+	void SpawnOpeningFromReference(FGeneratedOpening OpeningRef, bool bSetGizmoActive = true);
+
 
 
 
