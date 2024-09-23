@@ -19,7 +19,6 @@ namespace PCGRandomGroupPairSettings
 
 UGroupRandomPairsSettings::UGroupRandomPairsSettings()
 {
-    bUseSeed = true;
 }
 
 FName UGroupRandomPairsSettings::AdditionalTaskName() const

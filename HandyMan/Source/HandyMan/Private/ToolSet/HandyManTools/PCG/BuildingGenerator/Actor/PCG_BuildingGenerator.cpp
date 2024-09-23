@@ -200,8 +200,8 @@ void APCG_BuildingGenerator::CreateBaseSplinesFromPolyPaths(const TArray<FGeomet
 			{
 				USplineComponent* Spline = NewObject<USplineComponent>(this);
 				Spline->SetSplinePoints(PathArray, ESplineCoordinateSpace::Local, true);
-				Spline->ComponentTags.Add(FName(*FString::Printf(TEXT("Floor_%d"), CurrentFloor)));
-
+				FString TagString = CurrentFloor == 0 ? "Ground" : "Roof";
+				Spline->ComponentTags.Add(FName(*TagString));
 				Spline->RegisterComponent();
 				AddInstanceComponent(Spline);
 				Spline->AttachToComponent(GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false));
@@ -229,8 +229,6 @@ void APCG_BuildingGenerator::CreateBaseSplinesFromPolyPaths(const TArray<FGeomet
 	GenerateFloorMeshes(GetDynamicMeshComponent()->GetDynamicMesh());
 
 	GenerateRoofMesh(GetDynamicMeshComponent()->GetDynamicMesh());
-	
-	
 }
 
 void APCG_BuildingGenerator::CreateFloorSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths)
@@ -285,7 +283,7 @@ void APCG_BuildingGenerator::CreateFloorSplinesFromPolyPaths(const TArray<FGeome
 			{
 				USplineComponent* Spline = NewObject<USplineComponent>(this);
 				Spline->SetSplinePoints(PathArray, ESplineCoordinateSpace::Local, true);
-				Spline->ComponentTags.Add(FName(*FString::Printf(TEXT("Floor_%d"), CurrentFloor)));
+				Spline->ComponentTags.Add(FName(*FString::Printf(TEXT("Floor_%d"), CurrentFloor + 1)));
 
 				Spline->RegisterComponent();
 				AddInstanceComponent(Spline);
@@ -599,7 +597,7 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 	{
 		float CurrentSizeX = 1.f;
 
-		FVector Extent;
+		FVector Extent = FVector::One();
 
 		if (Entry.Key.IsA(UStaticMesh::StaticClass()))
 		{
@@ -740,7 +738,9 @@ void APCG_BuildingGenerator::PostEditChangeProperty(struct FPropertyChangedEvent
 void APCG_BuildingGenerator::ForceCookPCG()
 {
 	PCG->CleanupLocalImmediate(true, true);
+	PCG->Generate(true);
 	PCG->NotifyPropertiesChangedFromBlueprint();
+
 }
 
 void APCG_BuildingGenerator::RecalculateFloorClearance()

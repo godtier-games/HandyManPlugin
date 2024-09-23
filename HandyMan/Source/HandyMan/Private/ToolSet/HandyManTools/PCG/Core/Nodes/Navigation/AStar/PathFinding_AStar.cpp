@@ -21,7 +21,6 @@ namespace PCGPathFindingSettings
 
 UPathFinding_AStarSettings::UPathFinding_AStarSettings()
 {
-    bUseSeed = true;
 }
 
 FName UPathFinding_AStarSettings::AdditionalTaskName() const

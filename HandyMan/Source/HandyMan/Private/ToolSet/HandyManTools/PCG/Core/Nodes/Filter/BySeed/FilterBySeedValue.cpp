@@ -15,7 +15,6 @@ namespace PCGFilterBySeedValueSettings
 
 UFilterBySeedValueSettings::UFilterBySeedValueSettings()
 {
-    bUseSeed = true;
 }
 
 FName UFilterBySeedValueSettings::AdditionalTaskName() const
@@ -68,7 +67,7 @@ bool FPCGFilterBySeedValueElement::ExecuteInternal(FPCGContext* Context) const
         
         for (int i =0; i < InPoints.Num(); i++)
         {
-
+           
             if (InPoints[i].Seed == Settings->SeedToCompare)
             {
                 FPCGPoint AlteredPoint = InPoints[i];

@@ -13,7 +13,6 @@
 
 UOrientPointSettings::UOrientPointSettings()
 {
-	bUseSeed = true;
 }
 
 FPCGElementPtr UOrientPointSettings::CreateElement() const

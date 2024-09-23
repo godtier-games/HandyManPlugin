@@ -18,7 +18,6 @@ namespace PCGRandomGroupSettings
 
 UGroupRandomSelection::UGroupRandomSelection()
 {
-    bUseSeed = true;
 }
 
 FName UGroupRandomSelection::AdditionalTaskName() const

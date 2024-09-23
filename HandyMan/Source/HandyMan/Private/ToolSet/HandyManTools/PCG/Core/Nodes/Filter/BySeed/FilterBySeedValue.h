@@ -31,6 +31,7 @@ protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return Super::DefaultPointInputPinProperties(); }
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
+	virtual bool UseSeed() const override {return true;}
 	//~End UPCGSettings interface
 
 public:
@@ -43,6 +44,7 @@ class FPCGFilterBySeedValueElement : public IPCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+
 
 	// Cache the seed value of the selected points so there are no duplicates
 };

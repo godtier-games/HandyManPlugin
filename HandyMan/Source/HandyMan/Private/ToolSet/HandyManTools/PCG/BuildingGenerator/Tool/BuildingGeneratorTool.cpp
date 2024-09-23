@@ -237,8 +237,11 @@ void UBuildingGeneratorTool::Setup()
 			GizmoOptions.bAllowNegativeScaling = false;
 			CreateTRSGizmo(Opening.Mesh->GetFName().ToString(), Opening.Mesh->GetActorTransform(), GizmoOptions, PropertyCreationOutcome);
 
-			CachedOpenings.Openings.Add(Opening);
-			EditedOpenings.Openings.Add(Opening);
+			FGeneratedOpening AlteredOpening = Opening;
+			AlteredOpening.Transform = Opening.Mesh->GetActorTransform();
+			CachedOpenings.Openings.Add(AlteredOpening);
+			EditedOpenings.Openings.Add(AlteredOpening);
+			
 			LastSpawnedActors.Add(Opening.Mesh);
 			Opening.Mesh->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		}
@@ -588,6 +591,7 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 	actor->SetActorTransform(SpawnTransform);
 	actor->GetRootComponent()->SetRelativeScale3D(MeshScale);
 	actor->GetRootComponent()->AddLocalOffset(FVector(Offset, 0,0));
+	actor->Tags.Add(FName("Opening"));
 
 			
 
@@ -657,6 +661,11 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening Opening
 			
 	const FTransform SpawnTransform = OpeningRef.Transform;
 	actor->SetActorTransform(SpawnTransform);
+	if (actor->Tags.Contains(FName("Opening")))
+	{
+		actor->Tags.Add(FName("Opening"));
+	}
+
 
 			
 
