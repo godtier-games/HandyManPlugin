@@ -241,9 +241,7 @@ void UBuildingGeneratorTool::Setup()
 			AlteredOpening.Transform = Opening.Mesh->GetActorTransform();
 			CachedOpenings.Openings.Add(AlteredOpening);
 			EditedOpenings.Openings.Add(AlteredOpening);
-			
 			LastSpawnedActors.Add(Opening.Mesh);
-			Opening.Mesh->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		}
 
 
@@ -540,15 +538,15 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 	Params.Name = fname;
 	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
-	AActor* actor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Brush->GetComponentLocation(), Rotation, Params);
-	actor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Brush->GetComponentLocation(), Rotation, Params);
+	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
 		
 
-	actor->SetActorLabel(fname.ToString());
-	LastSpawnedActors.Add(actor);
-	if (actor->IsA(AStaticMeshActor::StaticClass()))
+	SpawnedActor->SetActorLabel(fname.ToString());
+	LastSpawnedActors.Add(SpawnedActor);
+	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
 	{
-		Cast<AStaticMeshActor>(actor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
+		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
 	}
 
 
@@ -588,16 +586,16 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 	}
 			
 	const FTransform SpawnTransform = FTransform(Rotation, Brush->GetComponentLocation(), FVector::One());
-	actor->SetActorTransform(SpawnTransform);
-	actor->GetRootComponent()->SetRelativeScale3D(MeshScale);
-	actor->GetRootComponent()->AddLocalOffset(FVector(Offset, 0,0));
-	actor->Tags.Add(FName("Opening"));
+	SpawnedActor->SetActorTransform(SpawnTransform);
+	SpawnedActor->GetRootComponent()->SetRelativeScale3D(MeshScale);
+	SpawnedActor->GetRootComponent()->AddLocalOffset(FVector(Offset, 0,0));
+	SpawnedActor->Tags.Add(FName("Opening"));
 
 			
 
 	FGeneratedOpening NewOpening;
-	NewOpening.Transform = actor->GetActorTransform();
-	NewOpening.Mesh = actor;
+	NewOpening.Transform = SpawnedActor->GetActorTransform();
+	NewOpening.Mesh = SpawnedActor;
 	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
 	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
 	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
@@ -607,6 +605,7 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 			
 	if (OutputActor)
 	{
+		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
 		OutputActor->AddGeneratedOpeningEntry(NewOpening);
 	}
 
@@ -617,7 +616,7 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 	else
 	{
 		EditedOpenings.Openings.Add(NewOpening);
-		EditModeSpawnedActors.Add(actor);
+		EditModeSpawnedActors.Add(SpawnedActor);
 	}
 
 	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
@@ -625,8 +624,8 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRe
 	FScriptableToolGizmoOptions GizmoOptions;
 	GizmoOptions.bAllowNegativeScaling = false;
 			
-	CreateTRSGizmo(actor->GetFName().ToString(), actor->GetActorTransform(), GizmoOptions, OutCome);
-	SetGizmoVisible(actor->GetFName().ToString(), false);
+	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
+	SetGizmoVisible(SpawnedActor->GetFName().ToString(), false);
 }
 
 void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening OpeningRef, bool bSetGizmoActive)
@@ -646,32 +645,32 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening Opening
 	Params.Name = fname;
 	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
-	AActor* actor = GetWorld()->SpawnActor<AActor>(OpeningRef.Mesh.GetClass(), Brush->GetComponentLocation(), Rotation, Params);
-	actor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(OpeningRef.Mesh.GetClass(), Brush->GetComponentLocation(), Rotation, Params);
+	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
 		
 
-	actor->SetActorLabel(fname.ToString());
-	LastSpawnedActors.Add(actor);
-	if (actor->IsA(AStaticMeshActor::StaticClass()))
+	SpawnedActor->SetActorLabel(fname.ToString());
+	LastSpawnedActors.Add(SpawnedActor);
+	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
 	{
-		Cast<AStaticMeshActor>(actor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
+		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
 	}
 
 	
 			
 	const FTransform SpawnTransform = OpeningRef.Transform;
-	actor->SetActorTransform(SpawnTransform);
-	if (actor->Tags.Contains(FName("Opening")))
+	SpawnedActor->SetActorTransform(SpawnTransform);
+	if (SpawnedActor->Tags.Contains(FName("Opening")))
 	{
-		actor->Tags.Add(FName("Opening"));
+		SpawnedActor->Tags.Add(FName("Opening"));
 	}
 
 
 			
 
 	FGeneratedOpening NewOpening;
-	NewOpening.Transform = actor->GetActorTransform();
-	NewOpening.Mesh = actor;
+	NewOpening.Transform = SpawnedActor->GetActorTransform();
+	NewOpening.Mesh = SpawnedActor;
 	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bShouldCutHoleInTargetMesh;
 	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
 	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
@@ -681,6 +680,7 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening Opening
 			
 	if (OutputActor)
 	{
+		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
 		OutputActor->AddGeneratedOpeningEntry(NewOpening);
 	}
 
@@ -691,7 +691,7 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening Opening
 	else
 	{
 		EditedOpenings.Openings.Add(NewOpening);
-		EditModeSpawnedActors.Add(actor);
+		EditModeSpawnedActors.Add(SpawnedActor);
 	}
 
 	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
@@ -699,8 +699,8 @@ void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening Opening
 	FScriptableToolGizmoOptions GizmoOptions;
 	GizmoOptions.bAllowNegativeScaling = false;
 			
-	CreateTRSGizmo(actor->GetFName().ToString(), actor->GetActorTransform(), GizmoOptions, OutCome);
-	SetGizmoVisible(actor->GetFName().ToString(), bSetGizmoActive);
+	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
+	SetGizmoVisible(SpawnedActor->GetFName().ToString(), bSetGizmoActive);
 }
 
 void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
@@ -1277,15 +1277,7 @@ void UBuildingGeneratorTool::HandleAccept()
 	GEditor->SelectActor(OutputActor, true, true);
 
 	// Select all of the actors that were generated by this tool
-	if (!bIsEditing)
-	{
-		for (const auto& Opening : CachedOpenings.Openings)
-		{
-			if(!Opening.Mesh) continue;
-			Opening.Mesh->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
-		}
-	}
-	else
+	if (bIsEditing)
 	{
 		for (const auto ActorToDestroy : SpawnedActorsToDestroy)
 		{
@@ -1293,11 +1285,6 @@ void UBuildingGeneratorTool::HandleAccept()
 		}
 		
 		OutputActor->UpdatedGeneratedOpenings(EditedOpenings.Openings);
-		for (const auto& Opening : EditedOpenings.Openings)
-		{
-			if(!Opening.Mesh) continue;
-			Opening.Mesh->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
-		}
 	}
 }
 

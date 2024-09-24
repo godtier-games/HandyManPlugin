@@ -43,6 +43,12 @@ public:
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
 	TArray<TEnumAsByte<ECollisionChannel>> ChannelsToTrace;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
+	TArray<FName> ActorTagsToCull;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
+	TArray<FName> ComponentTagsToCull;
 	
 };
 
@@ -52,6 +58,8 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 
 	bool Trace(const UWorld* World, const FVector& Start, const FVector& End,  const TArray<TEnumAsByte<ECollisionChannel>>& Types, const float& Radius, TArray<FHitResult>& OutHits) const;
+
+	bool ContainsAny(const TArray<FName>& Array, const TArray<FName>& Compare) const;
 
 	// Cache the seed value of the selected points so there are no duplicates
 };

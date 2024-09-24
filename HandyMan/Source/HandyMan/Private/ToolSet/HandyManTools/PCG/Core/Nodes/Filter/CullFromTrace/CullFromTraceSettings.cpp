@@ -94,27 +94,27 @@ bool FPCGCullPointsElement::ExecuteInternal(FPCGContext* Context) const
 			FVector TraceLocation = InPoints[i].Transform.GetLocation();
 			if (Trace(World, TraceLocation, TraceLocation, Settings->ChannelsToTrace, Settings->SphereRadius, OutHits))
 			{
-				
-				if(OutHits.Num() == 1)
-				{
-					ChosenPoints.Add(AlteredPoint);
-					continue;
-				}
-
-				int32 WallsHit = 0;
 				for (const auto& Hit : OutHits)
 				{
-					if(Hit.Normal.Equals(FVector::UpVector)) continue;
-					WallsHit++;
-				}
-				
+					const auto* HitActor = Hit.GetActor();
+					const auto* HitComponent = Hit.GetComponent();
+					
+					if (IsValid(HitActor))
+					{
+						if (ContainsAny(HitActor->Tags, Settings->ActorTagsToCull))
+						{
+							CulledPoints.Add(AlteredPoint);
+							continue;
+						}
+						
+						if (IsValid(HitComponent) && ContainsAny(HitComponent->ComponentTags, Settings->ComponentTagsToCull))
+						{
+							CulledPoints.Add(AlteredPoint);
+							continue;
+						}
+					}
 
-				if (WallsHit >= 2)
-				{
-					CulledPoints.Add(AlteredPoint);
-				}
-				else
-				{
+					if(Hit.Normal.Equals(FVector::UpVector)) continue;
 					ChosenPoints.Add(AlteredPoint);
 				}
 			}
@@ -151,6 +151,19 @@ bool FPCGCullPointsElement::Trace(const UWorld* World, const FVector& Start, con
 	}
     
 	return World->SweepMultiByObjectType(OutHits, Start, End, FQuat::Identity, Params, FCollisionShape::MakeSphere(Radius));
+}
+
+bool FPCGCullPointsElement::ContainsAny(const TArray<FName>& Array, const TArray<FName>& Compare) const
+{
+	for (const auto& Element : Compare)
+	{
+		if (Array.Contains(Element))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 
