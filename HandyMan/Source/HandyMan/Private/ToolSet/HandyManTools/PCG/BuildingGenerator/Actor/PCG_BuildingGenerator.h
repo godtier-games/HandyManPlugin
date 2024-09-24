@@ -10,6 +10,7 @@
 #include "PCG_BuildingGenerator.generated.h"
 
 
+class UBuildingGeneratorOpeningData;
 /**
  *  This actor generates a building based on a block out mesh. The mesh generated is completely procedural and can be modified by changing the parameters in the PCG component.
  *  There is also the option to bake this mesh to a static mesh asset. Which should be done to reduce the overhead of the procedural generation.
@@ -71,13 +72,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category ="Handy Man")
 	void SetDesiredBuildingHeight(const float NewBuildingHeight);
 	
-	
 	UFUNCTION(BlueprintCallable, Category="Handy Man")
-	void SetWallThickness(const float Thickness)
-	{
-		WallThickness = Thickness;
-		RerunConstructionScripts();
-	};
+	void SetWallThickness(const float Thickness);
 
 
 	/**
@@ -100,6 +96,10 @@ public:
 	 */
 	UFUNCTION(meta=(CallInEditor="true"), Category="Parameters", DisplayName="Bake Openings")
 	void BakeOpeningsToStatic();
+
+	void CacheOpeningData(UBuildingGeneratorOpeningData* OpeningData);
+
+	UBuildingGeneratorOpeningData* GetOpeningData() const { return CachedOpeningData;};
 	
 	void AddGeneratedOpeningEntry(const FGeneratedOpening& Entry);
 	void RemoveGeneratedOpeningEntry(const FGeneratedOpening& Entry);
@@ -122,7 +122,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UPCGComponent> PCG;
-
+	
 	/* By default a spline will be generated for each floor of the building.
 	 * If this is set to false only a ground and roof spline will be generated.
 	 * Splines can be used by PCG to procedurally generate meshes for each floor.
@@ -189,6 +189,9 @@ private:
 	
 	UPROPERTY()
 	TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> GeneratedOpenings;
+	
+	UPROPERTY()
+	TObjectPtr<UBuildingGeneratorOpeningData> CachedOpeningData;
 
 	
 	void CreateBaseSplinesFromPolyPaths(const TArray<FGeometryScriptPolyPath>& Paths);

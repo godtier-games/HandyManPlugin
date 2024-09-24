@@ -2,6 +2,8 @@
 
 
 #include "PCG_BuildingGenerator.h"
+
+#include "PCGGraph.h"
 #include "Engine/StaticMeshActor.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
@@ -13,6 +15,7 @@
 #include "GeometryScript/MeshTransformFunctions.h"
 #include "GeometryScript/PolyPathFunctions.h"
 #include "GeometryScript/SceneUtilityFunctions.h"
+#include "Helpers/PCGGraphParametersHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ModelingUtilities/GodtierModelingUtilities.h"
@@ -338,6 +341,11 @@ void APCG_BuildingGenerator::GenerateSplinesFromGeneratedMesh()
 void APCG_BuildingGenerator::BakeOpeningsToStatic()
 {
 	
+}
+
+void APCG_BuildingGenerator::CacheOpeningData(UBuildingGeneratorOpeningData* OpeningData)
+{
+	CachedOpeningData = OpeningData;
 }
 
 void APCG_BuildingGenerator::AddGeneratedOpeningEntry(const FGeneratedOpening& Entry)
@@ -786,6 +794,11 @@ void APCG_BuildingGenerator::SetBaseFloorHeight(const float NewFloorHeight)
 {
     BaseFloorHeight = NewFloorHeight;
 
+	if (PCG && PCG->GetGraphInstance())
+	{
+		UPCGGraphParametersHelpers::SetFloatParameter(PCG->GetGraphInstance(), "MinFloorClearance", WallThickness);
+	}
+
     if (bUseConsistentFloorHeight)
     {
 	   RecalculateFloorClearance();
@@ -798,6 +811,12 @@ void APCG_BuildingGenerator::SetBaseFloorHeight(const float NewFloorHeight)
 void APCG_BuildingGenerator::SetDesiredFloorClearance(const float NewClearance)
 {
 	DesiredFloorClearance = NewClearance;
+	
+	if (PCG && PCG->GetGraphInstance())
+	{
+		UPCGGraphParametersHelpers::SetFloatParameter(PCG->GetGraphInstance(), "MinFloorClearance", WallThickness);
+	}
+	
 	RerunConstructionScripts();
 }
 
@@ -816,9 +835,21 @@ void APCG_BuildingGenerator::SetDesiredBuildingHeight(const float NewBuildingHei
 	OriginalMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMeshSelection(OriginalMesh, Selection, FVector(0, 0, Delta * multiplier));
 	
 	CreateFloorAndRoofSplines();
+	
 	RerunConstructionScripts();
 
-};
+}
 
+void APCG_BuildingGenerator::SetWallThickness(const float Thickness)
+{
+	WallThickness = Thickness;
+
+	if (PCG && PCG->GetGraphInstance())
+	{
+		UPCGGraphParametersHelpers::SetFloatParameter(PCG->GetGraphInstance(), "WallThickness", WallThickness);
+	}
+	
+	RerunConstructionScripts();
+};
 
 

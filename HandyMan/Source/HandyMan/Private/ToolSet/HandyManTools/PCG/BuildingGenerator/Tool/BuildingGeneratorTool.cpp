@@ -10,6 +10,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/Actor/PCG_BuildingGenerator.h"
+#include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataAssets/BuildingGeneratorOpeningData.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGeneratorTool"
 
@@ -217,10 +218,17 @@ void UBuildingGeneratorTool::Setup()
 		}
 	});
 	
+	Settings->WatchProperty(Settings->Openings, [this](UBuildingGeneratorOpeningData*)
+	{
+		if (IsValid(OutputActor))
+		{
+			OutputActor->CacheOpeningData(Settings->Openings);
+		}
+	});
+
 	
 	Settings->SilentUpdateWatched();
-
-
+	
 	if (TargetActor->IsA(APCG_BuildingGenerator::StaticClass()))
 	{
 		bIsEditing = true;
@@ -249,18 +257,7 @@ void UBuildingGeneratorTool::Setup()
 
 		if (Settings)
 		{
-			// Restore any settings set from the tool back into the tool.
-			for (const auto& Item : OutputActor->GetGeneratedOpeningsMap())
-			{
-				FDynamicOpening Opening;
-				Opening.Mesh = Item.Key;
-				Opening.BooleanShape = Item.Value.Openings[0].BooleanShape;
-				Opening.bIsSubtractiveBoolean = Item.Value.Openings[0].bShouldCutHoleInTargetMesh;
-				Opening.bShouldApplyBoolean = Item.Value.Openings[0].bShouldApplyBoolean;
-				Opening.Fit = Item.Value.Openings[0].Fit;
-				Opening.bShouldSnapToGroundSurface = Item.Value.Openings[0].bShouldSnapToGroundSurface;
-				Settings->Openings.Add(Opening);
-			}
+			Settings->Openings = OutputActor->GetOpeningData();
 
 			// TODO : Fill out the rest of the settings from the actor - NEEDS GETTER FUNCTIONS -
 
@@ -727,9 +724,9 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 
 			FDynamicOpening OpeningRef;
 
-			for (int i = 0; i < Settings->Openings.Num(); ++i)
+			for (int i = 0; i < Settings->Openings->Openings.Num(); ++i)
 			{
-				UObject* NextMesh = Settings->Openings[i].Mesh;
+				UObject* NextMesh = Settings->Openings->Openings[i].Mesh;
 
 				if (!IsValid(NextMesh))
 				{
@@ -744,7 +741,7 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 					{
 						if (Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh() == PaintingMesh)
 						{
-							OpeningRef = Settings->Openings[i];
+							OpeningRef = Settings->Openings->Openings[i];
 							break;
 						}
 					}
@@ -753,7 +750,7 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 				{
 					if (Cast<UStaticMesh>(NextMesh) == PaintingMesh)
 					{
-						OpeningRef = Settings->Openings[i];
+						OpeningRef = Settings->Openings->Openings[i];
 						break;
 					}
 				}
@@ -937,7 +934,7 @@ void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, con
 	// Get the current index of the selected mesh and increment it by 1 to select the next mesh
 	// If this is the last mesh in the array then loop back to the first mesh
 
-	if (Settings->Openings.Num() == 0)
+	if (Settings->Openings->Openings.Num() == 0)
 	{
 		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
 			LOCTEXT("UBuildingGeneratorTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
@@ -946,7 +943,7 @@ void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, con
 
 	int32 NextIndex = LastOpeningIndex + 1;
 	
-	if (NextIndex == Settings->Openings.Num())
+	if (NextIndex == Settings->Openings->Openings.Num())
 	{
 		NextIndex = 0;
 	}
@@ -954,7 +951,7 @@ void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, con
 	LastOpeningIndex = NextIndex;
 
 	// Get the mesh and spawn it as the type of actor necessary
-	UObject* NextMesh = Settings->Openings[NextIndex].Mesh;
+	UObject* NextMesh = Settings->Openings->Openings[NextIndex].Mesh;
 
 	if (!IsValid(NextMesh))
 	{
@@ -989,7 +986,7 @@ void UBuildingGeneratorTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, con
 
 void UBuildingGeneratorTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
 {
-	if (Settings->Openings.Num() == 0)
+	if (Settings->Openings->Openings.Num() == 0)
 	{
 		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
 			LOCTEXT("UBuildingGeneratorTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
@@ -1000,13 +997,13 @@ void UBuildingGeneratorTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, c
 	
 	if (NextIndex < 0)
 	{
-		NextIndex = Settings->Openings.Num() - 1;
+		NextIndex = Settings->Openings->Openings.Num() - 1;
 	}
 
 	LastOpeningIndex = NextIndex;
 
 	// Get the mesh and spawn it as the type of actor necessary
-	UObject* NextMesh = Settings->Openings[NextIndex].Mesh;
+	UObject* NextMesh = Settings->Openings->Openings[NextIndex].Mesh;
 
 	if (!IsValid(NextMesh))
 	{

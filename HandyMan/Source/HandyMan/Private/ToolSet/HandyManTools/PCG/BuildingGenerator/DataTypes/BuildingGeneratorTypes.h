@@ -135,8 +135,6 @@ struct HANDYMAN_API FGeneratedOpeningArray
 };
 
 
-
-
 USTRUCT(BlueprintType)
 struct HANDYMAN_API FDynamicOpening
 {

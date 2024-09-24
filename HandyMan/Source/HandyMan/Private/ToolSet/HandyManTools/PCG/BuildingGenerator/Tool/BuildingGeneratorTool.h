@@ -9,6 +9,7 @@
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataTypes/BuildingGeneratorTypes.h"
 #include "BuildingGeneratorTool.generated.h"
 
+class UBuildingGeneratorOpeningData;
 class IPCGToolInterface;
 class APCG_BuildingGenerator;
 class UBuildingGeneratorPropertySet;
@@ -157,6 +158,9 @@ public:
 
 private:
 
+	UPROPERTY()
+	TArray<FDynamicOpening> Openings;
+
 	int32 LastOpeningIndex = 0;
 
 	/** Last place actor world position */
@@ -270,6 +274,7 @@ public:
 	bool bHasOpenRoof = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters | Openings")
-	TArray<FDynamicOpening> Openings;
+	TObjectPtr<UBuildingGeneratorOpeningData> Openings;
+	
 };
 
