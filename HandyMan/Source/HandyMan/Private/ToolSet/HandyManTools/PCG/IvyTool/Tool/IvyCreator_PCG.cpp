@@ -258,7 +258,8 @@ void UIvyCreator_PCG::Setup()
 	});
 }
 
-void UIvyCreator_PCG::OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers)
+void UIvyCreator_PCG::OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+                                                          const FScriptableToolModifierStates& Modifiers)
 {
 	Super::OnHitByClick_Implementation(ClickPos, Modifiers);
 

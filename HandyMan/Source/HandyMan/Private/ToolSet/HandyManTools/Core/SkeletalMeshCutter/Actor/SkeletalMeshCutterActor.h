@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GeometryActors/GeneratedDynamicMeshActor.h"
 #include "GeometryScript/GeometryScriptSelectionTypes.h"
-#include "Selections/GeometrySelection.h"
 #include "ToolSet/HandyManTools/Core/SkeletalMeshCutter/DataTypes/SkeletalMeshCutterTypes.h"
 #include "SkeletalMeshCutterActor.generated.h"
 
@@ -32,9 +31,14 @@ public:
 	FVector AddNewCutter(const uint8& Index, const ECutterShapeType& Shape);
 	void RemoveCutter(const uint8& Index);
 
+	void RemoveCreatedAsset();
+
+	
+
 
 #if WITH_EDITOR
 	void Initialize(const FSkeletalMeshAssetData& MeshData);
+	void SaveObject();
 #endif
 	
 	
@@ -42,7 +46,13 @@ public:
 
 protected:
 
+
+
 #if WITH_EDITORONLY_DATA
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USkeletalMeshLODSettings> CutMeshSettings;
+	
 	UPROPERTY()
 	USkeletalMesh* InputMesh = nullptr;
 
@@ -52,11 +62,16 @@ protected:
 	UPROPERTY()
 	USkeletalMesh* LastSkeletalMesh = nullptr;
 
+	UPROPERTY()
+	FSkeletalMeshAssetData CacheMeshData;
+
+	UPROPERTY()
 	TMap<uint8, ECutterShapeType> Cutters;
 
-
+	int32 EditNum = 0;
+	
 	FGeometryScriptMeshSelection CombinedGeometrySelection;
-
+	bool bShouldStoreMeshIntoAsset = false;
 #endif
 	
 };

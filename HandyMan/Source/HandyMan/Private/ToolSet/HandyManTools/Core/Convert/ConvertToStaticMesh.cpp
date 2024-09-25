@@ -89,7 +89,8 @@ UConvertToStaticMesh::UConvertToStaticMesh()
 }
 
 
-void UConvertToStaticMesh::OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers)
+void UConvertToStaticMesh::OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+                                                               const FScriptableToolModifierStates& Modifiers)
 {
 	FHitResult HitResult;
 	const bool bHit = Trace(HitResult, ClickPos);

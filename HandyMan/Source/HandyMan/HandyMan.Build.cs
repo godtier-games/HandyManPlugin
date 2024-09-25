@@ -26,6 +26,7 @@ public class HandyMan : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"AssetRegistry",
 				"Slate",
 				"SlateCore",
 				"Engine",
@@ -75,6 +76,7 @@ public class HandyMan : ModuleRules
 			new string[]
 			{
 				"Engine", 
+				"AssetRegistry",
 				"CoreUObject",
 				"Slate",
 				"SlateCore",

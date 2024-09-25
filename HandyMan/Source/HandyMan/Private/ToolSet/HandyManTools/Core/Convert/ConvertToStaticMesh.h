@@ -31,7 +31,8 @@ public:
 	
 	UConvertToStaticMesh();
 
-	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
+	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+	                                                 const FScriptableToolModifierStates& Modifiers) override;
 	
 	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) override;
 

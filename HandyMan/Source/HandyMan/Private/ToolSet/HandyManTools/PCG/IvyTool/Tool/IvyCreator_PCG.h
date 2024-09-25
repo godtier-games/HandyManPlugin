@@ -21,7 +21,8 @@ public:
 	virtual void Setup() override;
 
 	
-	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
+	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+	                                                 const FScriptableToolModifierStates& Modifiers) override;
 
 	// Hover API
 	virtual void OnHoverBegin_Implementation(FInputDeviceRay HoverPos, const FScriptableToolModifierStates& Modifiers) override;

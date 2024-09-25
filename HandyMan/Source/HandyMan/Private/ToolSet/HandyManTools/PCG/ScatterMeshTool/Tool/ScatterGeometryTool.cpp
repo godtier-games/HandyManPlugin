@@ -176,7 +176,8 @@ void UScatterGeometryTool::Setup()
 	});
 }
 
-void UScatterGeometryTool::OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers)
+void UScatterGeometryTool::OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+                                                               const FScriptableToolModifierStates& Modifiers)
 {
 	Super::OnHitByClick_Implementation(ClickPos, Modifiers);
 

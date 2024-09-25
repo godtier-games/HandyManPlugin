@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputState.h"
 #include "UObject/Interface.h"
 #include "HandyManToolInterface.generated.h"
 
@@ -27,7 +28,7 @@ public:
 	// return instance of custom tool builder. Should only be called on CDO.
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) = 0;
 
-	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) = 0;
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) {return false;};
 
 	virtual bool Trace(TArray<FHitResult>& OutHit, const FInputDeviceRay& DevicePos) {return false;};
 };

@@ -42,7 +42,6 @@ public:
 
 	virtual UBaseScriptableToolBuilder* GetHandyManToolBuilderInstance(UObject* Outer) override;
 	
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override {return false;}
@@ -94,7 +93,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "Click Events")
 	void OnHitByClick(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers);
 
-	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers);
+	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+	                                                 const FScriptableToolModifierStates& Modifiers);
 
 
 	//

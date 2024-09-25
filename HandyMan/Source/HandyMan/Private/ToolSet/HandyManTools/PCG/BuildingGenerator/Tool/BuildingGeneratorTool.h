@@ -31,8 +31,7 @@ public:
 	void SpawnOutputActorInstance(const UBuildingGeneratorPropertySet* InSettings, const FTransform& SpawnTransform);
 	
 	virtual void Setup() override;
-
-
+	
 	///~ Hover Behavior
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, meta=(DisplayName="Can Hover"))
 	FInputRayHit TestCanHoverFunc(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers);
@@ -60,8 +59,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="On End Mouse Drag"))
 	void OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button);
-	void HideAllGizmos();
-	void ResetBrush();
+	
 
 
 	///~ Single Click Behavior
@@ -142,6 +140,9 @@ public:
 	
 	void HandleAccept();
 	void HandleCancel();
+
+	void HideAllGizmos();
+	void ResetBrush();
 
 #pragma region DELEGATES
 	

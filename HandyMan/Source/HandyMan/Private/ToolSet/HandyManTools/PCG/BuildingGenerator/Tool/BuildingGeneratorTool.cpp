@@ -2,13 +2,9 @@
 
 
 #include "BuildingGeneratorTool.h"
-
-#include "ActorGroupingUtils.h"
 #include "ModelingToolTargetUtil.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Engine/StaticMeshActor.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/Actor/PCG_BuildingGenerator.h"
 #include "ToolSet/HandyManTools/PCG/BuildingGenerator/DataAssets/BuildingGeneratorOpeningData.h"
 
@@ -280,7 +276,6 @@ FInputRayHit UBuildingGeneratorTool::TestCanHoverFunc_Implementation(const FInpu
 	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 }
 
-
 void UBuildingGeneratorTool::OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
 {
 }
@@ -347,10 +342,6 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 {
 	LatestPosition = BrushPosition;
 	
-
-	
-
-
 	switch (Button)
 	{
 	case EScriptableToolMouseButton::LeftButton:
@@ -359,20 +350,13 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 			const bool bWasHit = Trace(Hit, DragPos);
 			UpdateBrush(DragPos);
 			Brush->SetVisibility(true);
-			
 			HideAllGizmos();
-			
 		}
-		
 		break;
 	case EScriptableToolMouseButton::RightButton:
 		break;
 	case EScriptableToolMouseButton::MiddleButton:
 		{
-			// Check if hit actor is a static mesh actor with the same mesh as our painting mesh
-			// If it is, delete the actor
-			//GetToolManager()->BeginUndoTransaction(LOCTEXT("DeleteActor", "Delete Opening"));
-
 			TArray<FHitResult> OutHits;
 			const bool bWasHit = Trace(OutHits, DragPos);
 
@@ -424,8 +408,7 @@ void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const F
 				}
 			}
 		}
-
-		//GetToolManager()->EndUndoTransaction();
+		
 		break;
 	}
 }
@@ -439,7 +422,6 @@ void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, c
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, StartPosition);
 	
-
 	if (Button == EScriptableToolMouseButton::LeftButton)
 	{
 		if (IsValid(PickedMesh))

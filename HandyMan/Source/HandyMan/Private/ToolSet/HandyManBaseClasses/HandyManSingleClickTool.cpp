@@ -94,6 +94,7 @@ void UHandyManSingleClickTool::Setup()
 	SingleClickBehavior->Modifiers.RegisterModifier(2, FInputDeviceState::IsCtrlKeyDown);
 	SingleClickBehavior->Modifiers.RegisterModifier(3, FInputDeviceState::IsAltKeyDown);
 	SingleClickBehavior->HitTestOnRelease = bHitTestOnRelease;
+	SingleClickBehavior->SetUseLeftMouseButton();
 	bShiftModifier = false;
 	bCtrlModifier = false;
 	bAltModifier = false;
@@ -165,7 +166,8 @@ FInputRayHit UHandyManSingleClickTool::IsHitByClick(const FInputDeviceRay& Click
 	return TestIfHitByClick(ClickPos, GetActiveModifiers());
 }
 
-void UHandyManSingleClickTool::OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers)
+void UHandyManSingleClickTool::OnHitByClick_Implementation(FInputDeviceRay ClickPos,
+                                                                   const FScriptableToolModifierStates& Modifiers)
 {
 	UE_LOG(LogTemp, Warning, TEXT("UHandyManSingleClickTool: Empty OnHitByClick Implementation"));
 }

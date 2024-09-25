@@ -2,17 +2,16 @@
 
 
 #include "SkeletalMeshCutterActor.h"
-
 #include "EditorAssetLibrary.h"
-#include "AssetRegistry/AssetRegistryHelpers.h"
+#include "Animation/SkeletalMeshActor.h"
 #include "Components/BoxComponent.h"
 #include "Components/ShapeComponent.h"
 #include "Components/SphereComponent.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
+#include "GeometryScript/MeshDecompositionFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "Kismet/KismetSystemLibrary.h"
 
 
 // Sets default values
@@ -38,7 +37,7 @@ void ASkeletalMeshCutterActor::Tick(float DeltaTime)
 void ASkeletalMeshCutterActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 {
 
-	if(!SavedSkeletalMesh || !LastSkeletalMesh) return;
+	if(!LastSkeletalMesh) return;
 
 	TargetMesh->Reset();
 
@@ -47,9 +46,11 @@ void ASkeletalMeshCutterActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	CombinedGeometrySelection = FGeometryScriptMeshSelection();
 
 	FGeometryScriptCopyMeshFromAssetOptions CopyMeshOptions;
+	CopyMeshOptions.bRequestTangents = true;
+	FGeometryScriptMeshReadLOD LodReadSettings;
 	EGeometryScriptOutcomePins CopyMeshOutcome;
 	auto CopyMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMesh
-	(LastSkeletalMesh, ComputeMesh, CopyMeshOptions, FGeometryScriptMeshReadLOD(), CopyMeshOutcome);
+	(LastSkeletalMesh, ComputeMesh, CopyMeshOptions, LodReadSettings, CopyMeshOutcome);
 
 	// make an array of selections and keep combining them with the cached selection.
 
@@ -64,7 +65,7 @@ void ASkeletalMeshCutterActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 				for (const auto& Shape : CutterShapes)
 				{
 					if(!Shape->IsA(UBoxComponent::StaticClass())) continue;
-					if(!Shape->ComponentTags.Contains(FName(FString::Printf(TEXT("Box_%d"), Cutter.Key)))) continue;
+					if(!Shape->ComponentTags.Contains(FName(FString::Printf(TEXT("%d"), Cutter.Key)))) continue;
 
 					const auto Box = UKismetMathLibrary::MakeBoxWithOrigin(Shape->GetRelativeLocation(), Cast<UBoxComponent>(Shape)->GetScaledBoxExtent());
 					FGeometryScriptMeshSelection Selection;
@@ -83,10 +84,10 @@ void ASkeletalMeshCutterActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 			for (const auto& Shape : CutterShapes)
 			{
 				if(!Shape->IsA(USphereComponent::StaticClass())) continue;
-				if(!Shape->ComponentTags.Contains(FName(FString::Printf(TEXT("Sphere_%d"), Cutter.Key)))) continue;
+				if(!Shape->ComponentTags.Contains(FName(FString::Printf(TEXT("%d"), Cutter.Key)))) continue;
 
 				FGeometryScriptMeshSelection Selection;
-				UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsInSphere(CopyMesh, Selection, Shape->GetRelativeLocation(),Cast<USphereComponent>(Shape)->GetScaledSphereRadius());
+				UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsInSphere(CopyMesh, Selection, Shape->GetRelativeLocation(), Cast<USphereComponent>(Shape)->GetScaledSphereRadius());
 
 				FGeometryScriptMeshSelection CombinedSelection;
 				UGeometryScriptLibrary_MeshSelectionFunctions::CombineMeshSelections(Selection, CombinedGeometrySelection, CombinedSelection);
@@ -100,16 +101,62 @@ void ASkeletalMeshCutterActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	// Cut the mesh using the combined selection
 	int32 NumDeleted;
 	auto EditedMesh = UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrianglesFromMesh(CopyMesh, CombinedGeometrySelection, NumDeleted);
+	
+	TargetMesh->SetMesh(*EditedMesh->ExtractMesh().Get());
+
+	
+
 
 	// Copy this mesh into
-	FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
-	EGeometryScriptOutcomePins CopyToMeshOutcome;
-	auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(EditedMesh, SavedSkeletalMesh, CopyToMeshOptions, FGeometryScriptMeshWriteLOD(), CopyToMeshOutcome);
+	if (bShouldStoreMeshIntoAsset && SavedSkeletalMesh)
+	{
+		FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
+		CopyToMeshOptions.bEnableRecomputeNormals = true;
+		CopyToMeshOptions.bEnableRecomputeTangents = true;
+		CopyToMeshOptions.bUseOriginalVertexOrder = true;
+		EGeometryScriptOutcomePins CopyToMeshOutcome;
 
-	TargetMesh->SetMesh(*CopiedMesh->ExtractMesh().Get());
+		if (CacheMeshData.bApplyChangesToAllLODS)
+		{
+			for (int i = 0; i < SavedSkeletalMesh->GetLODNum(); ++i)
+			{
+				FGeometryScriptMeshWriteLOD LodSettings;
+				LodSettings.LODIndex = i;
+				auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(TargetMesh, SavedSkeletalMesh, CopyToMeshOptions, LodSettings , CopyToMeshOutcome);
+			}
+		}
+		else
+		{
+			for (const auto& LODIndex : CacheMeshData.LODSToWrite)
+			{
+				FGeometryScriptMeshWriteLOD LodSettings;
+				LodSettings.LODIndex = LODIndex;
+				auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(TargetMesh, SavedSkeletalMesh, CopyToMeshOptions, LodSettings , CopyToMeshOutcome);
+			}
+		}
+		ReleaseAllComputeMeshes();
 
-	ReleaseAllComputeMeshes();
-	Super::RebuildGeneratedMesh(TargetMesh);
+		FActorSpawnParameters Params = FActorSpawnParameters();
+		FString name = FString::Format(TEXT("Actor_{0}"), { SavedSkeletalMesh->GetFName().ToString() });
+		FName fname = MakeUniqueObjectName(nullptr, ASkeletalMeshActor::StaticClass(), FName(*name));
+		Params.Name = fname;
+		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+		// Spawn a skeletal mesh actor into the world with your asset
+		auto SpawnedMesh = GetWorld()->SpawnActor<ASkeletalMeshActor>(GetActorLocation(), GetActorRotation(), Params);
+
+		if (SpawnedMesh)
+		{
+			SpawnedMesh->GetSkeletalMeshComponent()->SetSkinnedAssetAndUpdate(SavedSkeletalMesh);
+			LastSkeletalMesh = nullptr;
+			SetIsTemporarilyHiddenInEditor(true);
+			SetLifeSpan(2.f);
+		}
+	}
+	else
+	{
+		ReleaseAllComputeMeshes();
+		Super::RebuildGeneratedMesh(TargetMesh);
+	}
 
 	
 }
@@ -123,22 +170,28 @@ FVector ASkeletalMeshCutterActor::AddNewCutter(const uint8& Index, const ECutter
 	case ECutterShapeType::Box:
 		{
 			UBoxComponent* Box = NewObject<UBoxComponent>(this);
-			Box->ComponentTags.Add(FName(*FString::Printf(TEXT("Box_%d"), Index)));
+			Box->ComponentTags.Add(FName(*FString::Printf(TEXT("%d"), Index)));
 
 			Box->RegisterComponent();
 			AddInstanceComponent(Box);
 			Box->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			Box->SetCollisionProfileName(FName("BlockAll"));
+			Box->AddLocalOffset(FVector(0,0, 90 * Index));
+
 
 			return Box->GetComponentLocation();
 		}
 	case ECutterShapeType::Sphere:
 		{
 			USphereComponent* Sphere = NewObject<USphereComponent>(this);
-			Sphere->ComponentTags.Add(FName(*FString::Printf(TEXT("Sphere_%d"), Index)));
+			Sphere->ComponentTags.Add(FName(*FString::Printf(TEXT("%d"), Index)));
 
 			Sphere->RegisterComponent();
 			AddInstanceComponent(Sphere);
 			Sphere->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			Sphere->SetCollisionProfileName(FName("BlockAll"));
+			Sphere->AddLocalOffset(FVector(0,0, 180));
+
 
 			return Sphere->GetComponentLocation();
 		}
@@ -153,23 +206,44 @@ void ASkeletalMeshCutterActor::RemoveCutter(const uint8& Index)
 	Cutters.Remove(Index);
 }
 
-#if WITH_EDITOR
+void ASkeletalMeshCutterActor::RemoveCreatedAsset()
+{
+	if (SavedSkeletalMesh && SavedSkeletalMesh->IsAsset())
+	{
+		const FAssetData SavedAssetData = FAssetData(SavedSkeletalMesh, false);
+		SavedSkeletalMesh = nullptr;
+		const FString SavedAssetSourcePath = SavedAssetData.GetSoftObjectPath().ToString();
+		UEditorAssetLibrary::DeleteAsset(SavedAssetSourcePath);
+	}
 
-  void ASkeletalMeshCutterActor::Initialize(const FSkeletalMeshAssetData& MeshData)
+	Destroy();
+}
+
+
+
+#if WITH_EDITOR
+void ASkeletalMeshCutterActor::Initialize(const FSkeletalMeshAssetData& MeshData)
 {
 	if (!MeshData.InputMesh) return;
 
 	// cache it as the last skeletal mesh
 	LastSkeletalMesh = MeshData.InputMesh;
+	CacheMeshData = MeshData;
+	
+	RerunConstructionScripts();
+}
+
+void ASkeletalMeshCutterActor::SaveObject()
+{
 	// Duplicate this asset in the same file path its in
-	const auto AssetData = UAssetRegistryHelpers::CreateAssetData(MeshData.InputMesh);
+	const auto AssetData = FAssetData(CacheMeshData.InputMesh, false);
 		
 	const FString AssetSourcePath = AssetData.GetSoftObjectPath().ToString();
-	const FString NewSavePath = FString::Printf(TEXT("%s/%s_%s"), *AssetData.PackagePath.ToString(), *AssetData.AssetName.ToString(), *MeshData.SectionName);
+	const FString NewSavePath = FString::Printf(TEXT("%s/%s/%s_%s"), *AssetData.PackagePath.ToString(), *CacheMeshData.FolderName, *AssetData.AssetName.ToString(), *CacheMeshData.SectionName);
 
-	if (SavedSkeletalMesh)
+	if (SavedSkeletalMesh && SavedSkeletalMesh->IsAsset())
 	{
-		const auto SavedAssetData = UAssetRegistryHelpers::CreateAssetData(SavedSkeletalMesh);
+		const FAssetData SavedAssetData = FAssetData(SavedSkeletalMesh, false);
 		
 		const FString SavedAssetSourcePath = SavedAssetData.GetSoftObjectPath().ToString();
 		UEditorAssetLibrary::DeleteAsset(SavedAssetSourcePath);
@@ -179,9 +253,32 @@ void ASkeletalMeshCutterActor::RemoveCutter(const uint8& Index)
 	if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
 	{
 		SavedSkeletalMesh = DuplicatedMesh;
-	}
+		/*for (int i = 0; i < SavedSkeletalMesh->GetLODNum(); ++i)
+		{
+			if(i == 0) continue;
+			SavedSkeletalMesh->RemoveLODInfo(i);
+		}*/
+		/*SavedSkeletalMesh->SetMinLod(0);
+		SavedSkeletalMesh->SetLODSettings(CutMeshSettings);*/
+
+		
 	
+		UEditorAssetLibrary::SaveAsset(NewSavePath, false);
+
+		SavedSkeletalMesh->GetOnMeshChanged().AddLambda([&]()
+		{
+			EditNum++;
+			if (EditNum == SavedSkeletalMesh->GetLODNum())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Mesh Edits Complete"))
+			}
+		});
+	}
+
+	bShouldStoreMeshIntoAsset = true;
+
 	RerunConstructionScripts();
+	
 }
 
 
