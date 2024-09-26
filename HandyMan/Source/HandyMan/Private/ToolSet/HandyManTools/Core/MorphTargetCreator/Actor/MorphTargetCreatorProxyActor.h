@@ -19,7 +19,41 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void RebuildGeneratedMesh(UDynamicMesh* TargetMesh) override;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+
+	
+
+
+private:
+
+	UPROPERTY()
+	TMap<FName, UDynamicMesh*> MorphTargetMeshMap;
+
+	UPROPERTY()
+	USkeletalMesh* MorphTargetMesh;
+
+
+public:
+
+	void CacheBaseMesh(USkeletalMesh* InputMesh);
+	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() { return MorphTargetMeshMap; }
+	void RemoveMorphTargetMesh(FName MorphTargetMeshName);
+	void RemoveAllMorphTargetMeshes();
+	void CreateMorphTargetMesh(FName MorphTargetMeshName);
+	void SaveObject();
+
+
+
+
+private:
+	UPROPERTY()
+	UDynamicMesh* BaseMesh = nullptr;
+
+	bool bShouldStoreMeshIntoAsset = false;
+
 };

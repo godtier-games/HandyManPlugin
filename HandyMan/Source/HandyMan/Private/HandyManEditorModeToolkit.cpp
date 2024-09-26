@@ -26,6 +26,11 @@
 
 FHandyManEditorModeToolkit::FHandyManEditorModeToolkit()
 {
+
+	
+/*#if ENABLE_STYLUS_SUPPORT TODO: This requires a custom stylus class
+	StylusInputHandler = MakeUnique<UE::Modeling::FStylusInputHandler>();
+#endif*/
 }
 
 

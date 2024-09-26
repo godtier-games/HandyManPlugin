@@ -3,6 +3,9 @@
 #include "HandyManModule.h"
 #include "HandyManEditorModeCommands.h"
 #include "HandyManEditorModeStyle.h"
+#include "DetailCustomizations/BrushSize/HandyManBrushSizeCustomization.h"
+#include "DetailCustomizations/SculptTool/HandyManSculptToolCustomizations.h"
+#include "ToolSet/HandyManTools/Core/MorphTargetCreator/Tool/MorphTargetCreator.h"
 
 #define LOCTEXT_NAMESPACE "HandyManModule"
 
@@ -19,14 +22,43 @@ void FHandyManModule::ShutdownModule()
 	// we call this function before unloading the module.
 
 	FHandyManEditorModeCommands::Unregister();
+
+
+	// Unregister customizations
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		for (FName ClassName : ClassesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
+		}
+		for (FName PropertyName : PropertiesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(PropertyName);
+		}
+	}
+	
 	FHandyManEditorModeStyle::Shutdown();
 }
 
 void FHandyManModule::OnPostEngineInit()
 {
 	FHandyManEditorModeStyle::Initialize();
-	FHandyManEditorModeCommands::Register();
+	
+	// Register details view customizations
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
+	PropertyModule.RegisterCustomPropertyTypeLayout("HandyManBrushToolRadius", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHandyManBrushSizeCustomization::MakeInstance));
+	PropertiesToUnregisterOnShutdown.Add(FHandyManBrushToolRadius::StaticStruct()->GetFName());
+	
+	PropertyModule.RegisterCustomClassLayout("HandyManSculptBrushProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FHandyManSculptBrushPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UHandyManSculptBrushProperties::StaticClass()->GetFName());
+	
+	PropertyModule.RegisterCustomClassLayout("MorphTargetBrushSculptProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FHandyManVertexBrushSculptPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UMorphTargetBrushSculptProperties::StaticClass()->GetFName());
+	
+	PropertyModule.RegisterCustomClassLayout("MorphTargetBrushAlphaProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FHandyManVertexBrushAlphaPropertiesDetails::MakeInstance));
+	FHandyManEditorModeCommands::Register();
 }
 
 #undef LOCTEXT_NAMESPACE

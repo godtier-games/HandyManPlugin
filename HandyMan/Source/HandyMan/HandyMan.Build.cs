@@ -65,7 +65,8 @@ public class HandyMan : ModuleRules
 				"MeshModelingTools",
 				"GodtierGeometryScriptUtils",
 				"GeometryScriptingEditor",
-				"DynamicMesh"
+				"DynamicMesh", 
+				"MeshModelingToolsExp"
 
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -129,7 +130,8 @@ public class HandyMan : ModuleRules
 				"ChaosCore",
 				"Chaos",
 				"PhysicsCore",
-				"GeometryCollectionEngine"
+				"GeometryCollectionEngine", 
+				"ModelingEditorUI",
 			}
 			);
 		

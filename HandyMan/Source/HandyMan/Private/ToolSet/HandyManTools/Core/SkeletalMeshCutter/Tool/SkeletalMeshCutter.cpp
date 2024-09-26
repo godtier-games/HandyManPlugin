@@ -116,7 +116,7 @@ void USkeletalMeshCutter::SpawnOutputActorInstance(const USkeletalMeshCutterProp
 		// Generate the splines from the input actor
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.ObjectFlags = RF_Transactional;
-		SpawnInfo.Name = FName("SplineActor");
+		SpawnInfo.Name = FName("MeshCutter");
 
 		auto World = GetToolWorld();
 		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
@@ -258,7 +258,7 @@ void USkeletalMeshCutterPropertySet::InitializeMesh()
 	if (!IsValid(MeshData.InputMesh) || MeshData.SectionName.IsEmpty() || !ParentTool.Get() || !ParentTool->IsA(USkeletalMeshCutter::StaticClass()))
 	{
 		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			NSLOCTEXT("UBuildingGeneratorTool", "ErrorMessage", "You do not the proper set up. Both input mesh and section name need to be filled out before mesh is built."));
+			NSLOCTEXT("UBuildingGeneratorTool", "ErrorMessage", "You do not have the proper set up. Both input mesh and section name need to be filled out before mesh is built."));
 		
 		return;
 	}
