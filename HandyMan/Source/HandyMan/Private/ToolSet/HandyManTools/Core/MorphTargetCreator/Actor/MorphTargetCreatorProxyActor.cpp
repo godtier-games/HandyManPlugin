@@ -4,7 +4,9 @@
 #include "MorphTargetCreatorProxyActor.h"
 
 #include "EditorAssetLibrary.h"
+#include "UDynamicMesh.h"
 #include "Animation/SkeletalMeshActor.h"
+#include "Components/DynamicMeshComponent.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshDecompositionFunctions.h"
 
@@ -14,8 +16,6 @@ AMorphTargetCreatorProxyActor::AMorphTargetCreatorProxyActor()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
-	bEnableComputeMeshPool = false;
 }
 
 // Called when the game starts or when spawned
@@ -25,54 +25,9 @@ void AMorphTargetCreatorProxyActor::BeginPlay()
 	
 }
 
-void AMorphTargetCreatorProxyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
+void AMorphTargetCreatorProxyActor::Destroyed()
 {
-
-	if(!bShouldStoreMeshIntoAsset) return;
-
-	FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
-	CopyToMeshOptions.bEnableRecomputeNormals = true;
-	CopyToMeshOptions.bEnableRecomputeTangents = true;
-	CopyToMeshOptions.bUseOriginalVertexOrder = true;
-	EGeometryScriptOutcomePins CopyToMeshOutcome;
-
-	FGeometryScriptMeshWriteLOD LodSettings;
-	LodSettings.LODIndex = 0;
-	auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(TargetMesh, MorphTargetMesh, CopyToMeshOptions, LodSettings , CopyToMeshOutcome);
-
-	/*if (CacheMeshData.bApplyChangesToAllLODS)
-	{
-		
-	}
-	else
-	{
-		for (const auto& LODIndex : CacheMeshData.LODSToWrite)
-		{
-			FGeometryScriptMeshWriteLOD LodSettings;
-			LodSettings.LODIndex = LODIndex;
-			auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(TargetMesh, SavedSkeletalMesh, CopyToMeshOptions, LodSettings , CopyToMeshOutcome);
-		}
-	}*/
-	
-	ReleaseAllComputeMeshes();
-
-	FActorSpawnParameters Params = FActorSpawnParameters();
-	FString name = FString::Format(TEXT("Actor_{0}"), { MorphTargetMesh->GetFName().ToString() });
-	FName fname = MakeUniqueObjectName(nullptr, ASkeletalMeshActor::StaticClass(), FName(*name));
-	Params.Name = fname;
-	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	// Spawn a skeletal mesh actor into the world with your asset
-	auto SpawnedMesh = GetWorld()->SpawnActor<ASkeletalMeshActor>(GetActorLocation(), GetActorRotation(), Params);
-
-	if (SpawnedMesh)
-	{
-		SpawnedMesh->GetSkeletalMeshComponent()->SetSkinnedAssetAndUpdate(MorphTargetMesh);
-		MorphTargetMesh = nullptr;
-		SetIsTemporarilyHiddenInEditor(true);
-		SetLifeSpan(2.f);
-	}
-	
-	Super::RebuildGeneratedMesh(TargetMesh);
+	Super::Destroyed();
 }
 
 // Called every frame
@@ -84,7 +39,7 @@ void AMorphTargetCreatorProxyActor::Tick(float DeltaTime)
 void AMorphTargetCreatorProxyActor::CacheBaseMesh(USkeletalMesh* InputMesh)
 {
 	if(!InputMesh) return;
-	BaseMesh = AllocateComputeMesh();
+	BaseMesh = NewObject<UDynamicMesh>(this);
 	if(!BaseMesh) return;
 
 	MorphTargetMesh = InputMesh;
@@ -104,24 +59,21 @@ void AMorphTargetCreatorProxyActor::CacheBaseMesh(USkeletalMesh* InputMesh)
 	if(!BaseMesh) return;
 
 	UDynamicMesh* OutMesh;
-	UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(BaseMesh, DynamicMeshComponent->GetDynamicMesh(), OutMesh);
-
-	
+	UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(BaseMesh, FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(), OutMesh);
 }
 
-void AMorphTargetCreatorProxyActor::RemoveMorphTargetMesh(const FName MorphTargetMeshName)
+void AMorphTargetCreatorProxyActor::RemoveMorphTargetMesh(const FName& MorphTargetMeshName, const bool bShouldRestoreMesh)
 {
 	if(MorphTargetMeshName.IsEqual(NAME_None)) return;
 
 	if(!MorphTargetMeshMap.Contains(MorphTargetMeshName)) return;
 
-	UDynamicMesh* GeneratedMesh = MorphTargetMeshMap[MorphTargetMeshName];
-
-	if (GeneratedMesh == nullptr) return;
-
-	ReleaseComputeMesh(GeneratedMesh);
-
 	MorphTargetMeshMap.Remove(MorphTargetMeshName);
+
+	if (bShouldRestoreMesh)
+	{
+		RestoreLastMorphTarget();
+	}
 }
 
 void AMorphTargetCreatorProxyActor::RemoveAllMorphTargetMeshes()
@@ -132,13 +84,19 @@ void AMorphTargetCreatorProxyActor::RemoveAllMorphTargetMeshes()
 	}
 }
 
-void AMorphTargetCreatorProxyActor::CreateMorphTargetMesh(FName MorphTargetMeshName)
+void AMorphTargetCreatorProxyActor::CreateMorphTargetMesh(const FName& MorphTargetMeshName)
 {
 	// Copy the base mesh into another allocated mesh and add it to the map. Set that mesh as the components mesh
 	if(MorphTargetMeshName.IsEqual(NAME_None)) return;
 	if(!MorphTargetMesh) return;
+
+	// Copy the last morph mesh into the object we previously created
+	if (MorphTargetMeshMap.Num() > 0)
+	{
+		StoreLastMorphTarget();
+	}
 	
-	UDynamicMesh* NewMorph = AllocateComputeMesh();
+	UDynamicMesh* NewMorph = NewObject<UDynamicMesh>(this);
 	
 	if(!NewMorph) return;
 	
@@ -154,19 +112,96 @@ void AMorphTargetCreatorProxyActor::CreateMorphTargetMesh(FName MorphTargetMeshN
 	NewMorph = UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMesh(MorphTargetMesh, NewMorph, CopyFromAssetOptions, MeshRead, CopyFromAssetOutcome);
 
 	if(!NewMorph) return;
-
+	
 	UDynamicMesh* OutMesh;
-	NewMorph = UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(NewMorph, DynamicMeshComponent->GetDynamicMesh(), OutMesh);
+	NewMorph = UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(NewMorph, FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(), OutMesh);
 
 	MorphTargetMeshMap.Add(MorphTargetMeshName, NewMorph);
 	
 }
 
-void AMorphTargetCreatorProxyActor::SaveObject()
+void AMorphTargetCreatorProxyActor::StoreLastMorphTarget()
+{
+	TArray<FName> MorphTargetMeshNames;
+	MorphTargetMeshMap.GetKeys(MorphTargetMeshNames);
+	const FName MorphTargetMeshNameKey = MorphTargetMeshNames.Last();
+
+	if (MorphTargetMeshMap.Contains(MorphTargetMeshNameKey))
+	{
+		UDynamicMesh* OutMesh;
+		UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh
+		(
+			FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(),
+			MorphTargetMeshMap[MorphTargetMeshNameKey],
+			OutMesh
+		);
+
+		//MorphTargetMeshMap[MorphTargetMeshNameKey] = OutMesh;
+	}
+}
+
+void AMorphTargetCreatorProxyActor::RestoreLastMorphTarget()
+{
+	TArray<FName> MorphTargetMeshNames;
+	MorphTargetMeshMap.GetKeys(MorphTargetMeshNames);
+	const FName MorphTargetMeshNameKey = MorphTargetMeshNames.Last();
+
+	if (MorphTargetMeshMap.Contains(MorphTargetMeshNameKey))
+	{
+		UDynamicMesh* OutMesh;
+		UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh
+		(
+			MorphTargetMeshMap[MorphTargetMeshNameKey],
+			FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(),
+			OutMesh
+		);
+
+		//MorphTargetMeshMap[MorphTargetMeshNameKey] = OutMesh;
+	}
+}
+
+void AMorphTargetCreatorProxyActor::SaveObject(UDynamicMesh* TargetMesh)
 {
 	// Duplicate this asset in the same file path its in
 	
+	FGeometryScriptCopyMorphTargetToAssetOptions CopyToMeshOptions;
+	CopyToMeshOptions.bOverwriteExistingTarget = true;
+	CopyToMeshOptions.bEmitTransaction = true;
+	EGeometryScriptOutcomePins CopyToMeshOutcome;
+	
+
+	FGeometryScriptMeshWriteLOD LodSettings;
+	LodSettings.LODIndex = 0;
+
+	// Copy the last mesh version into the last morph target entry;
+	StoreLastMorphTarget();
+
+	
+	for (const auto Morph : MorphTargetMeshMap)
+	{
+		auto CopiedMesh = UGeometryScriptLibrary_StaticMeshFunctions::CopyMorphTargetToSkeletalMesh(Morph.Value, MorphTargetMesh, Morph.Key, CopyToMeshOptions, LodSettings , CopyToMeshOutcome);
+	}
+
+	
+	
 	bShouldStoreMeshIntoAsset = true;
+
+
+	FActorSpawnParameters Params = FActorSpawnParameters();
+	FString name = FString::Format(TEXT("Actor_{0}"), { MorphTargetMesh->GetFName().ToString() });
+	FName fname = MakeUniqueObjectName(nullptr, ASkeletalMeshActor::StaticClass(), FName(*name));
+	Params.Name = fname;
+	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+	// Spawn a skeletal mesh actor into the world with your asset
+	auto SpawnedMesh = GetWorld()->SpawnActor<ASkeletalMeshActor>(GetActorLocation(), GetActorRotation(), Params);
+
+	if (SpawnedMesh)
+	{
+		SpawnedMesh->GetSkeletalMeshComponent()->SetSkinnedAssetAndUpdate(MorphTargetMesh);
+		MorphTargetMesh = nullptr;
+		SetIsTemporarilyHiddenInEditor(true);
+		SetLifeSpan(2.f);
+	}
 
 	RerunConstructionScripts();
 }

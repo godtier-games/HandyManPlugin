@@ -10,7 +10,6 @@
 #include "Parameterization/MeshPlanarSymmetry.h"
 #include "Polygroups/PolygroupSet.h"
 #include "ToolSet/HandyManBaseClasses/HandyManClickDragTool.h"
-#include "ToolSet/HandyManTools/Core/MorphTargetCreator/DataTypes/MorphTargetCreatorTypes.h"
 #include "ToolSet/HandyManTools/Core/SculptTool/DataTypes/HandyManSculptingTypes.h"
 #include "ToolSet/HandyManTools/Core/SculptTool/Tool/HandyManSculptTool.h"
 #include "Util/UniqueIndexSet.h"
@@ -158,8 +157,9 @@ public:
 	
 	void SpawnActorInstance(const FTransform& SpawnTransform);
 	virtual void InitializeSculptMeshComponent() override;
-	void TriggerToolStartUp(EToolsFrameworkOutcomePins PropertyCreationOutcome);
+	void TriggerToolStartUp();
 	virtual void UpdateMaterialMode(EHandyManMeshEditingMaterialModes NewMode) override;
+	void InitializeToolPallette(EToolsFrameworkOutcomePins PropertyCreationOutcome);
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -183,7 +183,11 @@ public:
 		return true;
 	}
 
+	virtual bool SupportsWorldSpaceFocusBox() override;
+	virtual FBox GetWorldSpaceFocusBox() override;
+
 	bool bHasToolStarted = false;
+	bool bIsReadyToSculpt = false;
 
 	UPROPERTY()
 	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
@@ -204,6 +208,7 @@ public:
 
 	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() const;
 	void RemoveMorphTargetMesh(FName MorphTargetMeshName);
+	FName CurrentMorphEdit = NAME_None;
 	void RemoveAllMorphTargetMeshes();
 	void CreateMorphTargetMesh(FName MorphTargetMeshName);
 

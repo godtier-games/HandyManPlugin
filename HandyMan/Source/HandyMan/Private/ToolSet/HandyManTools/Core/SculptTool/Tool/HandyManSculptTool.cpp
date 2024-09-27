@@ -39,12 +39,9 @@ void UHandyManSculptTool::SetWorld(UWorld* World)
 void UHandyManSculptTool::Setup()
 {
 	Super::Setup();
-
-	BrushProperties = NewObject<UHandyManSculptBrushProperties>(this);
-	if (SharesBrushPropertiesChanges())
-	{
-		BrushProperties->RestoreProperties(this);
-	}
+	
+	EToolsFrameworkOutcomePins PropertyCreationOutcome;
+	
 	// Note that brush properties includes BrushRadius, which, when not used as a constant,
 	// serves as an output property based on target size and brush size, and so it would need
 	// updating after the RestoreProperties() call. But deriving classes will call 
@@ -74,7 +71,7 @@ void UHandyManSculptTool::Setup()
 
 
 	// display
-	ViewProperties = NewObject<UHandyManMeshEditingViewProperties>();
+	ViewProperties = Cast<UHandyManMeshEditingViewProperties>(AddPropertySetOfType(UHandyManMeshEditingViewProperties::StaticClass(), "ViewProperties", PropertyCreationOutcome));
 	ViewProperties->RestoreProperties(this);
 
 	ViewProperties->WatchProperty(ViewProperties->bShowWireframe,

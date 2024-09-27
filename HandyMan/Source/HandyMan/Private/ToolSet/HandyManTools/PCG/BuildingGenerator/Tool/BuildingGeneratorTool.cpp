@@ -40,13 +40,16 @@ void UBuildingGeneratorTool::SpawnOutputActorInstance(const UBuildingGeneratorPr
 	{
 
 		// Generate the splines from the input actor
-		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.ObjectFlags = RF_Transactional;
-		SpawnInfo.Name = FName("SplineActor");
+		FActorSpawnParameters Params = FActorSpawnParameters();
+		Params.ObjectFlags = RF_Transactional;
+		FString name = FString::Format(TEXT("Actor_{0}"), { "BuildingGenerator" });
+		FName fname = MakeUniqueObjectName(nullptr, APCG_BuildingGenerator::StaticClass(), FName(*name));
+		Params.Name = fname;
+		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
 		auto World = GetToolWorld();
 		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
-		if (auto SpawnedActor =  World->SpawnActor<APCG_BuildingGenerator>(ClassToSpawn))
+		if (auto SpawnedActor =  World->SpawnActor<APCG_BuildingGenerator>(ClassToSpawn, Params))
 		{
 			// Initalize the actor
 			SpawnedActor->SetActorTransform(SpawnTransform);

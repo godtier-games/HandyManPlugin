@@ -4,11 +4,15 @@
 #include "MorphTargetCreator.h"
 #include "Components/DynamicMeshComponent.h"
 #include "InteractiveToolManager.h"
+#include "ModelingToolTargetUtil.h"
 #include "PreviewMesh.h"
 #include "Selection.h"
+#include "ToolBuilderUtil.h"
 #include "ToolDataVisualizer.h"
 #include "ToolSetupUtil.h"
+#include "ToolTargetManager.h"
 #include "UnrealEdGlobals.h"
+#include "Animation/SkeletalMeshActor.h"
 #include "AssetUtils/Texture2DUtil.h"
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "Editor/UnrealEdEngine.h"
@@ -89,6 +93,7 @@ namespace
 			{
 				ParentToolPtr->CreateMorphTargetMesh(MorphTargets.Last());
 				Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+				ParentToolPtr->TriggerToolStartUp();
 			}
 		}
 		else
@@ -136,27 +141,52 @@ UMorphTargetCreator::UMorphTargetCreator()
 void UMorphTargetCreator::SpawnActorInstance(const FTransform& SpawnTransform)
 {
 	GEditor->GetSelectedActors()->DeselectAll();
+
+	auto World = GetToolWorld();
 	
 	if (GetHandyManAPI())
 	{
 		// Generate the splines from the input actor
-		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.ObjectFlags = RF_Transactional;
-		SpawnInfo.Name = FName("MorphTarget");
+		FActorSpawnParameters Params = FActorSpawnParameters();
+		Params.ObjectFlags = RF_Transient;
+		FString name = FString::Format(TEXT("Actor_{0}"), { "MorphTargetCreator" });
+		FName fname = MakeUniqueObjectName(nullptr, AMorphTargetCreatorProxyActor::StaticClass(), FName(*name));
+		Params.Name = fname;
+		Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
-		auto World = GetToolWorld();
 		auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
-		if (auto SpawnedActor =  World->SpawnActor<AMorphTargetCreatorProxyActor>(ClassToSpawn))
+		if (auto SpawnedActor =  World->SpawnActor<AMorphTargetCreatorProxyActor>(ClassToSpawn, Params))
 		{
 			// Initalize the actor
 			SpawnedActor->SetActorTransform(SpawnTransform);
 			TargetActor = (SpawnedActor);
 		}
 		
+		// Build targets based on the target actor
+		
 		
 		GEditor->SelectActor(TargetActor, true, true);
 		
 		GEditor->MoveViewportCamerasToActor(*TargetActor, true);
+
+		GUnrealEd->edactHideUnselected(GetToolWorld() );
+		// Then unhide selected to ensure that everything that's selected will be unhidden
+		GUnrealEd->edactUnhideSelected(GetToolWorld());
+		
+		GEditor->GetSelectedActors()->DeselectAll();
+		
+		DynamicMeshComponent = NewObject<UDynamicMeshComponent>(TargetActor);
+
+		ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, nullptr);
+
+		// disable shadows initially, as changing shadow settings invalidates the SceneProxy
+		DynamicMeshComponent->SetShadowsEnabled(false);
+		DynamicMeshComponent->SetupAttachment(TargetActor->GetRootComponent());
+		DynamicMeshComponent->RegisterComponent();
+	
+
+		InitializeSculptMeshComponent();
+		
 		
 		/*for (const auto& Viewport : GUnrealEd->GetAllViewportClients())
 		{
@@ -172,34 +202,30 @@ void UMorphTargetCreator::SpawnActorInstance(const FTransform& SpawnTransform)
 
 void UMorphTargetCreator::InitializeSculptMeshComponent()
 {
-	ToolSetupUtil::ApplyRenderingConfigurationToPreview(TargetActor->GetDynamicMeshComponent(), nullptr);
-
-	// disable shadows initially, as changing shadow settings invalidates the SceneProxy
-	TargetActor->GetDynamicMeshComponent()->SetShadowsEnabled(false);
 	
 	// initialize from LOD-0 MeshDescription
-
-	TargetActor->CacheBaseMesh(MorphTargetProperties->TargetMesh);
 	
-	double MaxDimension = TargetActor->GetDynamicMeshComponent()->GetMesh()->GetBounds(true).MaxDim();
-
+	double MaxDimension = DynamicMeshComponent->GetMesh()->GetBounds(true).MaxDim();
+	
 	// bake rotation and scaling into mesh because handling these inside sculpting is a mess
 	// Note: this transform does not include translation ( so only the 3x3 transform)
-	InitialTargetTransform = TargetActor->GetActorTransform();
+	InitialTargetTransform = (FTransform3d)TargetActor->GetRootComponent()->GetComponentTransform();
 	// clamp scaling because if we allow zero-scale we cannot invert this transform on Accept
 	InitialTargetTransform.ClampMinimumScale(0.01);
 	FVector3d Translation = InitialTargetTransform.GetTranslation();
 	InitialTargetTransform.SetTranslation(FVector3d::Zero());
+	DynamicMeshComponent->ApplyTransform(InitialTargetTransform, false);
 	CurTargetTransform = FTransform3d(Translation);
+	DynamicMeshComponent->SetWorldTransform((FTransform)CurTargetTransform);
 
 	
 	// First hide unselected as this will also hide group actor members
-	GUnrealEd->edactHideUnselected( GetToolWorld() );
+	//GUnrealEd->edactHideUnselected( GetToolWorld() );
 	// Then unhide selected to ensure that everything that's selected will be unhidden
-	GUnrealEd->edactUnhideSelected(GetToolWorld());
+	//GUnrealEd->edactUnhideSelected(GetToolWorld());
 
 
-	GEditor->GetSelectedActors()->DeselectAll();
+	//GEditor->GetSelectedActors()->DeselectAll();
 	
 }
 
@@ -221,25 +247,29 @@ public:
  * Tool
  */
 
-void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins PropertyCreationOutcome)
+void UMorphTargetCreator::TriggerToolStartUp()
 {
+	if (DynamicMeshComponent != nullptr)
+	{
+		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
+	}
+	
+	bIsReadyToSculpt = false;
 	// create dynamic mesh component to use for live preview
 	check(GetToolWorld());
-	FActorSpawnParameters SpawnInfo;
-
-	SpawnActorInstance(FTransform::Identity);
-	DynamicMeshComponent = TargetActor->GetDynamicMeshComponent();
-
+	
 	InitializeSculptMeshComponent();
+
+	for (int k = 0; k < MorphTargetProperties->TargetMesh->GetMaterials().Num(); ++k)
+	{
+		UMaterialInterface* Mat = MorphTargetProperties->TargetMesh->GetMaterials()[k].MaterialInterface;
+		DynamicMeshComponent->SetMaterial(k, Mat);
+	}
 
 	// assign materials
 	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(TargetActor)->GetMaterialSet(MaterialSet);
-	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
-	{
-		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
-	}
-
+	//Cast<IMaterialProvider>()->GetMaterialSet(MaterialSet);
+	
 	DynamicMeshComponent->SetInvalidateProxyOnChangeEnabled(false);
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshVerticesChanged.AddUObject(this, &UMorphTargetCreator::OnDynamicMeshComponentChanged);
 
@@ -321,7 +351,89 @@ void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins Property
 
 	// initialize brush radius range interval, brush properties
 	InitializeBrushSizeRange(Bounds);
+	
+	
+	GizmoProperties->RecenterGizmoIfFar(GetSculptMeshComponent()->GetComponentTransform().TransformPosition(Bounds.Center()), Bounds.MaxDim());
 
+	
+	bIsReadyToSculpt = true;
+}
+
+void UMorphTargetCreator::UpdateMaterialMode(EHandyManMeshEditingMaterialModes NewMode)
+{
+	if (NewMode == EHandyManMeshEditingMaterialModes::ExistingMaterial)
+	{
+		GetSculptMeshComponent()->ClearOverrideRenderMaterial();
+		GetSculptMeshComponent()->SetShadowsEnabled(DynamicMeshComponent->bCastDynamicShadow);
+		ActiveOverrideMaterial = nullptr;
+	}
+	else
+	{
+		if (NewMode == EHandyManMeshEditingMaterialModes::Custom)
+		{
+			if (ViewProperties->CustomMaterial.IsValid())
+			{
+				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(ViewProperties->CustomMaterial.Get(), this);
+			}
+			else
+			{
+				GetSculptMeshComponent()->ClearOverrideRenderMaterial();
+				ActiveOverrideMaterial = nullptr;
+			}
+		}
+		else if (NewMode == EHandyManMeshEditingMaterialModes::CustomImage)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetCustomImageBasedSculptMaterial(GetToolManager(), ViewProperties->Image);
+			if (ViewProperties->Image != nullptr)
+			{
+				ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), ViewProperties->Image);
+			}
+		}
+		else if (NewMode == EHandyManMeshEditingMaterialModes::VertexColor)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager());
+		}
+		else if (NewMode == EHandyManMeshEditingMaterialModes::Transparent)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(), 
+				ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, ViewProperties->bTwoSided);
+		}
+		else
+		{
+			UMaterialInterface* SculptMaterial = nullptr;
+			switch (NewMode)
+			{
+			case EHandyManMeshEditingMaterialModes::Diffuse:
+				SculptMaterial = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
+				break;
+			case EHandyManMeshEditingMaterialModes::Grey:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultBasic);
+				break;
+			case EHandyManMeshEditingMaterialModes::Soft:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultSoft);
+				break;
+			case EHandyManMeshEditingMaterialModes::TangentNormal:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::TangentNormalFromView);
+				break;
+			}
+			if (SculptMaterial != nullptr )
+			{
+				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(SculptMaterial, this);
+			}
+		}
+
+		if (ActiveOverrideMaterial != nullptr)
+		{
+			GetSculptMeshComponent()->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
+		}
+
+		GetSculptMeshComponent()->SetShadowsEnabled(false);
+	}
+}
+
+void UMorphTargetCreator::InitializeToolPallette(EToolsFrameworkOutcomePins PropertyCreationOutcome)
+{
 	// initialize other properties
 	SculptProperties = Cast<UMorphTargetBrushSculptProperties>(AddPropertySetOfType(UMorphTargetBrushSculptProperties::StaticClass(), "SculptProperties", PropertyCreationOutcome));
 	
@@ -335,7 +447,10 @@ void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins Property
 	BrushProperties = Cast<UHandyManSculptBrushProperties>(AddPropertySetOfType(UHandyManSculptBrushProperties::StaticClass(), "BrushProperties", PropertyCreationOutcome));
 	BrushProperties->bShowPerBrushProps = false;
 	BrushProperties->bShowFalloff = false;
-	SculptProperties->RestoreProperties(this);
+	if (SharesBrushPropertiesChanges())
+	{
+		BrushProperties->RestoreProperties(this);
+	}
 	CalculateBrushRadius();
 
 	AlphaProperties = Cast<UMorphTargetBrushAlphaProperties>(AddPropertySetOfType(UMorphTargetBrushAlphaProperties::StaticClass(), "AlphaProperties", PropertyCreationOutcome));
@@ -345,11 +460,7 @@ void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins Property
 	SymmetryProperties->RestoreProperties(this);
 	SymmetryProperties->bSymmetryCanBeEnabled = false;
 
-	this->BaseMeshQueryFunc = [&](int32 VertexID, const FVector3d& Position, double MaxDist, FVector3d& PosOut, FVector3d& NormalOut)
-	{
-		return GetBaseMeshNearest(VertexID, Position, MaxDist, PosOut, NormalOut);
-	};
-
+	
 	RegisterBrushType((int32)EHandyManBrushType::Smooth, LOCTEXT("SmoothBrush", "Smooth"),
 	                  MakeUnique<THandyManBasicMeshSculptBrushOpFactory<FHandyManSmoothBrushOp>>(),
 	                  NewObject<UHandyManSmoothBrushOpProps>(this));
@@ -426,7 +537,6 @@ void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins Property
 	GizmoProperties = Cast<UHandyManWorkPlaneProperties>(AddPropertySetOfType(UHandyManWorkPlaneProperties::StaticClass(), "GizmoProperties", PropertyCreationOutcome));
 	SetToolPropertySourceEnabled(GizmoProperties, false);
 	// Move the gizmo toward the center of the mesh, without changing the plane it represents
-	GizmoProperties->RecenterGizmoIfFar(GetSculptMeshComponent()->GetComponentTransform().TransformPosition(Bounds.Center()), Bounds.MaxDim());
 
 
 	// register watchers
@@ -463,98 +573,35 @@ void UMorphTargetCreator::TriggerToolStartUp(EToolsFrameworkOutcomePins Property
 
 	SymmetryProperties->WatchProperty(SymmetryProperties->bEnableSymmetry,
 	                                  [this](bool bNewValue) { bApplySymmetry = bMeshSymmetryIsValid && bNewValue; });
-
-
-	bHasToolStarted = true;
-}
-
-void UMorphTargetCreator::UpdateMaterialMode(EHandyManMeshEditingMaterialModes NewMode)
-{
-	if (NewMode == EHandyManMeshEditingMaterialModes::ExistingMaterial)
-	{
-		GetSculptMeshComponent()->ClearOverrideRenderMaterial();
-		GetSculptMeshComponent()->SetShadowsEnabled(TargetActor->GetDynamicMeshComponent()->bCastDynamicShadow);
-		ActiveOverrideMaterial = nullptr;
-	}
-	else
-	{
-		if (NewMode == EHandyManMeshEditingMaterialModes::Custom)
-		{
-			if (ViewProperties->CustomMaterial.IsValid())
-			{
-				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(ViewProperties->CustomMaterial.Get(), this);
-			}
-			else
-			{
-				GetSculptMeshComponent()->ClearOverrideRenderMaterial();
-				ActiveOverrideMaterial = nullptr;
-			}
-		}
-		else if (NewMode == EHandyManMeshEditingMaterialModes::CustomImage)
-		{
-			ActiveOverrideMaterial = ToolSetupUtil::GetCustomImageBasedSculptMaterial(GetToolManager(), ViewProperties->Image);
-			if (ViewProperties->Image != nullptr)
-			{
-				ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), ViewProperties->Image);
-			}
-		}
-		else if (NewMode == EHandyManMeshEditingMaterialModes::VertexColor)
-		{
-			ActiveOverrideMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager());
-		}
-		else if (NewMode == EHandyManMeshEditingMaterialModes::Transparent)
-		{
-			ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(), 
-				ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, ViewProperties->bTwoSided);
-		}
-		else
-		{
-			UMaterialInterface* SculptMaterial = nullptr;
-			switch (NewMode)
-			{
-			case EHandyManMeshEditingMaterialModes::Diffuse:
-				SculptMaterial = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
-				break;
-			case EHandyManMeshEditingMaterialModes::Grey:
-				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultBasic);
-				break;
-			case EHandyManMeshEditingMaterialModes::Soft:
-				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultSoft);
-				break;
-			case EHandyManMeshEditingMaterialModes::TangentNormal:
-				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::TangentNormalFromView);
-				break;
-			}
-			if (SculptMaterial != nullptr )
-			{
-				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(SculptMaterial, this);
-			}
-		}
-
-		if (ActiveOverrideMaterial != nullptr)
-		{
-			GetSculptMeshComponent()->SetOverrideRenderMaterial(ActiveOverrideMaterial);
-			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
-		}
-
-		GetSculptMeshComponent()->SetShadowsEnabled(false);
-	}
 }
 
 void UMorphTargetCreator::Setup()
 {
-	Super::Setup();
-	
+
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
 	MorphTargetProperties = Cast<UMorphTargetProperties>(AddPropertySetOfType(UMorphTargetProperties::StaticClass(), "MorphTargetProperties", PropertyCreationOutcome));
 
-	MorphTargetProperties->WatchProperty(MorphTargetProperties->TargetMesh, [this, PropertyCreationOutcome](TObjectPtr<USkeletalMesh>)
+	Super::Setup();
+	
+	MorphTargetProperties->WatchProperty(MorphTargetProperties->TargetMesh, [this](TObjectPtr<USkeletalMesh>)
 	{
-		if (IsValid(MorphTargetProperties->TargetMesh))
+		if (IsValid(MorphTargetProperties->TargetMesh) && TargetActor)
 		{
-			TriggerToolStartUp(PropertyCreationOutcome);
+			TargetActor->CacheBaseMesh(MorphTargetProperties->TargetMesh);
+			TriggerToolStartUp();
+			bHasToolStarted = true;
 		}
 	});
+
+	SpawnActorInstance(FTransform::Identity);
+	
+	InitializeToolPallette(PropertyCreationOutcome);
+
+	
+	this->BaseMeshQueryFunc = [&](int32 VertexID, const FVector3d& Position, double MaxDist, FVector3d& PosOut, FVector3d& NormalOut)
+	{
+		return GetBaseMeshNearest(VertexID, Position, MaxDist, PosOut, NormalOut);
+	};
 	
 }
 
@@ -564,6 +611,10 @@ void UMorphTargetCreator::Shutdown(EToolShutdownType ShutdownType)
 	{
 		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
 	}
+
+	GEditor->GetSelectedActors()->DeselectAll();
+
+	GUnrealEd->edactUnHideAll(GetToolWorld());
 
 	SculptProperties->SaveProperties(this);
 	AlphaProperties->SaveProperties(this);
@@ -576,7 +627,7 @@ void UMorphTargetCreator::Shutdown(EToolShutdownType ShutdownType)
 	case EToolShutdownType::Accept:
 		if (TargetActor != nullptr)
 		{
-			TargetActor->SaveObject();
+			TargetActor->SaveObject(DynamicMeshComponent->GetDynamicMesh());
 			TargetActor = nullptr;
 		}
 		break;
@@ -596,7 +647,19 @@ void UMorphTargetCreator::Shutdown(EToolShutdownType ShutdownType)
 
 void UMorphTargetCreator::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	CalculateBrushRadius();
+}
+
+bool UMorphTargetCreator::SupportsWorldSpaceFocusBox()
+{
+	return TargetActor && Cast<UPrimitiveComponentToolTarget>(TargetActor) != nullptr;
+}
+
+FBox UMorphTargetCreator::GetWorldSpaceFocusBox()
+{
+	return Super::GetWorldSpaceFocusBox();
 }
 
 TMap<FName, UDynamicMesh*> UMorphTargetCreator::GetMorphTargetMeshMap() const
@@ -613,7 +676,8 @@ void UMorphTargetCreator::RemoveMorphTargetMesh(FName MorphTargetMeshName)
 {
 	if (TargetActor)
 	{
-		return TargetActor->RemoveMorphTargetMesh(MorphTargetMeshName);
+		const bool ShouldRestoreMesh = CurrentMorphEdit.IsEqual(MorphTargetMeshName);
+		TargetActor->RemoveMorphTargetMesh(MorphTargetMeshName, ShouldRestoreMesh);
 	}
 }
 
@@ -621,7 +685,7 @@ void UMorphTargetCreator::RemoveAllMorphTargetMeshes()
 {
 	if (TargetActor)
 	{
-		return TargetActor->RemoveAllMorphTargetMeshes();
+		TargetActor->RemoveAllMorphTargetMeshes();
 	}
 }
 
@@ -629,13 +693,16 @@ void UMorphTargetCreator::CreateMorphTargetMesh(FName MorphTargetMeshName)
 {
 	if (TargetActor)
 	{
-		return TargetActor->CreateMorphTargetMesh(MorphTargetMeshName);
+		TargetActor->CreateMorphTargetMesh(MorphTargetMeshName);
+		CurrentMorphEdit = MorphTargetMeshName;
 	}
 }
 
 
 UPreviewMesh* UMorphTargetCreator::MakeBrushIndicatorMesh(UObject* Parent, UWorld* World)
 {
+	if(!bHasToolStarted && !TargetActor) return nullptr;
+
 	UPreviewMesh* PlaneMesh = NewObject<UPreviewMesh>(Parent);
 	PlaneMesh->CreateInWorld(World, FTransform::Identity);
 
@@ -669,6 +736,8 @@ UPreviewMesh* UMorphTargetCreator::MakeBrushIndicatorMesh(UObject* Parent, UWorl
 
 void UMorphTargetCreator::InitializeIndicator()
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	Super::InitializeIndicator();
 	// want to draw radius
 	BrushIndicator->bDrawRadiusCircle = true;
@@ -676,6 +745,8 @@ void UMorphTargetCreator::InitializeIndicator()
 
 void UMorphTargetCreator::SetActiveBrushType(int32 Identifier)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	EHandyManBrushType NewBrushType =  static_cast<EHandyManBrushType>(Identifier);
 	if (SculptProperties->PrimaryBrushType != NewBrushType)
 	{
@@ -690,6 +761,8 @@ void UMorphTargetCreator::SetActiveBrushType(int32 Identifier)
 
 void UMorphTargetCreator::SetActiveFalloffType(int32 Identifier)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	EHandyManMeshSculptFalloffType NewFalloffType = static_cast<EHandyManMeshSculptFalloffType>(Identifier);
 	if (SculptProperties->PrimaryFalloffType != NewFalloffType)
 	{
@@ -704,12 +777,16 @@ void UMorphTargetCreator::SetActiveFalloffType(int32 Identifier)
 
 void UMorphTargetCreator::SetRegionFilterType(int32 Identifier)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	SculptProperties->BrushFilter = static_cast<EHandyManBrushFilterType>(Identifier);
 }
 
 
 void UMorphTargetCreator::OnBeginStroke(const FRay& WorldRay)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+
 	WaitForPendingUndoRedo();		// cannot start stroke if there is an outstanding undo/redo update
 
 	UpdateBrushPosition(WorldRay);
@@ -763,6 +840,7 @@ void UMorphTargetCreator::OnBeginStroke(const FRay& WorldRay)
 
 void UMorphTargetCreator::OnEndStroke()
 {
+	if(!bHasToolStarted && !TargetActor) return;
 	// update spatial
 	bTargetDirty = true;
 
@@ -775,6 +853,8 @@ void UMorphTargetCreator::OnEndStroke()
 
 void UMorphTargetCreator::OnCancelStroke()
 {
+	if(!bHasToolStarted && !TargetActor) return;
+	
 	GetActiveBrushOp()->CancelStroke();
 
 	delete ActiveVertexChange;
@@ -785,7 +865,8 @@ void UMorphTargetCreator::OnCancelStroke()
 
 void UMorphTargetCreator::UpdateROI(const FVector3d& BrushPos)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateROI);
+	if(!bHasToolStarted && !TargetActor) return;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_UpdateROI);
 
 	float RadiusSqr = GetCurrentBrushRadius() * GetCurrentBrushRadius();
 	FAxisAlignedBox3d BrushBox(
@@ -796,7 +877,7 @@ void UMorphTargetCreator::UpdateROI(const FVector3d& BrushPos)
 	RangeQueryTriBuffer.Reset();
 	FDynamicMesh3* Mesh = GetSculptMesh();
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateROI_RangeQuery);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_UpdateROI_RangeQuery);
 		Octree.ParallelRangeQuery(BrushBox, RangeQueryTriBuffer);
 	}
 
@@ -971,7 +1052,8 @@ void UMorphTargetCreator::UpdateROI(const FVector3d& BrushPos)
 
 bool UMorphTargetCreator::UpdateStampPosition(const FRay& WorldRay)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateStampPosition);
+	if(!bHasToolStarted && !TargetActor) return false;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_UpdateStampPosition);
 
 	CalculateBrushRadius();
 
@@ -1038,7 +1120,7 @@ bool UMorphTargetCreator::UpdateStampPosition(const FRay& WorldRay)
 
 TFuture<void> UMorphTargetCreator::ApplyStamp()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_ApplyStamp);
 
 	TUniquePtr<FHandyManMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
 
@@ -1060,7 +1142,7 @@ TFuture<void> UMorphTargetCreator::ApplyStamp()
 	// apply the stamp, which computes new positions
 	FDynamicMesh3* Mesh = GetSculptMesh();
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp_Apply);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_ApplyStamp_Apply);
 		UseBrushOp->ApplyStamp(Mesh, CurrentStamp, VertexROI, ROIPositionBuffer);
 	}
 
@@ -1096,7 +1178,7 @@ TFuture<void> UMorphTargetCreator::ApplyStamp()
 	{
 		SaveVertexFuture = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_SyncMeshWithPositionBuffer_UpdateChange);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_SyncMeshWithPositionBuffer_UpdateChange);
 			const int32 NumV = ROIPositionBuffer.Num();
 			for (int k = 0; k < NumV; ++k)
 			{
@@ -1121,7 +1203,7 @@ TFuture<void> UMorphTargetCreator::ApplyStamp()
 
 	// now actually update the mesh, which happens on the game thread
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp_Sync);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_ApplyStamp_Sync);
 		const int32 NumV = ROIPositionBuffer.Num();
 
 		// If we are applying symmetry, we already baked these positions in in the branch above and
@@ -1165,6 +1247,8 @@ TFuture<void> UMorphTargetCreator::ApplyStamp()
 
 bool UMorphTargetCreator::IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh)
 {
+	if(!bHasToolStarted && !TargetActor) return false;
+
 	if (TriangleID != IndexConstants::InvalidID)
 	{
 		FViewCameraState StateOut;
@@ -1183,6 +1267,8 @@ bool UMorphTargetCreator::IsHitTriangleBackFacing(int32 TriangleID, const FDynam
 
 int32 UMorphTargetCreator::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 {
+	if(!bHasToolStarted && !TargetActor) return INDEX_NONE;
+
 	// need this to finish before we can touch Octree
 	WaitForPendingStampUpdate();
 
@@ -1196,6 +1282,8 @@ int32 UMorphTargetCreator::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 
 int32 UMorphTargetCreator::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 {
+	if(!bHasToolStarted && !TargetActor) return INDEX_NONE;
+
 	int32 HitTID = BaseMeshSpatial.FindNearestHitObject(LocalRay);
 	if (GetBrushCanHitBackFaces() == false && IsHitTriangleBackFacing(HitTID, GetBaseMesh()))
 	{
@@ -1208,6 +1296,8 @@ int32 UMorphTargetCreator::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 
 bool UMorphTargetCreator::UpdateBrushPosition(const FRay& WorldRay)
 {
+	if(!bHasToolStarted && !TargetActor) return false;
+
 	TUniquePtr<FHandyManMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
 
 	bool bHit = false; 
@@ -1239,6 +1329,8 @@ bool UMorphTargetCreator::UpdateBrushPosition(const FRay& WorldRay)
 
 void UMorphTargetCreator::UpdateHoverStamp(const FFrame3d& StampFrameWorld)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+	
 	FFrame3d HoverFrame = StampFrameWorld;
 	if (bHaveBrushAlpha && (AlphaProperties->RotationAngle != 0))
 	{
@@ -1257,23 +1349,20 @@ bool UMorphTargetCreator::HitTest(const FRay& Ray, FHitResult& OutHit)
 	return TargetActor && TargetActor->GetMorphTargetMeshMap().Num() > 0 && Super::HitTest(Ray, OutHit);
 }
 
-FInputRayHit UMorphTargetCreator::TestIfCanBeginClickDrag_Implementation(FInputDeviceRay ClickPos,
-	const FScriptableToolModifierStates& Modifiers)
+FInputRayHit UMorphTargetCreator::TestIfCanBeginClickDrag_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers)
 {
 	FHitResult OutHit;
-	if (HitTest(ClickPos.WorldRay, OutHit))
+	if (HitTest(ClickPos.WorldRay, OutHit) && bHasToolStarted)
 	{
 		return FInputRayHit(OutHit.Distance);
 	}
-
-	FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			NSLOCTEXT("UBuildingGeneratorTool", "ErrorMessage", "You do not have the proper set up. In order to start sculpting morphs you need a valid Target Mesh"));
 	
 	return FInputRayHit();
 }
 
 bool UMorphTargetCreator::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
+	if(!bHasToolStarted && !TargetActor) return false;
 	// 4.26 HOTFIX: update LastWorldRay position so that we have it for updating WorkPlane position
 	LastWorldRay = DevicePos.WorldRay;
 
@@ -1332,6 +1421,8 @@ bool UMorphTargetCreator::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 void UMorphTargetCreator::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+	
 	Super::Render(RenderAPI);
 
 	// draw a dot for the symmetric brush stamp position
@@ -1349,9 +1440,11 @@ void UMorphTargetCreator::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMorphTargetCreator::OnTick(float DeltaTime)
 {
+	if(!bHasToolStarted && !TargetActor) return;
+	
 	Super::OnTick(DeltaTime);
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick);
 
 	// process the undo update
 	if (bUndoUpdatePending)
@@ -1379,7 +1472,7 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 	if (InStroke())
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("dt is %.3f, tick fps %.2f - roi size %d/%d"), DeltaTime, 1.0 / DeltaTime, VertexROI.Num(), TriangleROI.Num());
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_StrokeUpdate);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_StrokeUpdate);
 		FDynamicMesh3* Mesh = GetSculptMesh();
 
 		// update brush position
@@ -1403,7 +1496,7 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 		// maybe because of TSet? but we have a lot of time to do it.
 		TFuture<void> AccumulateROI = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_AccumROI);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_AccumROI);
 			for (int32 tid : TriangleROIArray)
 			{
 				AccumulatedTriangleROI.Add(tid);
@@ -1415,7 +1508,7 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 		bool bUsingOverlayNormalsOut = false;
 		TFuture<void> NormalsROI = Async(VertexSculptToolAsyncExecTarget, [Mesh, &bUsingOverlayNormalsOut, this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_NormalsROI);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_NormalsROI);
 
 			//HandyMan::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsROIBuilder, bUsingOverlayNormals, false);
 			HandyMan::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsFlags, bUsingOverlayNormalsOut, false);
@@ -1432,13 +1525,13 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 		// begin octree rebuild calculation
 		StampUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_OctreeReinsert);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_OctreeReinsert);
 			Octree.ReinsertTrianglesParallel(TriangleROIArray, OctreeUpdateTempBuffer, OctreeUpdateTempFlagBuffer);
 		});
 		bStampUpdatePending = true;
 		//TFuture<void> OctreeRebuild = Async(VertexSculptToolAsyncExecTarget, [&]()
 		//{
-		//	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_OctreeReinsert);
+		//	TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_OctreeReinsert);
 		//	Octree.ReinsertTriangles(TriangleROIArray);
 		//});
 
@@ -1453,14 +1546,14 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 		// recalculate normals. This has to complete before we can update component
 		// (in fact we could do it per-chunk...)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_RecalcNormals);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_RecalcNormals);
 			NormalsROI.Wait();
 			HandyMan::SculptUtil::RecalculateROINormals(Mesh, NormalsFlags, bUsingOverlayNormalsOut);
 			//HandyMan::SculptUtil::RecalculateROINormals(Mesh, NormalsROIBuilder.Indices(), bUsingOverlayNormals);
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_UpdateMesh);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_UpdateMesh);
 			RenderUpdatePrecompute.Wait();
 			DynamicMeshComponent->FastNotifyTriangleVerticesUpdated_ApplyPrecompute(TriangleROIArray,
 				EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals,
@@ -1475,7 +1568,7 @@ void UMorphTargetCreator::OnTick(float DeltaTime)
 	} 
 	else if (bTargetDirty)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_UpdateTarget);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Tick_UpdateTarget);
 		check(InStroke() == false);
 
 		// this spawns futures that we could allow to run while other things happen...
@@ -1514,7 +1607,7 @@ void UMorphTargetCreator::UpdateBaseMesh(const TSet<int32>* TriangleSet)
 	const FDynamicMesh3* SculptMesh = GetSculptMesh();
 	if ( ! TriangleSet )
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_FullUpdate);
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Target_FullUpdate);
 		BaseMesh.Copy(*SculptMesh, false, false, false, false);
 		BaseMesh.EnableVertexNormals(FVector3f::UnitZ());
 		FMeshNormals::QuickComputeVertexNormals(BaseMesh);
@@ -1535,12 +1628,12 @@ void UMorphTargetCreator::UpdateBaseMesh(const TSet<int32>* TriangleSet)
 		}
 		auto UpdateBaseNormals = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_UpdateBaseNormals);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Target_UpdateBaseNormals);
 			FMeshNormals::QuickComputeVertexNormalsForTriangles(BaseMesh, BaseMeshIndexBuffer);
 		});
 		auto ReinsertTriangles = Async(VertexSculptToolAsyncExecTarget, [TriangleSet, this]()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_Reinsert);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMorphTargetCreator_Target_Reinsert);
 			BaseMeshSpatial.ReinsertTriangles(*TriangleSet);
 		});
 		UpdateBaseNormals.Wait();
@@ -1648,6 +1741,11 @@ void UMorphTargetCreator::TryToInitializeSymmetry()
 		Symmetry = MakePimpl<FMeshPlanarSymmetry>();
 		*Symmetry = MoveTemp(FindSymmetry);
 		bMeshSymmetryIsValid = true;
+
+		if (SymmetryProperties)
+		{
+			bApplySymmetry = bMeshSymmetryIsValid && SymmetryProperties->bEnableSymmetry;
+		}
 	}
 }
 
@@ -1659,7 +1757,7 @@ void UMorphTargetCreator::BeginChange()
 {
 	check(ActiveVertexChange == nullptr);
 	ActiveVertexChange = new FMeshVertexChangeBuilder();
-	LongTransactions.Open(LOCTEXT("VertexSculptChange", "Brush Stroke"), GetToolManager());
+	LongTransactions.Open(LOCTEXT("MorphTargetSculptChange", "Brush Stroke"), GetToolManager());
 }
 
 void UMorphTargetCreator::EndChange()
@@ -1673,7 +1771,7 @@ void UMorphTargetCreator::EndChange()
 		this->WaitForPendingUndoRedo();
 	};
 
-	GetToolManager()->EmitObjectChange(DynamicMeshComponent, MoveTemp(NewChange), LOCTEXT("VertexSculptChange", "Brush Stroke"));
+	GetToolManager()->EmitObjectChange(DynamicMeshComponent, MoveTemp(NewChange), LOCTEXT("MorphTargetSculptChange", "Brush Stroke"));
 	if (bMeshSymmetryIsValid && bApplySymmetry == false)
 	{
 		// if we end a stroke while symmetry is possible but disabled, we now have to assume that symmetry is no longer possible

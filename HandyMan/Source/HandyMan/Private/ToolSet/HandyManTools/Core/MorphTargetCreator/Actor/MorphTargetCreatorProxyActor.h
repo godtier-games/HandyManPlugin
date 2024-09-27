@@ -3,23 +3,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ToolSet/HandyManTools/PCG/Core/Actors/PCG_DynamicMeshActor_Editor.h"
 #include "MorphTargetCreatorProxyActor.generated.h"
 
+class UDynamicMesh;
+
 UCLASS()
-class HANDYMAN_API AMorphTargetCreatorProxyActor : public APCG_DynamicMeshActor_Editor
+class HANDYMAN_API AMorphTargetCreatorProxyActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
+	
+/*#if WITH_EDITOR
+	virtual bool IsSelectable() const override
+	{
+		return false;
+	}
+#endif*/
+	
 	// Sets default values for this actor's properties
 	AMorphTargetCreatorProxyActor();
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void Destroyed() override;
 
-	virtual void RebuildGeneratedMesh(UDynamicMesh* TargetMesh) override;
 
 public:
 	// Called every frame
@@ -42,10 +51,12 @@ public:
 
 	void CacheBaseMesh(USkeletalMesh* InputMesh);
 	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() { return MorphTargetMeshMap; }
-	void RemoveMorphTargetMesh(FName MorphTargetMeshName);
+	void RemoveMorphTargetMesh(const FName& MorphTargetMeshName, const bool bShouldRestoreMesh = false);
 	void RemoveAllMorphTargetMeshes();
-	void CreateMorphTargetMesh(FName MorphTargetMeshName);
-	void SaveObject();
+	void CreateMorphTargetMesh(const FName& MorphTargetMeshName);
+	void StoreLastMorphTarget();
+	void RestoreLastMorphTarget();
+	void SaveObject(UDynamicMesh* TargetMesh);
 
 
 
