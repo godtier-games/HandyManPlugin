@@ -4,9 +4,11 @@
 #include "MorphTargetCreatorProxyActor.h"
 
 #include "EditorAssetLibrary.h"
+#include "SkeletalMeshAttributes.h"
 #include "UDynamicMesh.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/DynamicMeshComponent.h"
+#include "DynamicMesh/NonManifoldMappingSupport.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshDecompositionFunctions.h"
 
@@ -62,7 +64,7 @@ void AMorphTargetCreatorProxyActor::CacheBaseMesh(USkeletalMesh* InputMesh)
 	UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(BaseMesh, FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(), OutMesh);
 }
 
-void AMorphTargetCreatorProxyActor::RemoveMorphTargetMesh(const FName& MorphTargetMeshName, const bool bShouldRestoreMesh)
+void AMorphTargetCreatorProxyActor::RemoveMorphTargetMesh(const FName& MorphTargetMeshName)
 {
 	if(MorphTargetMeshName.IsEqual(NAME_None)) return;
 
@@ -70,17 +72,24 @@ void AMorphTargetCreatorProxyActor::RemoveMorphTargetMesh(const FName& MorphTarg
 
 	MorphTargetMeshMap.Remove(MorphTargetMeshName);
 
-	if (bShouldRestoreMesh)
-	{
-		RestoreLastMorphTarget();
-	}
+	
 }
 
-void AMorphTargetCreatorProxyActor::RemoveAllMorphTargetMeshes()
+void AMorphTargetCreatorProxyActor::RemoveAllMorphTargetMeshes(const bool bShouldRestoreMesh)
 {
 	for (const auto MeshMap : MorphTargetMeshMap)
 	{
 		RemoveMorphTargetMesh(MeshMap.Key);
+	}
+
+	if (bShouldRestoreMesh)
+	{
+		RestoreLastMorphTarget();
+	}
+	else
+	{
+		UDynamicMesh* OutMesh;
+		UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(BaseMesh, FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(), OutMesh);
 	}
 }
 
@@ -117,7 +126,110 @@ void AMorphTargetCreatorProxyActor::CreateMorphTargetMesh(const FName& MorphTarg
 	NewMorph = UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(NewMorph, FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(), OutMesh);
 
 	MorphTargetMeshMap.Add(MorphTargetMeshName, NewMorph);
+
 	
+	
+}
+
+void AMorphTargetCreatorProxyActor::CloneMorphTarget(const FName& MorphTargetName, const FName& NewMorphTargetName)
+{
+
+	if(!MorphTargetMesh) return;
+
+	// Copy the last morph mesh into the object we previously created
+	if (MorphTargetMeshMap.Num() > 0)
+	{
+		StoreLastMorphTarget();
+	}
+	
+	UDynamicMesh* Mesh = FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh();
+	FMeshDescription* MeshDescription = MorphTargetMesh->GetMeshDescription(0);
+	
+	if(!Mesh || MorphTargetName.IsEqual(NAME_None) || MeshDescription == nullptr) return;
+
+	FSkeletalMeshAttributes MeshAttributes(*MeshDescription);
+	MeshAttributes.Register();
+	
+	if (!MeshAttributes.GetMorphTargetNames().Contains(MorphTargetName))
+	{
+		return;
+	}
+	
+	FGeometryScriptCopyMeshFromAssetOptions CopyFromAssetOptions;
+	CopyFromAssetOptions.bRequestTangents = true;
+	CopyFromAssetOptions.bApplyBuildSettings = false;
+
+	FGeometryScriptMeshReadLOD MeshRead;
+	MeshRead.LODType = EGeometryScriptLODType::HiResSourceModel;
+
+	EGeometryScriptOutcomePins CopyFromAssetOutcome;
+	UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMesh(MorphTargetMesh, Mesh, CopyFromAssetOptions, MeshRead, CopyFromAssetOutcome);
+	
+	const FSkeletalMeshLODInfo* LODInfo = MorphTargetMesh->GetLODInfo(0);
+	const float MorphThresholdSquared = LODInfo->BuildSettings.MorphThresholdPosition * LODInfo->BuildSettings.MorphThresholdPosition;
+	
+	/*TVertexAttributesRef<FVector3f> PositionDelta = MeshAttributes.GetVertexMorphPositionDelta(MorphTargetName);
+	TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();*/
+
+	
+	TVertexAttributesRef<FVector3f> MorphTargetPositions = MeshAttributes.GetVertexMorphPositionDelta(MorphTargetName);
+
+
+	const FDynamicMesh3& SourceMesh = Mesh->GetMeshRef();
+	const UE::Geometry::FNonManifoldMappingSupport NonManifoldMappingSupport(SourceMesh);
+	int32 SourceVertexCount;
+
+	if (NonManifoldMappingSupport.IsNonManifoldVertexInSource())
+	{
+		TSet<int32> UniqueVertices;
+		for (int32 SourceVID = 0; SourceVID < SourceMesh.VertexCount(); ++SourceVID)
+		{
+			UniqueVertices.Add(NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(SourceVID));
+		}
+
+		SourceVertexCount = UniqueVertices.Num();
+	}
+	else
+	{
+		SourceVertexCount = SourceMesh.VertexCount();
+	}
+	if (MeshDescription->Vertices().Num() != SourceVertexCount)
+	{
+		return;
+	}
+	
+	for (int32 SourceVID = 0; SourceVID < SourceMesh.VertexCount(); ++SourceVID)
+	{
+		const int32 TargetVID = NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(SourceVID);
+		
+		const FVector3f V0 = MorphTargetPositions[TargetVID];
+		const FVector3d V1 = Mesh->GetMeshRef().GetVertex(SourceVID);
+
+		const FVector3f Delta = V0 + FVector3f{V1};
+		if (Delta.SquaredLength() > MorphThresholdSquared)
+		{
+			Mesh->GetMeshRef().SetVertex(TargetVID, (FVector3d)Delta);
+		}
+	}
+
+	UDynamicMesh* NewMorph = NewObject<UDynamicMesh>(this);
+	UDynamicMesh* OutMesh;
+	UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh
+	(
+		FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(),
+		NewMorph,
+		OutMesh
+	);
+
+	if (NewMorphTargetName.IsEqual(NAME_None))
+	{
+		MorphTargetMeshMap.Add(MorphTargetName, NewMorph);
+	}
+	else
+	{
+		MorphTargetMeshMap.Add(NewMorphTargetName, NewMorph);
+	}
+
 }
 
 void AMorphTargetCreatorProxyActor::StoreLastMorphTarget()
@@ -182,23 +294,9 @@ void AMorphTargetCreatorProxyActor::SaveObject(UDynamicMesh* TargetMesh)
 	
 	
 	bShouldStoreMeshIntoAsset = true;
-
-
-	FActorSpawnParameters Params = FActorSpawnParameters();
-	FString name = FString::Format(TEXT("Actor_{0}"), { MorphTargetMesh->GetFName().ToString() });
-	FName fname = MakeUniqueObjectName(nullptr, ASkeletalMeshActor::StaticClass(), FName(*name));
-	Params.Name = fname;
-	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	// Spawn a skeletal mesh actor into the world with your asset
-	auto SpawnedMesh = GetWorld()->SpawnActor<ASkeletalMeshActor>(GetActorLocation(), GetActorRotation(), Params);
-
-	if (SpawnedMesh)
-	{
-		SpawnedMesh->GetSkeletalMeshComponent()->SetSkinnedAssetAndUpdate(MorphTargetMesh);
-		MorphTargetMesh = nullptr;
-		SetIsTemporarilyHiddenInEditor(true);
-		SetLifeSpan(2.f);
-	}
+	MorphTargetMesh = nullptr;
+	SetIsTemporarilyHiddenInEditor(true);
+	SetLifeSpan(2.f);
 
 	RerunConstructionScripts();
 }

@@ -51,9 +51,10 @@ public:
 
 	void CacheBaseMesh(USkeletalMesh* InputMesh);
 	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() { return MorphTargetMeshMap; }
-	void RemoveMorphTargetMesh(const FName& MorphTargetMeshName, const bool bShouldRestoreMesh = false);
-	void RemoveAllMorphTargetMeshes();
+	void RemoveMorphTargetMesh(const FName& MorphTargetMeshName);
+	void RemoveAllMorphTargetMeshes(const bool bShouldRestoreMesh = false);
 	void CreateMorphTargetMesh(const FName& MorphTargetMeshName);
+	void CloneMorphTarget(const FName& MorphTargetName, const FName& NewMorphTargetName);
 	void StoreLastMorphTarget();
 	void RestoreLastMorphTarget();
 	void SaveObject(UDynamicMesh* TargetMesh);

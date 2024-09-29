@@ -56,14 +56,39 @@ namespace
 
 #if WITH_EDITOR
 
+TArray<FString> UMorphTargetProperties::GetMorphTargetNames() const
+{
+	TArray<FString> result;
+	if (TargetMesh)
+	{
+		for (const auto& Morph : TargetMesh->GetMorphTargets())
+		{
+			if(Morph.GetName().IsEmpty()) continue;
+			result.Add(Morph.GetName());
+		}
+	}
+	
+	return result;
+}
+
   void UMorphTargetProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	UMorphTargetCreator* ParentToolPtr = Cast<UMorphTargetCreator>(ParentTool.Get());
+	if (!ParentToolPtr) return;
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, TargetMesh))
+	{
+		if (IsValid(TargetMesh))
+		{
+			GEditor->MoveViewportCamerasToComponent(ParentToolPtr->DynamicMeshComponent, true);
+		}
+	}
 
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, MorphTargets))
 	{
-		UMorphTargetCreator* ParentToolPtr = Cast<UMorphTargetCreator>(ParentTool.Get());
-		if (!ParentToolPtr) return;
+		
 		// If we have removed a mesh then we need to tell our tool to remove that dynamic mesh
 		if (ParentToolPtr->bHasToolStarted)
 		{
@@ -105,6 +130,60 @@ namespace
 			
 		}
 	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bEditExistingMorph))
+	{
+		if (bWasEditingExitingMorph && !bEditExistingMorph)
+		{
+			// remove all morph because we are about to manually create new morph targets
+			ParentToolPtr->RemoveAllMorphTargetMeshes();
+			bWasEditingExitingMorph = false;
+			Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+		}
+		else if(!bWasEditingExitingMorph && bEditExistingMorph && MorphTargets.Num() > 0)
+		{
+			ParentToolPtr->RemoveAllMorphTargetMeshes();
+			Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+			MorphTargets.Empty();
+			bWasEditingExitingMorph = true;
+			Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+		}
+	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, MorphTargetToEdit))
+	{
+		if (MorphTargetToEdit.IsValid())
+		{
+			if (bOverrideExistingMorph)
+			{
+				ParentToolPtr->CloneMorph(MorphTargetToEdit, NAME_None);
+				Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+			}
+		}
+	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bOverrideExistingMorph))
+	{
+		if (MorphTargetToEdit.IsValid() && NewMorphTargetName.IsValid())
+		{
+			ParentToolPtr->RemoveAllMorphTargetMeshes();
+			ParentToolPtr->CloneMorph(MorphTargetToEdit, NewMorphTargetName);
+			Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+		}
+	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, NewMorphTargetName))
+	{
+		if (!bOverrideExistingMorph && MorphTargetToEdit.IsValid() && NewMorphTargetName.IsValid())
+		{
+			ParentToolPtr->CloneMorph(MorphTargetToEdit, NewMorphTargetName);
+			Meshes = ParentToolPtr->GetMorphTargetMeshMap();
+		}
+	}
+
+
+
+
 	
 }
 
@@ -672,20 +751,25 @@ TMap<FName, UDynamicMesh*> UMorphTargetCreator::GetMorphTargetMeshMap() const
 	return TMap<FName, UDynamicMesh*>();
 }
 
-void UMorphTargetCreator::RemoveMorphTargetMesh(FName MorphTargetMeshName)
+void UMorphTargetCreator::RemoveMorphTargetMesh(const FName MorphTargetMeshName)
 {
 	if (TargetActor)
 	{
 		const bool ShouldRestoreMesh = CurrentMorphEdit.IsEqual(MorphTargetMeshName);
-		TargetActor->RemoveMorphTargetMesh(MorphTargetMeshName, ShouldRestoreMesh);
+		TargetActor->RemoveMorphTargetMesh(MorphTargetMeshName);
+		
+		if (ShouldRestoreMesh)
+		{
+			TargetActor->RestoreLastMorphTarget();
+		}
 	}
 }
 
-void UMorphTargetCreator::RemoveAllMorphTargetMeshes()
+void UMorphTargetCreator::RemoveAllMorphTargetMeshes(const bool bShouldRestoreLastMorph)
 {
 	if (TargetActor)
 	{
-		TargetActor->RemoveAllMorphTargetMeshes();
+		TargetActor->RemoveAllMorphTargetMeshes(bShouldRestoreLastMorph);
 	}
 }
 
@@ -695,6 +779,15 @@ void UMorphTargetCreator::CreateMorphTargetMesh(FName MorphTargetMeshName)
 	{
 		TargetActor->CreateMorphTargetMesh(MorphTargetMeshName);
 		CurrentMorphEdit = MorphTargetMeshName;
+	}
+}
+
+void UMorphTargetCreator::CloneMorph(const FName MorphTargetName, const FName NewMorphTargetName)
+{
+	if (TargetActor)
+	{
+		TargetActor->CloneMorphTarget(MorphTargetName, NewMorphTargetName);
+		CurrentMorphEdit = NewMorphTargetName.IsValid() ? NewMorphTargetName : MorphTargetName;
 	}
 }
 

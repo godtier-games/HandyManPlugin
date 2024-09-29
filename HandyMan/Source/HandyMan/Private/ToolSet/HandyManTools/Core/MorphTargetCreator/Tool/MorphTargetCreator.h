@@ -30,14 +30,31 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Morphs)
 	TObjectPtr<USkeletalMesh> TargetMesh;
-	
-	/** Primary Brush Mode */
+
 	UPROPERTY(EditAnywhere, Category = Morphs)
+	bool bEditExistingMorph = false;
+
+	/* Default behavior is to override the existing morph. If you want to use this morph as a base then this must be false and a new morph target name must be entered else the tool will use the default behavior*/
+	UPROPERTY(EditAnywhere, Category = Morphs,  meta = (EditCondition = "bEditExistingMorph", EditConditionHides))
+	bool bOverrideExistingMorph = true;
+	
+	UPROPERTY(EditAnywhere, Category = Morphs, meta = (EditCondition = "bEditExistingMorph", EditConditionHides, GetOptions="GetMorphTargetNames"))
+	FName MorphTargetToEdit;
+
+	UPROPERTY(EditAnywhere, Category = Morphs, meta = (EditCondition = "!bOverrideExistingMorph && bEditExistingMorph", EditConditionHides))
+	FName NewMorphTargetName;
+	
+	UPROPERTY(EditAnywhere, Category = Morphs, meta = (EditCondition = "!bEditExistingMorph", EditConditionHides))
 	TArray<FName> MorphTargets;
 	
 	UPROPERTY(VisibleAnywhere, Category = Morphs)
 	TMap<FName, UDynamicMesh*> Meshes;
 
+
+	UFUNCTION()
+	TArray<FString> GetMorphTargetNames() const;
+
+	bool bWasEditingExitingMorph = false;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -209,8 +226,9 @@ public:
 	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() const;
 	void RemoveMorphTargetMesh(FName MorphTargetMeshName);
 	FName CurrentMorphEdit = NAME_None;
-	void RemoveAllMorphTargetMeshes();
+	void RemoveAllMorphTargetMeshes(const bool bShouldRestoreLastMorph = false);
 	void CreateMorphTargetMesh(FName MorphTargetMeshName);
+	void CloneMorph(const FName MorphTargetName, const FName NewMorphTargetName);
 
 
 #pragma region SCULPTING LOGIC
