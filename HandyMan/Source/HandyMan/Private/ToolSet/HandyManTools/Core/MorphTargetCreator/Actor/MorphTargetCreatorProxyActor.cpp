@@ -135,8 +135,7 @@ void AMorphTargetCreatorProxyActor::StoreLastMorphTarget()
 			MorphTargetMeshMap[MorphTargetMeshNameKey],
 			OutMesh
 		);
-
-		//MorphTargetMeshMap[MorphTargetMeshNameKey] = OutMesh;
+		
 	}
 }
 
@@ -155,8 +154,6 @@ void AMorphTargetCreatorProxyActor::RestoreLastMorphTarget()
 			FindComponentByClass<UDynamicMeshComponent>()->GetDynamicMesh(),
 			OutMesh
 		);
-
-		//MorphTargetMeshMap[MorphTargetMeshNameKey] = OutMesh;
 	}
 }
 

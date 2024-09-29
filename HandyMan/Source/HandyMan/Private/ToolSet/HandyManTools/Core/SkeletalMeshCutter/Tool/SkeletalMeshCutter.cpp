@@ -3,12 +3,15 @@
 
 #include "SkeletalMeshCutter.h"
 
+#include "HandyManSettings.h"
 #include "Selection.h"
 #include "UnrealEdGlobals.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Components/ShapeComponent.h"
 #include "Editor/UnrealEdEngine.h"
 #include "ToolSet/HandyManTools/Core/SkeletalMeshCutter/Actor/SkeletalMeshCutterActor.h"
+
+
 
 USkeletalMeshCutter::USkeletalMeshCutter()
 {
@@ -22,9 +25,21 @@ USkeletalMeshCutter::USkeletalMeshCutter()
 void USkeletalMeshCutter::Setup()
 {
 	Super::Setup();
-
+	
 	EToolsFrameworkOutcomePins PropertyCreationOutcome;
 	Settings = Cast<USkeletalMeshCutterPropertySet>(AddPropertySetOfType(USkeletalMeshCutterPropertySet::StaticClass(), "Settings", PropertyCreationOutcome));
+
+	UHandyManSettings* HandyManSettings = GetMutableDefault<UHandyManSettings>();
+	if (!Settings->MeshData.IsValid() && HandyManSettings && !HandyManSettings->GetToolsWithBlockedDialogs().Contains(FName(ToolName.ToString())))
+	{
+		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
+			NSLOCTEXT
+			(
+				"UBuildingGeneratorTool",
+				"ErrorMessage",
+				"This tool will automatically initialize the mesh to cut when you have an Input Mesh & you have set a name to save the new asset as. Disable this popup by adding this tool's name to the BlockedDialogsArray in the Handy Man Settings"
+			));
+	}
 
 
 	LastCutterArray = Settings->Cutters;
@@ -246,6 +261,29 @@ void USkeletalMeshCutter::HideAllGizmos()
 
 ///-------------------------------------------------------------
 /// PROPERTY SET
+///
+#if WITH_EDITOR
+
+void USkeletalMeshCutterPropertySet::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	if (!ParentTool.Get() || !ParentTool->IsA(USkeletalMeshCutter::StaticClass())) return;
+
+	if (PropertyChangedEvent.PropertyChain.GetHead()->GetValue()->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, MeshData))
+	{
+		if (MeshData.IsValid())
+		{
+			if (Cast<USkeletalMeshCutter>(ParentTool.Get())->OutputActor)
+			{
+				Cast<USkeletalMeshCutter>(ParentTool.Get())->OutputActor->Initialize(MeshData);
+			}
+		}
+	}
+}
+
+#endif
+
 USkeletalMeshCutterPropertySet::USkeletalMeshCutterPropertySet()
 {
 	Cutters.Add(ECutterShapeType::Box);
@@ -253,22 +291,4 @@ USkeletalMeshCutterPropertySet::USkeletalMeshCutterPropertySet()
 	Cutters.Add(ECutterShapeType::Sphere);
 }
 
-void USkeletalMeshCutterPropertySet::InitializeMesh()
-{
-	if (!IsValid(MeshData.InputMesh) || MeshData.SectionName.IsEmpty() || !ParentTool.Get() || !ParentTool->IsA(USkeletalMeshCutter::StaticClass()))
-	{
-		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			NSLOCTEXT("UBuildingGeneratorTool", "ErrorMessage", "You do not have the proper set up. Both input mesh and section name need to be filled out before mesh is built."));
-		
-		return;
-	}
-
-	if (Cast<USkeletalMeshCutter>(ParentTool.Get())->OutputActor)
-	{
-		Cast<USkeletalMeshCutter>(ParentTool.Get())->OutputActor->Initialize(MeshData);
-	}
-	
-
-	
-}
 

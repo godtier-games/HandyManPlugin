@@ -45,6 +45,7 @@ void FHandyManEditorModeStyle::Initialize()
 	const FVector2D Icon20x20(20.0f, 20.0f);
 	const FVector2D Icon28x28(28.0f, 28.0f);
 	const FVector2D Icon40x40(40.0f, 40.0f);
+	const FVector2D Icon64(64.0f, 64.0f);
 	const FVector2D Icon120(120.0f, 120.0f);
 
 	// Only register once
@@ -71,36 +72,36 @@ void FHandyManEditorModeStyle::Initialize()
 		// Icons for brush falloffs in sculpt/etc tools
 		//
 
-		StyleSet->Set("BrushFalloffIcons.Smooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Smooth", Icon120));
-		StyleSet->Set("BrushFalloffIcons.Linear", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Linear", Icon120));
-		StyleSet->Set("BrushFalloffIcons.Inverse", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Inverse", Icon120));
-		StyleSet->Set("BrushFalloffIcons.Round", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Round", Icon120));
-		StyleSet->Set("BrushFalloffIcons.BoxSmooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxSmooth", Icon120));
-		StyleSet->Set("BrushFalloffIcons.BoxLinear", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxLinear", Icon120));
-		StyleSet->Set("BrushFalloffIcons.BoxInverse", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxInverse", Icon120));
-		StyleSet->Set("BrushFalloffIcons.BoxRound", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxRound", Icon120));
+		StyleSet->Set("BrushFalloffIcons.Smooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Smooth", Icon64));
+		StyleSet->Set("BrushFalloffIcons.Linear", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Linear", Icon64));
+		StyleSet->Set("BrushFalloffIcons.Inverse", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Inverse", Icon64));
+		StyleSet->Set("BrushFalloffIcons.Round", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_Round", Icon64));
+		StyleSet->Set("BrushFalloffIcons.BoxSmooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxSmooth", Icon64));
+		StyleSet->Set("BrushFalloffIcons.BoxLinear", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxLinear", Icon64));
+		StyleSet->Set("BrushFalloffIcons.BoxInverse", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxInverse", Icon64));
+		StyleSet->Set("BrushFalloffIcons.BoxRound", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Falloff_BoxRound", Icon64));
 
 
 		//
 		// Icons for brushes in sculpt/etc tools
 		//
 
-		StyleSet->Set("BrushTypeIcons.Smooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Smooth", Icon120));
-		StyleSet->Set("BrushTypeIcons.SmoothFill", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SmoothFill", Icon120));
-		StyleSet->Set("BrushTypeIcons.Move", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Move", Icon120));
-		StyleSet->Set("BrushTypeIcons.SculptN", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptN", Icon120));
-		StyleSet->Set("BrushTypeIcons.SculptV", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptV", Icon120));
-		StyleSet->Set("BrushTypeIcons.SculptMx", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptMx", Icon120));
-		StyleSet->Set("BrushTypeIcons.Inflate", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Inflate", Icon120));
-		StyleSet->Set("BrushTypeIcons.Pinch", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Pinch", Icon120));
-		StyleSet->Set("BrushTypeIcons.Flatten", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Flatten", Icon120));
-		StyleSet->Set("BrushTypeIcons.PlaneN", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneN", Icon120));
-		StyleSet->Set("BrushTypeIcons.PlaneV", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneV", Icon120));
-		StyleSet->Set("BrushTypeIcons.PlaneW", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneW", Icon120));
-		StyleSet->Set("BrushTypeIcons.Scale", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Scale", Icon120));
-		StyleSet->Set("BrushTypeIcons.Grab", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Grab", Icon120));
-		StyleSet->Set("BrushTypeIcons.GrabSharp", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_GrabSharp", Icon120));
-		StyleSet->Set("BrushTypeIcons.Twist", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Twist", Icon120));
+		StyleSet->Set("BrushTypeIcons.Smooth", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Smooth", Icon64));
+		StyleSet->Set("BrushTypeIcons.SmoothFill", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SmoothFill", Icon64));
+		StyleSet->Set("BrushTypeIcons.Move", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Move", Icon64));
+		StyleSet->Set("BrushTypeIcons.SculptN", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptN", Icon64));
+		StyleSet->Set("BrushTypeIcons.SculptV", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptV", Icon64));
+		StyleSet->Set("BrushTypeIcons.SculptMx", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_SculptMx", Icon64));
+		StyleSet->Set("BrushTypeIcons.Inflate", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Inflate", Icon64));
+		StyleSet->Set("BrushTypeIcons.Pinch", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Pinch", Icon64));
+		StyleSet->Set("BrushTypeIcons.Flatten", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Flatten", Icon64));
+		StyleSet->Set("BrushTypeIcons.PlaneN", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneN", Icon64));
+		StyleSet->Set("BrushTypeIcons.PlaneV", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneV", Icon64));
+		StyleSet->Set("BrushTypeIcons.PlaneW", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_PlaneW", Icon64));
+		StyleSet->Set("BrushTypeIcons.Scale", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Scale", Icon64));
+		StyleSet->Set("BrushTypeIcons.Grab", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Grab", Icon64));
+		StyleSet->Set("BrushTypeIcons.GrabSharp", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_GrabSharp", Icon64));
+		StyleSet->Set("BrushTypeIcons.Twist", new IMAGE_PLUGIN_SVG("Icons/BrushIcons/Brush_Twist", Icon64));
 
 	}
 

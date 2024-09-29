@@ -18,7 +18,6 @@ class HANDYMAN_API USkeletalMeshCutter : public UHandyManSingleClickTool
 	GENERATED_BODY()
 
 public:
-
 	USkeletalMeshCutter();
 
 	virtual void Setup() override;
@@ -28,8 +27,7 @@ public:
 	void SpawnOutputActorInstance(const USkeletalMeshCutterPropertySet* InSettings, const FTransform& SpawnTransform);
 
 	virtual FInputRayHit TestIfHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
-	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos,
-	                                                 const FScriptableToolModifierStates& Modifiers) override;
+	virtual void OnHitByClick_Implementation(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers) override;
 	
 	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
 	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
@@ -57,10 +55,16 @@ class HANDYMAN_API USkeletalMeshCutterPropertySet : public UScriptableInteractiv
 	GENERATED_BODY()
 
 public:
+	
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
+
+	
 	USkeletalMeshCutterPropertySet();
 
-	UFUNCTION(CallInEditor, BlueprintCallable, Category="Parameters")
-	void InitializeMesh();
+	/*UFUNCTION(CallInEditor, BlueprintCallable, Category="Parameters")
+	void InitializeMesh();*/
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters")
 	FSkeletalMeshAssetData MeshData;
