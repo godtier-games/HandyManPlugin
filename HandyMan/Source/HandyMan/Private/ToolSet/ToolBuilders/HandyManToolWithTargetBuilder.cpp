@@ -16,7 +16,7 @@ bool UHandyManToolWithTargetBuilder::CanBuildTool(const FToolBuilderState& Scene
 {
 	const bool bIsBlueprintAccepted = Super::CanBuildTool(SceneState);
 	int MatchingTargetCount = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetRequirements());
-	return MatchingTargetCount >= MinRequiredMatches && MatchingTargetCount <= MatchLimit && bIsBlueprintAccepted;
+	return MatchingTargetCount >= MinRequiredMatches && (MatchingTargetCount <= MatchLimit || MatchLimit < 0) && bIsBlueprintAccepted;
 }
 
 void UHandyManToolWithTargetBuilder::SetupTool(const FToolBuilderState& SceneState, UInteractiveTool* Tool) const

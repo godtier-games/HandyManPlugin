@@ -21,7 +21,7 @@ class GODTIERGEOMETRYSCRIPTUTILS_API UGodtierModelingUtilities : public UBluepri
 	GENERATED_UCLASS_BODY()
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod, DisplayName = "Sweep Geometry", Keywords = "Sweep Geometry Pipe Curve"), Category = "GodtierGeometryScriptUtils | Modeling Utilities")
-	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* SweepGeometryAlongSpline(FSweepOptions SweepOptions, const ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug = nullptr);
+	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* SweepGeometryAlongSpline(FSweepOptions SweepOptions, const ESplineCoordinateSpace::Type Space = ESplineCoordinateSpace::World, UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod, DisplayName = "Create Planar Mesh From Spline", Keywords = "Sweep Geometry Pipe Curve"), Category = "GodtierGeometryScriptUtils | Modeling Utilities")
 	static UPARAM(DisplayName = "Output Mesh") UDynamicMesh* GenerateCollisionGeometryAlongSpline(FSimpleCollisionOptions CollisionOptions, const ESplineCoordinateSpace::Type Space, UGeometryScriptDebug* Debug = nullptr);

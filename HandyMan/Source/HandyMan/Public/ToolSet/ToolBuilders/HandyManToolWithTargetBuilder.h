@@ -29,8 +29,7 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual void SetupTool(const FToolBuilderState& SceneState, UInteractiveTool* Tool) const override;
-
-
+	
 	FToolTargetTypeRequirements GetRequirements() const;
 
 };

@@ -196,7 +196,7 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	{
 		FGeometryScriptSplineSamplingOptions SampleOptions;
 		SampleOptions.CoordinateSpace = Space;
-		SampleOptions.NumSamples = SweepOptions.SampleSize;
+		SampleOptions.NumSamples = FMath::CeilToInt32(Spline->GetSplineLength() / SweepOptions.SampleSize);
 		//SampleOptions.ErrorTolerance = 1.0f;
 		UGeometryScriptLibrary_PolyPathFunctions::SampleSplineToTransforms(Spline, SweepPath, SweepFrameTimes, SampleOptions, FTransform::Identity);
 		
@@ -218,6 +218,7 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	}
 
 
+	
 	
 	if (SweepPath.Num() < 2)
 	{

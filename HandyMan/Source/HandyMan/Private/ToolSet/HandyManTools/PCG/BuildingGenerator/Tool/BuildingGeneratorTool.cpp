@@ -274,15 +274,6 @@ void UBuildingGeneratorTool::Setup()
 	
 }
 
-FInputRayHit UBuildingGeneratorTool::TestCanHoverFunc_Implementation(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers)
-{
-	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
-}
-
-void UBuildingGeneratorTool::OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
-{
-}
-
 bool UBuildingGeneratorTool::UpdateBrush(const FInputDeviceRay& DevicePos)
 {
 	FHitResult Hit;
@@ -325,6 +316,15 @@ bool UBuildingGeneratorTool::UpdateBrush(const FInputDeviceRay& DevicePos)
 	return bWasHit;
 }
 
+FInputRayHit UBuildingGeneratorTool::TestCanHoverFunc_Implementation(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers)
+{
+	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
+}
+
+void UBuildingGeneratorTool::OnBeginHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
+{
+}
+
 bool UBuildingGeneratorTool::OnUpdateHover(const FInputDeviceRay& DevicePos, const FScriptableToolModifierStates& Modifiers)
 {
 	return UpdateBrush(DevicePos);
@@ -339,7 +339,6 @@ FInputRayHit UBuildingGeneratorTool::CanClickDrag_Implementation(const FInputDev
 {
 	return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 }
-
 
 void UBuildingGeneratorTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
@@ -509,182 +508,6 @@ void UBuildingGeneratorTool::OnDragBegin(const FInputDeviceRay& StartPosition, c
 	
 }
 
-void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRef, UE::Math::TRotator<double> Rotation)
-{
-	// If our Mesh is a static mesh actor then we need to spawn a static mesh actor else its just an actor and we should spawn it as is.
-	UClass* ClassToSpawn = OpeningRef.Mesh.IsA(UStaticMesh::StaticClass()) ? AStaticMeshActor::StaticClass() : OpeningRef.Mesh.GetClass();
-
-	FActorSpawnParameters Params = FActorSpawnParameters();
-	FString name = FString::Format(TEXT("Actor_{0}"), { PaintingMesh->GetFName().ToString() });
-	FName fname = MakeUniqueObjectName(nullptr, ClassToSpawn, FName(*name));
-	Params.Name = fname;
-	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-
-	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Brush->GetComponentLocation(), Rotation, Params);
-	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
-		
-
-	SpawnedActor->SetActorLabel(fname.ToString());
-	LastSpawnedActors.Add(SpawnedActor);
-	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
-	{
-		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
-	}
-
-
-	const FVector Extent = PaintingMesh->GetBounds().BoxExtent;
-	float Offset = 0.f;
-	FVector MeshScale = FVector::OneVector;
-	switch (OpeningRef.Fit)
-	{
-	case EMeshFitStyle::Flush:
-		{
-			Offset = -Extent.X;
-			const float CurrentX = (Extent.X * 2);
-			if (Settings->WallThickness > CurrentX)
-			{
-				MeshScale = FVector(Settings->WallThickness / CurrentX, 1.0f, 1.0f);
-			}
-		}
-		break;
-	case EMeshFitStyle::In_Front:
-		Offset = Extent.X;
-		break;
-	case EMeshFitStyle::Centered:
-		{
-			Offset = -Extent.X;
-			const float CurrentX = (Extent.X * 2);
-			if (!FMath::IsNearlyEqual(Settings->WallThickness, CurrentX))
-			{
-				const auto XScale = (Settings->WallThickness / CurrentX) + (OpeningRef.CenteredOffset * .01f);
-				MeshScale = FVector(XScale, 1.0f, 1.0f);
-			}
-			else
-			{
-				MeshScale = FVector(1.0f + (OpeningRef.CenteredOffset * .01f), 1.0f, 1.0f);
-			}
-		}
-		break;
-	}
-			
-	const FTransform SpawnTransform = FTransform(Rotation, Brush->GetComponentLocation(), FVector::One());
-	SpawnedActor->SetActorTransform(SpawnTransform);
-	SpawnedActor->GetRootComponent()->SetRelativeScale3D(MeshScale);
-	SpawnedActor->GetRootComponent()->AddLocalOffset(FVector(Offset, 0,0));
-	SpawnedActor->Tags.Add(FName("Opening"));
-
-			
-
-	FGeneratedOpening NewOpening;
-	NewOpening.Transform = SpawnedActor->GetActorTransform();
-	NewOpening.Mesh = SpawnedActor;
-	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
-	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
-	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
-	NewOpening.BooleanShape = OpeningRef.BooleanShape;
-	NewOpening.Fit = OpeningRef.Fit;
-	NewOpening.CenteredOffset = OpeningRef.CenteredOffset;
-			
-	if (OutputActor)
-	{
-		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
-		OutputActor->AddGeneratedOpeningEntry(NewOpening);
-	}
-
-	if (!bIsEditing)
-	{
-		CachedOpenings.Openings.Add(NewOpening);
-	}
-	else
-	{
-		EditedOpenings.Openings.Add(NewOpening);
-		EditModeSpawnedActors.Add(SpawnedActor);
-	}
-
-	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
-	EToolsFrameworkOutcomePins OutCome;
-	FScriptableToolGizmoOptions GizmoOptions;
-	GizmoOptions.bAllowNegativeScaling = false;
-			
-	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
-	SetGizmoVisible(SpawnedActor->GetFName().ToString(), false);
-}
-
-void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening OpeningRef, bool bSetGizmoActive)
-{
-	// If our Mesh is a static mesh actor then we need to spawn a static mesh actor else its just an actor and we should spawn it as is.
-	UClass* ClassToSpawn = OpeningRef.Mesh.IsA(UStaticMesh::StaticClass()) ? AStaticMeshActor::StaticClass() : OpeningRef.Mesh.GetClass();
-	const auto Rotation = OpeningRef.Mesh->GetActorRotation();
-	FString MeshName = "";
-	if (OpeningRef.Mesh->FindComponentByClass<UStaticMeshComponent>())
-	{
-		PaintingMesh = OpeningRef.Mesh->FindComponentByClass<UStaticMeshComponent>()->GetStaticMesh();
-		MeshName = PaintingMesh->GetFName().ToString();
-	}
-	FActorSpawnParameters Params = FActorSpawnParameters();
-	FString name = FString::Format(TEXT("Actor_{0}"), { MeshName });
-	FName fname = MakeUniqueObjectName(nullptr, ClassToSpawn, FName(*name));
-	Params.Name = fname;
-	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-
-	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(OpeningRef.Mesh.GetClass(), Brush->GetComponentLocation(), Rotation, Params);
-	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
-		
-
-	SpawnedActor->SetActorLabel(fname.ToString());
-	LastSpawnedActors.Add(SpawnedActor);
-	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
-	{
-		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
-	}
-
-	
-			
-	const FTransform SpawnTransform = OpeningRef.Transform;
-	SpawnedActor->SetActorTransform(SpawnTransform);
-	if (SpawnedActor->Tags.Contains(FName("Opening")))
-	{
-		SpawnedActor->Tags.Add(FName("Opening"));
-	}
-
-
-			
-
-	FGeneratedOpening NewOpening;
-	NewOpening.Transform = SpawnedActor->GetActorTransform();
-	NewOpening.Mesh = SpawnedActor;
-	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bShouldCutHoleInTargetMesh;
-	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
-	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
-	NewOpening.BooleanShape = OpeningRef.BooleanShape;
-	NewOpening.Fit = OpeningRef.Fit;
-	NewOpening.CenteredOffset = OpeningRef.CenteredOffset;
-			
-	if (OutputActor)
-	{
-		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
-		OutputActor->AddGeneratedOpeningEntry(NewOpening);
-	}
-
-	if (!bIsEditing)
-	{
-		CachedOpenings.Openings.Add(NewOpening);
-	}
-	else
-	{
-		EditedOpenings.Openings.Add(NewOpening);
-		EditModeSpawnedActors.Add(SpawnedActor);
-	}
-
-	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
-	EToolsFrameworkOutcomePins OutCome;
-	FScriptableToolGizmoOptions GizmoOptions;
-	GizmoOptions.bAllowNegativeScaling = false;
-			
-	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
-	SetGizmoVisible(SpawnedActor->GetFName().ToString(), bSetGizmoActive);
-}
-
 void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
 	if (!bIsPainting)
@@ -752,26 +575,6 @@ void UBuildingGeneratorTool::OnDragEnd(const FInputDeviceRay& EndPosition, const
 
 		ResetBrush();
 	}
-}
-
-void UBuildingGeneratorTool::HideAllGizmos()
-{
-	for (const auto& Gizmo : Gizmos)
-	{
-		Gizmo.Value->SetVisibility(false);
-	}
-}
-
-void UBuildingGeneratorTool::ResetBrush()
-{
-	Brush->SetVisibility(true);
-	CopiedScale = FVector::Zero();
-	LastHoveredOpening = nullptr;
-	bIsSnapping = false;
-	SnapStartLocation = FVector::ZeroVector;
-	SnapStartRotation = FRotator::ZeroRotator;
-	bIsCopying = false;
-	HideAllGizmos();
 }
 
 FInputRayHit UBuildingGeneratorTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
@@ -1020,6 +823,81 @@ void UBuildingGeneratorTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, c
 	}
 }
 
+void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
+{
+	Super::OnGizmoTransformChanged_Handler(GizmoIdentifier, NewTransform);
+
+	// TODO : This doesn't work currently it crashes the engine.
+	if (Settings)
+	{
+		/*const FVector& Loc = NewTransform.GetLocation();
+		const FVector& Offset = FVector::UpVector * 100.0f;
+	
+		FHitResult Hit;
+	
+		if (GetToolWorld()->LineTraceSingleByChannel(Hit, Loc + Offset, Loc - Offset, ECC_Visibility))
+		{
+			if (Hit.GetActor() && Hit.GetActor()->IsA(APCG_BuildingGenerator::StaticClass()))
+			{
+				SetGizmoTransform(GizmoIdentifier, FTransform(NewTransform.GetRotation(), Hit.Location, NewTransform.GetScale3D()), false);
+			}
+		}
+		*/
+
+		UpdateOpeningTransforms(GizmoIdentifier, NewTransform);
+		OutputActor->RerunConstructionScripts();
+		
+	}
+	
+}
+
+void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
+{
+	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
+
+	if (ChangeType == EScriptableToolGizmoStateChangeType::BeginTransform)
+	{
+		if (IsCtrlDown() && !bIsCopying)
+		{
+			if (!bIsEditing)
+			{
+				// Spawn another actor in the current location of the gizmo
+				for (const auto& Opening : CachedOpenings.Openings)
+				{
+					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
+					SpawnOpeningFromReference(Opening, false);
+					//HideAllGizmos();
+					bIsCopying = true;
+					return;
+				}
+			}
+			else
+			{
+				// Spawn another actor in the current location of the gizmo
+				for (const auto& Opening : EditedOpenings.Openings)
+				{
+					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
+					SpawnOpeningFromReference(Opening, false);
+					//HideAllGizmos();
+					bIsCopying = true;
+					return;
+				}
+			}
+		}
+	}
+
+	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform || ChangeType == EScriptableToolGizmoStateChangeType::UndoRedo)
+	{
+	
+		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);
+		bIsCopying = false;
+		OutputActor->RerunConstructionScripts();
+	}
+	
+
+
+}
+
 void UBuildingGeneratorTool::UpdateOpeningTransforms(const FString& GizmoIdentifier, const FTransform& CurrentTransform)
 {
 	if (!bIsEditing)
@@ -1068,82 +946,6 @@ void UBuildingGeneratorTool::UpdateOpeningTransforms(const FString& GizmoIdentif
 
 		OutputActor->UpdatedGeneratedOpenings(EditedOpenings.Openings);
 	}
-}
-
-void UBuildingGeneratorTool::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
-{
-	Super::OnGizmoTransformChanged_Handler(GizmoIdentifier, NewTransform);
-
-	// TODO : This doesn't work currently it crashes the engine.
-	if (Settings)
-	{
-		/*const FVector& Loc = NewTransform.GetLocation();
-		const FVector& Offset = FVector::UpVector * 100.0f;
-	
-		FHitResult Hit;
-	
-		if (GetToolWorld()->LineTraceSingleByChannel(Hit, Loc + Offset, Loc - Offset, ECC_Visibility))
-		{
-			if (Hit.GetActor() && Hit.GetActor()->IsA(APCG_BuildingGenerator::StaticClass()))
-			{
-				SetGizmoTransform(GizmoIdentifier, FTransform(NewTransform.GetRotation(), Hit.Location, NewTransform.GetScale3D()), false);
-			}
-		}
-		*/
-
-		UpdateOpeningTransforms(GizmoIdentifier, NewTransform);
-		OutputActor->RerunConstructionScripts();
-		
-	}
-	
-}
-
-
-void UBuildingGeneratorTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
-{
-	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
-
-	if (ChangeType == EScriptableToolGizmoStateChangeType::BeginTransform)
-	{
-		if (IsCtrlDown() && !bIsCopying)
-		{
-			if (!bIsEditing)
-			{
-				// Spawn another actor in the current location of the gizmo
-				for (const auto& Opening : CachedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
-					SpawnOpeningFromReference(Opening, false);
-					//HideAllGizmos();
-					bIsCopying = true;
-					return;
-				}
-			}
-			else
-			{
-				// Spawn another actor in the current location of the gizmo
-				for (const auto& Opening : EditedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
-					SpawnOpeningFromReference(Opening, false);
-					//HideAllGizmos();
-					bIsCopying = true;
-					return;
-				}
-			}
-		}
-	}
-
-	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform || ChangeType == EScriptableToolGizmoStateChangeType::UndoRedo)
-	{
-	
-		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);
-		bIsCopying = false;
-		OutputActor->RerunConstructionScripts();
-	}
-	
-
-
 }
 
 bool UBuildingGeneratorTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
@@ -1201,6 +1003,203 @@ bool UBuildingGeneratorTool::Trace(TArray<FHitResult>& OutHit, const FInputDevic
 	}
 
 	return bBeenHit && bHitTargetActor;
+}
+
+
+void UBuildingGeneratorTool::SpawnOpeningFromReference(FDynamicOpening OpeningRef, UE::Math::TRotator<double> Rotation)
+{
+	// If our Mesh is a static mesh actor then we need to spawn a static mesh actor else its just an actor and we should spawn it as is.
+	UClass* ClassToSpawn = OpeningRef.Mesh.IsA(UStaticMesh::StaticClass()) ? AStaticMeshActor::StaticClass() : OpeningRef.Mesh.GetClass();
+
+	FActorSpawnParameters Params = FActorSpawnParameters();
+	FString name = FString::Format(TEXT("Actor_{0}"), { PaintingMesh->GetFName().ToString() });
+	FName fname = MakeUniqueObjectName(nullptr, ClassToSpawn, FName(*name));
+	Params.Name = fname;
+	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ClassToSpawn, Brush->GetComponentLocation(), Rotation, Params);
+	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
+		
+
+	SpawnedActor->SetActorLabel(fname.ToString());
+	LastSpawnedActors.Add(SpawnedActor);
+	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
+	{
+		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
+	}
+
+
+	const FVector Extent = PaintingMesh->GetBounds().BoxExtent;
+	float Offset = 0.f;
+	FVector MeshScale = FVector::OneVector;
+	switch (OpeningRef.Fit)
+	{
+	case EMeshFitStyle::Flush:
+		{
+			Offset = -Extent.X;
+			const float CurrentX = (Extent.X * 2);
+			if (Settings->WallThickness > CurrentX)
+			{
+				MeshScale = FVector(Settings->WallThickness / CurrentX, 1.0f, 1.0f);
+			}
+		}
+		break;
+	case EMeshFitStyle::In_Front:
+		Offset = Extent.X;
+		break;
+	case EMeshFitStyle::Centered:
+		{
+			Offset = -Extent.X;
+			const float CurrentX = (Extent.X * 2);
+			if (!FMath::IsNearlyEqual(Settings->WallThickness, CurrentX))
+			{
+				const auto XScale = (Settings->WallThickness / CurrentX) + (OpeningRef.CenteredOffset * .01f);
+				MeshScale = FVector(XScale, 1.0f, 1.0f);
+			}
+			else
+			{
+				MeshScale = FVector(1.0f + (OpeningRef.CenteredOffset * .01f), 1.0f, 1.0f);
+			}
+		}
+		break;
+	}
+			
+	const FTransform SpawnTransform = FTransform(Rotation, Brush->GetComponentLocation(), FVector::One());
+	SpawnedActor->SetActorTransform(SpawnTransform);
+	SpawnedActor->GetRootComponent()->SetRelativeScale3D(MeshScale);
+	SpawnedActor->GetRootComponent()->AddLocalOffset(FVector(Offset, 0,0));
+	SpawnedActor->Tags.Add(FName("Opening"));
+
+			
+
+	FGeneratedOpening NewOpening;
+	NewOpening.Transform = SpawnedActor->GetActorTransform();
+	NewOpening.Mesh = SpawnedActor;
+	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bIsSubtractiveBoolean;
+	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
+	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
+	NewOpening.BooleanShape = OpeningRef.BooleanShape;
+	NewOpening.Fit = OpeningRef.Fit;
+	NewOpening.CenteredOffset = OpeningRef.CenteredOffset;
+			
+	if (OutputActor)
+	{
+		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
+		OutputActor->AddGeneratedOpeningEntry(NewOpening);
+	}
+
+	if (!bIsEditing)
+	{
+		CachedOpenings.Openings.Add(NewOpening);
+	}
+	else
+	{
+		EditedOpenings.Openings.Add(NewOpening);
+		EditModeSpawnedActors.Add(SpawnedActor);
+	}
+
+	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
+	EToolsFrameworkOutcomePins OutCome;
+	FScriptableToolGizmoOptions GizmoOptions;
+	GizmoOptions.bAllowNegativeScaling = false;
+			
+	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
+	SetGizmoVisible(SpawnedActor->GetFName().ToString(), false);
+}
+
+void UBuildingGeneratorTool::SpawnOpeningFromReference(FGeneratedOpening OpeningRef, bool bSetGizmoActive)
+{
+	// If our Mesh is a static mesh actor then we need to spawn a static mesh actor else its just an actor and we should spawn it as is.
+	UClass* ClassToSpawn = OpeningRef.Mesh.IsA(UStaticMesh::StaticClass()) ? AStaticMeshActor::StaticClass() : OpeningRef.Mesh.GetClass();
+	const auto Rotation = OpeningRef.Mesh->GetActorRotation();
+	FString MeshName = "";
+	if (OpeningRef.Mesh->FindComponentByClass<UStaticMeshComponent>())
+	{
+		PaintingMesh = OpeningRef.Mesh->FindComponentByClass<UStaticMeshComponent>()->GetStaticMesh();
+		MeshName = PaintingMesh->GetFName().ToString();
+	}
+	FActorSpawnParameters Params = FActorSpawnParameters();
+	FString name = FString::Format(TEXT("Actor_{0}"), { MeshName });
+	FName fname = MakeUniqueObjectName(nullptr, ClassToSpawn, FName(*name));
+	Params.Name = fname;
+	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(OpeningRef.Mesh.GetClass(), Brush->GetComponentLocation(), Rotation, Params);
+	SpawnedActor->GetRootComponent()->SetMobility(EComponentMobility::Type::Movable);
+		
+
+	SpawnedActor->SetActorLabel(fname.ToString());
+	LastSpawnedActors.Add(SpawnedActor);
+	if (SpawnedActor->IsA(AStaticMeshActor::StaticClass()))
+	{
+		Cast<AStaticMeshActor>(SpawnedActor)->GetStaticMeshComponent()->SetStaticMesh(PaintingMesh);
+	}
+
+	
+			
+	const FTransform SpawnTransform = OpeningRef.Transform;
+	SpawnedActor->SetActorTransform(SpawnTransform);
+	if (SpawnedActor->Tags.Contains(FName("Opening")))
+	{
+		SpawnedActor->Tags.Add(FName("Opening"));
+	}
+
+
+			
+
+	FGeneratedOpening NewOpening;
+	NewOpening.Transform = SpawnedActor->GetActorTransform();
+	NewOpening.Mesh = SpawnedActor;
+	NewOpening.bShouldCutHoleInTargetMesh = OpeningRef.bShouldCutHoleInTargetMesh;
+	NewOpening.bShouldApplyBoolean = OpeningRef.bShouldApplyBoolean;
+	NewOpening.bShouldSnapToGroundSurface = OpeningRef.bShouldSnapToGroundSurface;
+	NewOpening.BooleanShape = OpeningRef.BooleanShape;
+	NewOpening.Fit = OpeningRef.Fit;
+	NewOpening.CenteredOffset = OpeningRef.CenteredOffset;
+			
+	if (OutputActor)
+	{
+		SpawnedActor->AttachToActor(OutputActor, FAttachmentTransformRules::KeepWorldTransform);
+		OutputActor->AddGeneratedOpeningEntry(NewOpening);
+	}
+
+	if (!bIsEditing)
+	{
+		CachedOpenings.Openings.Add(NewOpening);
+	}
+	else
+	{
+		EditedOpenings.Openings.Add(NewOpening);
+		EditModeSpawnedActors.Add(SpawnedActor);
+	}
+
+	// Add a gizmo so in edit mode the user can move without needing to use the modifiers.
+	EToolsFrameworkOutcomePins OutCome;
+	FScriptableToolGizmoOptions GizmoOptions;
+	GizmoOptions.bAllowNegativeScaling = false;
+			
+	CreateTRSGizmo(SpawnedActor->GetFName().ToString(), SpawnedActor->GetActorTransform(), GizmoOptions, OutCome);
+	SetGizmoVisible(SpawnedActor->GetFName().ToString(), bSetGizmoActive);
+}
+
+void UBuildingGeneratorTool::HideAllGizmos()
+{
+	for (const auto& Gizmo : Gizmos)
+	{
+		Gizmo.Value->SetVisibility(false);
+	}
+}
+
+void UBuildingGeneratorTool::ResetBrush()
+{
+	Brush->SetVisibility(true);
+	CopiedScale = FVector::Zero();
+	LastHoveredOpening = nullptr;
+	bIsSnapping = false;
+	SnapStartLocation = FVector::ZeroVector;
+	SnapStartRotation = FRotator::ZeroRotator;
+	bIsCopying = false;
+	HideAllGizmos();
 }
 
 

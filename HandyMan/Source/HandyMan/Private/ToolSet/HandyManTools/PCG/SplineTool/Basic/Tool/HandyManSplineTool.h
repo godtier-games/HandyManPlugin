@@ -174,7 +174,6 @@ public:
 
 
 #pragma region SETTINGS
-class UHoudiniPublicAPIAssetWrapper;
 class USingleClickOrDragInputBehavior;
 class UConstructionPlaneMechanic;
 class USplineComponent;
