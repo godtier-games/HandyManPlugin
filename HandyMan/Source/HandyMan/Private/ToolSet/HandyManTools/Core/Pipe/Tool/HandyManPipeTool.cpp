@@ -28,10 +28,19 @@ UHandyManPipeToolBuilder::UHandyManPipeToolBuilder(const FObjectInitializer& Obj
 
 bool UHandyManPipeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	int32 NumSplines = ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Object) -> bool
+	// TODO : For now if you select a handy man actor this tool will ignore it and not build. In the future this should tell the tool to not spawn new actors and instead used the ones passed in.
+	for (const auto& Item : SceneState.SelectedActors)
+	{
+		if (Item->IsA(AHandyManPipeActor::StaticClass()))
 		{
-			return Object->IsA<USplineComponent>();
-		});
+			return false;
+		}
+	}
+	
+	int32 NumSplines = ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Object) -> bool
+	{
+		return Object->IsA<USplineComponent>();
+	});
 	FIndex2i SupportedRange = GetSupportedSplineCountRange();
 	return (NumSplines >= SupportedRange.A && (SupportedRange.B == -1 || NumSplines <= SupportedRange.B));
 }
