@@ -62,6 +62,9 @@ struct FSweepOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bFlipOrientation = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bEndCaps = false;
+
 	/* If true, the target mesh will be reset to an empty mesh before the sweep operation
 	 * Set this to false if you are sweeping multiple times on the same mesh
 	 */

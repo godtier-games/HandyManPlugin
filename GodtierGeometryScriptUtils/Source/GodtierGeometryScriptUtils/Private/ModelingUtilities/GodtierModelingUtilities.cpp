@@ -270,6 +270,7 @@ UDynamicMesh* UGodtierModelingUtilities::SweepGeometryAlongSpline(FSweepOptions 
 	SweepGen.InitialFrame = FFrame3d(SweepGen.Path[0]);
 	SweepGen.StartScale = SweepOptions.StartEndRadius.X;
 	SweepGen.EndScale = SweepOptions.StartEndRadius.Y;
+	SweepGen.bCapped = SweepOptions.bEndCaps;
 
 	
 

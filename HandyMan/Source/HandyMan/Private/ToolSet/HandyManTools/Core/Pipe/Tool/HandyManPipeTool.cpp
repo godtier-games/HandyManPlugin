@@ -3,7 +3,9 @@
 
 #include "HandyManPipeTool.h"
 
+#include "ModelingToolTargetUtil.h"
 #include "ToolBuilderUtil.h"
+#include "ToolTargetManager.h"
 #include "Components/SplineComponent.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
 #include "ToolSet/HandyManTools/Core/Pipe/Actor/HandyManPipeActor.h"
@@ -15,7 +17,8 @@
 using namespace UE::Geometry;
 
 #pragma region BUILDER
-UHandyManPipeToolBuilder::UHandyManPipeToolBuilder()
+UHandyManPipeToolBuilder::UHandyManPipeToolBuilder(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
 {
 	AcceptedClasses.Empty();
 	AcceptedClasses.Add(USplineComponent::StaticClass());
@@ -35,7 +38,9 @@ bool UHandyManPipeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState)
 
 void UHandyManPipeToolBuilder::SetupTool(const FToolBuilderState& SceneState, UInteractiveTool* Tool) const
 {
-	Super::SetupTool(SceneState, Tool);
+	UHandyManPipeTool* NewTool = Cast<UHandyManPipeTool>(Tool);
+	NewTool->SetTargetActors(SceneState.SelectedActors);
+	OnSetupTool(NewTool, SceneState.SelectedActors, SceneState.SelectedComponents);
 }
 #pragma endregion
 
@@ -46,55 +51,83 @@ UHandyManPipeTool::UHandyManPipeTool()
 {
 	ToolName = LOCTEXT("PipeToolName", "Pipe");
 	ToolTooltip = LOCTEXT("PipeToolDescription", "Sweeps circular geometry along an input spline");
-	ToolLongName = LOCTEXT("PipeToolLongName", "Generate Building From Blockout");
+	ToolLongName = LOCTEXT("PipeToolLongName", "Pipe Tool");
 	ToolShutdownType = EScriptableToolShutdownType::AcceptCancel;
 	ToolStartupRequirements = EScriptableToolStartupRequirements::Custom;
 	CustomToolBuilderClass = UHandyManPipeToolBuilder::StaticClass();
 }
 
-void UHandyManPipeTool::SpawnOutputActorInstance(const UHandyManPipeToolProperties* InSettings, const FTransform& SpawnTransform)
+void UHandyManPipeTool::SetTargetActors(const TArray<AActor*>& InActors)
+{
+	TargetActors = InActors;
+}
+
+void UHandyManPipeTool::SpawnOutputActorInstance(const UHandyManPipeToolProperties* InSettings)
 {
 	if (GetHandyManAPI() && InSettings)
 	{
 		for (const auto& Target : TargetActors)
 		{
-			const USplineComponent* TargetSpline = Target->FindComponentByClass<USplineComponent>();
-			// Generate the splines from the input actor
-			FActorSpawnParameters Params = FActorSpawnParameters();
-			Params.ObjectFlags = RF_Transactional;
-			FString name = FString::Format(TEXT("Actor_{0}"), { "Pipe" });
-			FName fname = MakeUniqueObjectName(nullptr, AHandyManPipeActor::StaticClass(), FName(*name));
-			Params.Name = fname;
-			Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+			TArray<USplineComponent*> Splines;
+			Target->GetComponents<USplineComponent>(Splines);
 
-			auto World = GetToolWorld();
-			auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
-			if (auto SpawnedActor =  World->SpawnActor<AHandyManPipeActor>(ClassToSpawn, Params))
+			for (const USplineComponent* TargetSpline : Splines)
 			{
-				// Initalize the actor
-				SpawnedActor->SetActorTransform(Target->GetActorTransform());
-				SpawnedActor->GetDynamicMeshComponent()->SetMaterial(0, InSettings->PipeMaterial);
-				SpawnedActor->PipeMaterial = InSettings->PipeMaterial;
-				SpawnedActor->bFlipOrientation = InSettings->bFlipOrientation;
-				SpawnedActor->PolygroupMode = InSettings->PolygroupMode;
-				SpawnedActor->SampleSize = InSettings->SampleSize;
-				SpawnedActor->ShapeRadius = InSettings->ShapeRadius;
-				SpawnedActor->ShapeSegments = InSettings->ShapeSegments;
-				SpawnedActor->RotationAngleDeg = InSettings->RotationAngleDeg;
-				SpawnedActor->StartEndRadius = InSettings->StartEndRadius;
-				SpawnedActor->bProjectPointsToSurface = InSettings->bProjectPointsToSurface;
-				SpawnedActor->UVMode = InSettings->UVMode;
+				// Generate the splines from the input actor
+				FActorSpawnParameters Params = FActorSpawnParameters();
+				Params.ObjectFlags = RF_Transactional;
+				FString name = FString::Format(TEXT("HandyMan_{0}"), { "Pipe" });
+				FName UniqueName = MakeUniqueObjectName(nullptr, AHandyManPipeActor::StaticClass(), FName(*name));
+				Params.Name = UniqueName;
+				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 
-				for (int i = 0; i < TargetSpline->GetNumberOfSplinePoints(); ++i)
+				auto World = GetToolWorld();
+				auto ClassToSpawn = GetHandyManAPI()->GetPCGActorClass(FName(ToolName.ToString()));
+
+				if (ClassToSpawn == nullptr)
 				{
-					SpawnedActor->SplineComponent->AddPoint(TargetSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World));
-
+					ClassToSpawn = AHandyManPipeActor::StaticClass();
 				}
-			
-				OutputActorMap.Add(SpawnedActor->GetFName(), SpawnedActor);
+				
+				if (auto SpawnedActor =  World->SpawnActor<AHandyManPipeActor>(ClassToSpawn, Params))
+				{
+					
+					// This is also editor-only: it's the label that shows up in the hierarchy
+					FActorLabelUtilities::SetActorLabelUnique(SpawnedActor, UniqueName.ToString());
+					// Initalize the actor
+					SpawnedActor->SetActorTransform(Target->GetActorTransform());
+					SpawnedActor->GetDynamicMeshComponent()->SetMaterial(0, InSettings->PipeMaterial);
+					SpawnedActor->PipeMaterial = InSettings->PipeMaterial;
+					SpawnedActor->bFlipOrientation = InSettings->bFlipOrientation;
+					SpawnedActor->PolygroupMode = InSettings->PolygroupMode;
+					SpawnedActor->SampleSize = InSettings->SampleSize;
+					SpawnedActor->ShapeRadius = InSettings->ShapeRadius;
+					SpawnedActor->ShapeSegments = InSettings->ShapeSegments;
+					SpawnedActor->RotationAngleDeg = InSettings->RotationAngleDeg;
+					SpawnedActor->StartEndRadius = InSettings->StartEndRadius;
+					SpawnedActor->bProjectPointsToSurface = InSettings->bProjectPointsToSurface;
+					SpawnedActor->UVMode = InSettings->UVMode;
 
-				SpawnedActor->RerunConstructionScripts();
+					SpawnedActor->SplineComponent->SetClosedLoop(TargetSpline->IsClosedLoop());
+					SpawnedActor->SplineComponent->ClearSplinePoints();
+
+					for (int i = 0; i < TargetSpline->GetNumberOfSplinePoints(); ++i)
+					{
+						SpawnedActor->SplineComponent->AddPoint(TargetSpline->GetSplinePointAt(i, ESplineCoordinateSpace::Local), false);
+					}
+
+					SpawnedActor->SplineComponent->UpdateSpline();
+					
+					
+
+			
+					OutputActorMap.Add(SpawnedActor->GetFName(), SpawnedActor);
+					SelectionArray.Add(SpawnedActor);
+
+					SpawnedActor->RerunConstructionScripts();
+				}
 			}
+			
 		}
 		
 		
@@ -109,15 +142,122 @@ void UHandyManPipeTool::Setup()
 {
 	Super::Setup();
 
+	
+
 
 	EToolsFrameworkOutcomePins Outcome;
 	Settings = Cast<UHandyManPipeToolProperties>(AddPropertySetOfType(UHandyManPipeToolProperties::StaticClass(), TEXT("PipeSettings"), Outcome));
+
+	Settings->WatchProperty(Settings->PipeMaterial, [this](TObjectPtr<UMaterialInterface>)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->PipeMaterial = Settings->PipeMaterial;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->ShapeRadius, [this](float)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->ShapeRadius = Settings->ShapeRadius;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->RotationAngleDeg, [this](float)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->RotationAngleDeg = Settings->RotationAngleDeg;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->ShapeSegments, [this](int32)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->ShapeSegments = Settings->ShapeSegments;
+			Item->RerunConstructionScripts();
+		}
+	});
+	Settings->WatchProperty(Settings->PolygroupMode, [this](EGeometryScriptPrimitivePolygroupMode)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->PolygroupMode = Settings->PolygroupMode;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->SampleSize, [this](int32)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->SampleSize = Settings->SampleSize;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->bProjectPointsToSurface, [this](bool)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->bProjectPointsToSurface = Settings->bProjectPointsToSurface;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->UVMode, [this](EGeometryScriptPrimitiveUVMode)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->UVMode = Settings->UVMode;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->WatchProperty(Settings->StartEndRadius, [this](FVector2D)
+	{
+		for (const auto& Item : SelectionArray)
+		{
+			Item->StartEndRadius = Settings->StartEndRadius;
+			Item->RerunConstructionScripts();
+		}
+	});
+	
+	Settings->SilentUpdateWatched();
+	
+	SpawnOutputActorInstance(Settings);
+
 	
 }
 
 void UHandyManPipeTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Super::Shutdown(ShutdownType);
+
+	switch (ShutdownType)
+	{
+	case EToolShutdownType::Completed:
+		break;
+	case EToolShutdownType::Accept:
+		{
+			for (const auto& Item : TargetActors)
+			{
+				Item->Destroy();
+			}
+		}
+		break;
+	case EToolShutdownType::Cancel:
+		for (const auto&  Item : OutputActorMap)
+		{
+			Item.Value->Destroy();
+		}
+		break;
+	}
 }
 
 FInputRayHit UHandyManPipeTool::TestCanHoverFunc_Implementation(const FInputDeviceRay& PressPos, const FScriptableToolModifierStates& Modifiers)
@@ -145,7 +285,7 @@ FInputRayHit UHandyManPipeTool::CanClickDrag_Implementation(const FInputDeviceRa
 
 void UHandyManPipeTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-	LatestPosition = BrushPosition;
+	
 	
 	switch (Button)
 	{
@@ -153,9 +293,7 @@ void UHandyManPipeTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScrip
 		{
 			FHitResult Hit;
 			const bool bWasHit = Trace(Hit, DragPos);
-			UpdateBrush(DragPos);
-			Brush->SetVisibility(true);
-			HideAllGizmos();
+			// TODO : This should be tracing for Pipe Actors and adding them to our current edit selection array.
 		}
 		break;
 	case EScriptableToolMouseButton::RightButton:
@@ -164,54 +302,6 @@ void UHandyManPipeTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScrip
 		{
 			TArray<FHitResult> OutHits;
 			const bool bWasHit = Trace(OutHits, DragPos);
-
-			for (const auto& Hit : OutHits)
-			{
-				if (Hit.GetActor() && Hit.GetActor()->IsA(AStaticMeshActor::StaticClass())
-				&& Cast<AStaticMeshActor>(Hit.GetActor())->GetStaticMeshComponent()->GetStaticMesh()
-				&& LastSpawnedActors.Contains(Hit.GetActor()))
-				{
-				
-					const FName ActorName = Hit.GetActor()->GetFName();
-					EToolsFrameworkOutcomePins OutCome;
-					DestroyTRSGizmo(ActorName.ToString(), OutCome);
-
-					if (!bIsEditing)
-					{
-						LastSpawnedActors.RemoveSingle(Hit.GetActor());
-						Hit.GetActor()->Destroy();
-					
-						for (int i = 0; i < CachedOpenings.Openings.Num(); ++i)
-						{
-							if(!CachedOpenings.Openings[i].Mesh.GetFName().IsEqual(ActorName)) continue;
-							CachedOpenings.Openings.RemoveAt(i);
-							break;
-						}
-
-						if (OutputActor)
-						{
-							OutputActor->UpdatedGeneratedOpenings(CachedOpenings.Openings);
-						}
-					}
-					else
-					{
-						SpawnedActorsToDestroy.Add(Hit.GetActor());
-						Hit.GetActor()->SetIsTemporarilyHiddenInEditor(true);
-						for (int i = 0; i < EditedOpenings.Openings.Num(); ++i)
-						{
-							if(!EditedOpenings.Openings[i].Mesh.GetFName().IsEqual(ActorName)) continue;
-							EditedOpenings.Openings.RemoveAt(i);
-							break;
-						}
-
-						if (OutputActor)
-						{
-							OutputActor->UpdatedGeneratedOpenings(EditedOpenings.Openings);
-						}
-					}
-				
-				}
-			}
 		}
 		
 		break;
@@ -220,216 +310,79 @@ void UHandyManPipeTool::OnClickDrag(const FInputDeviceRay& DragPos, const FScrip
 
 void UHandyManPipeTool::OnDragBegin(const FInputDeviceRay& StartPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-
-	bIsPainting = true;
 	
-	auto PickedMesh = PaintingMesh;
 	FHitResult Hit;
 	const bool bWasHit = Trace(Hit, StartPosition);
 	
 	if (Button == EScriptableToolMouseButton::LeftButton)
-	{
-		if (IsValid(PickedMesh))
-		{
-			if (!IsValid(Brush))
-			{
-				return;
-			}
-
-
-			// If we are holding a modifier key cache the last hovered opening
-			if (!bWasHit && (IsShiftDown() || IsCtrlDown()))
-			{
-				if (!bIsEditing)
-				{
-					if (Hit.GetActor() && CachedOpenings.Contains(Hit.GetActor()))
-					{
-						LastHoveredOpening = Hit.GetActor();
-					}
-				}
-				else
-				{
-					if (Hit.GetActor() && EditedOpenings.Contains(Hit.GetActor()))
-					{
-						LastHoveredOpening = Hit.GetActor();
-					}
-				}
-
-			}
-			else if (bWasHit && !(IsShiftDown() || IsCtrlDown()))
-			{
-				LastHoveredOpening = nullptr;
-			}
-			
-
-			const auto Extent = PickedMesh->GetBounds().BoxExtent;
-				
-			Brush->SetWorldScale3D(FVector(1.0f, 1.0f, 1.0f));
-
-			if (LastHoveredOpening)
-			{
-				if (IsShiftDown() || IsCtrlDown())
-				{
-					if (!bIsSnapping)
-					{
-						bIsSnapping = true;
-						SnapStartLocation = LastHoveredOpening->GetActorLocation();
-						SnapStartRotation = LastHoveredOpening->GetActorRotation();
-						Brush->SetWorldLocation(SnapStartLocation);
-						Brush->AddLocalOffset(FVector(Extent.X, 0, 0));
-					}
-				}
-				else
-				{
-					bIsSnapping = false;
-					SnapStartLocation = FVector::ZeroVector;
-					SnapStartRotation = FRotator::ZeroRotator;
-					Brush->SetWorldLocation(Hit.Location);
-				}
-
-				if (IsShiftDown() && !IsCtrlDown())
-				{
-					SnappingDirection = FVector(0, 1, 0);
-					bIsSnappingOnRightAxis = true;
-				}
-
-				if (!IsShiftDown() && IsCtrlDown())
-				{
-					SnappingDirection = FVector(0, 0, 1);
-					bIsSnappingOnRightAxis = false;
-				}
-			}
-			else
-			{
-				Brush->SetWorldLocation(Hit.Location);
-			}
-			
-			LastFrameScreenPosition = StartPosition.ScreenPosition;
-		}
-	
+	{	
+		// TODO: Cache the initial location so we can use it in a delta calculation
 	}
 	
 }
 
 void UHandyManPipeTool::OnDragEnd(const FInputDeviceRay& EndPosition, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& Button)
 {
-	if (!bIsPainting)
-	{
-		return;
-	}
 
 	if (Button == EScriptableToolMouseButton::LeftButton)
 	{
-		if (!PaintingMesh)
-		{
-			FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-				LOCTEXT("UHandyManPipeTool", "You are trying to add meshes to the building but no mesh is selected. Please select a mesh by dragging it into the scene from the asset or content browser."));
-			return;
-		}
-			
+		
 		FHitResult Hit;
 		const bool bWasHit = Trace(Hit, EndPosition);
-		
-		if (bWasHit && IsValid(PaintingMesh))
-		{
 
-			FDynamicOpening OpeningRef;
-
-			for (int i = 0; i < Settings->Openings->Openings.Num(); ++i)
-			{
-				UObject* NextMesh = Settings->Openings->Openings[i].Mesh;
-
-				if (!IsValid(NextMesh))
-				{
-					return;
-				}
-
-				if (NextMesh->IsA(AActor::StaticClass()))
-				{
-					TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
-
-					if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
-					{
-						if (Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh() == PaintingMesh)
-						{
-							OpeningRef = Settings->Openings->Openings[i];
-							break;
-						}
-					}
-				}
-				else if (NextMesh->IsA(UStaticMesh::StaticClass()))
-				{
-					if (Cast<UStaticMesh>(NextMesh) == PaintingMesh)
-					{
-						OpeningRef = Settings->Openings->Openings[i];
-						break;
-					}
-				}
-			}
-		
-			bIsPainting = true;
-
-			LastSpawnedPosition = Hit.Location;
-			auto Rotation = Hit.Normal.Rotation();
-
-			
-			SpawnOpeningFromReference(OpeningRef, Rotation);
-		}
-
-		ResetBrush();
+		// TODO: Cache the final location to use in a delta calculation 
 	}
 }
 
 FInputRayHit UHandyManPipeTool::CanClickFunc_Implementation(const FInputDeviceRay& PressPos, const EScriptableToolMouseButton& Button)
 {
-	if (!IsShiftDown() && !IsCtrlDown())
-	{
-		return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
-	}
 
-	
-	
 	FVector Start = PressPos.WorldRay.Origin;
 	FVector End = PressPos.WorldRay.Origin + PressPos.WorldRay.Direction * HALF_WORLD_MAX;
 	FHitResult Hit;
 
-	if (GetToolWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
+	if (Button == EScriptableToolMouseButton::LeftButton)
 	{
-		if (IsValid(Hit.GetActor()))
+		
+		if (GetToolWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
 		{
-			if (Hit.GetActor()->IsA(APCG_Pipe::StaticClass()))
+			if (!IsValid(Hit.GetActor()))
 			{
-				ResetBrush();
-				
-				return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+				return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
+			}
+
+			if (IsShiftDown() && !IsCtrlDown())
+			{
+				if (Hit.GetActor()->IsA(AHandyManPipeActor::StaticClass()))
+				{
+					// Add this actor to our selection array
+					SelectionArray.Add(Cast<AHandyManPipeActor>(Hit.GetActor()));
+					return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+				}
+			}
+			else if (IsCtrlDown() && !IsShiftDown())
+			{
+				if (Hit.GetActor()->IsA(AHandyManPipeActor::StaticClass()) && SelectionArray.Contains(Cast<AHandyManPipeActor>(Hit.GetActor())))
+				{
+					// Add this actor to our selection array
+					SelectionArray.Remove(Cast<AHandyManPipeActor>(Hit.GetActor()));
+					return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+				}
 			}
 
 			
-			bool bHasHitAnOpening = false;
-			if (!bIsEditing)
-			{
-				for (const auto& Opening : CachedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(Hit.GetActor()->GetFName())) continue;
-					bHasHitAnOpening = true;
-				}
-			}
-			else
-			{
-				for (const auto& Opening : EditedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(Hit.GetActor()->GetFName())) continue;
-					bHasHitAnOpening = true;
-				}
-			}
-
-			if (bHasHitAnOpening)
-			{
-				bIsCopying = false;
-				return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
-			}
+				
 		}
 	}
+	else if (Button == EScriptableToolMouseButton::RightButton)
+	{
+		// Clear all
+		if (IsCtrlDown() && !IsShiftDown())
+		{
+			SelectionArray.Empty();
+		}
+	}
+	
 	
 	return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
 
@@ -438,7 +391,7 @@ FInputRayHit UHandyManPipeTool::CanClickFunc_Implementation(const FInputDeviceRa
 
 void UHandyManPipeTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers, const EScriptableToolMouseButton& MouseButton)
 {
-	FVector Start = ClickPos.WorldRay.Origin;
+	/*FVector Start = ClickPos.WorldRay.Origin;
 	FVector End = ClickPos.WorldRay.Origin + ClickPos.WorldRay.Direction * HALF_WORLD_MAX;
 	FHitResult Hit;
 
@@ -500,7 +453,7 @@ void UHandyManPipeTool::OnHitByClickFunc(const FInputDeviceRay& ClickPos, const 
 
 			GetToolManager()->EndUndoTransaction();
 		}
-	}
+	}*/
 }
 
 bool UHandyManPipeTool::MouseBehaviorModiferCheckFunc(const FInputDeviceState& InputDeviceState)
@@ -525,180 +478,30 @@ void UHandyManPipeTool::OnMouseWheelUp(const FInputDeviceRay& ClickPos, const FS
 	// Get the current index of the selected mesh and increment it by 1 to select the next mesh
 	// If this is the last mesh in the array then loop back to the first mesh
 
-	if (Settings->Openings->Openings.Num() == 0)
+	if (Settings)
 	{
-		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			LOCTEXT("UHandyManPipeTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
-		return;
-	}
-
-	int32 NextIndex = LastOpeningIndex + 1;
-	
-	if (NextIndex == Settings->Openings->Openings.Num())
-	{
-		NextIndex = 0;
-	}
-
-	LastOpeningIndex = NextIndex;
-
-	// Get the mesh and spawn it as the type of actor necessary
-	UObject* NextMesh = Settings->Openings->Openings[NextIndex].Mesh;
-
-	if (!IsValid(NextMesh))
-	{
-		return;
-	}
-
-	if (NextMesh->IsA(AActor::StaticClass()))
-	{
-		// Get The static mesh component and set the brushes mesh to the static mesh
-		TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
-
-		if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
-		{
-			PaintingMesh = Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh();
-			Brush->SetStaticMesh(PaintingMesh);
-			Brush->SetWorldScale3D(FVector::One());
-		}
-	}
-	else if (NextMesh->IsA(UStaticMesh::StaticClass()))
-	{
-		// Get The static mesh and set the brushes mesh to the static mesh
-		PaintingMesh = Cast<UStaticMesh>(NextMesh);
-		Brush->SetStaticMesh(PaintingMesh);
-		Brush->SetWorldScale3D(FVector::One());
-	}
-	else
-	{
-		// Error Dialogue
+		Settings->ShapeRadius += 0.25f;
 	}
 	
 }
 
 void UHandyManPipeTool::OnMouseWheelDown(const FInputDeviceRay& ClickPos, const FScriptableToolModifierStates& Modifiers)
 {
-	if (Settings->Openings->Openings.Num() == 0)
+	if (Settings)
 	{
-		FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok,
-			LOCTEXT("UHandyManPipeTool", "You do not have any openings set up in the settings. Please add some openings to the settings."));
-		return;
-	}
-
-	int32 NextIndex = LastOpeningIndex - 1;
-	
-	if (NextIndex < 0)
-	{
-		NextIndex = Settings->Openings->Openings.Num() - 1;
-	}
-
-	LastOpeningIndex = NextIndex;
-
-	// Get the mesh and spawn it as the type of actor necessary
-	UObject* NextMesh = Settings->Openings->Openings[NextIndex].Mesh;
-
-	if (!IsValid(NextMesh))
-	{
-		return;
-	}
-
-	if (NextMesh->IsA(AActor::StaticClass()))
-	{
-		// Get The static mesh component and set the brushes mesh to the static mesh
-		TArray<UActorComponent*> ComponentsArray = Cast<AActor>(NextMesh)->K2_GetComponentsByClass(UStaticMeshComponent::StaticClass());
-
-		if (IsValid(ComponentsArray[0]) && IsValid(Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh()))
-		{
-			PaintingMesh = Cast<UStaticMeshComponent>(ComponentsArray[0])->GetStaticMesh();
-			Brush->SetStaticMesh(PaintingMesh);
-			Brush->SetWorldScale3D(FVector::One());
-		}
-	}
-	else if (NextMesh->IsA(UStaticMesh::StaticClass()))
-	{
-		// Get The static mesh and set the brushes mesh to the static mesh
-		PaintingMesh = Cast<UStaticMesh>(NextMesh);
-		Brush->SetStaticMesh(PaintingMesh);
-		Brush->SetWorldScale3D(FVector::One());
-	}
-	else
-	{
-		// Error Dialogue
+		Settings->ShapeRadius -= 0.25f;
 	}
 }
 
 void UHandyManPipeTool::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
 {
 	Super::OnGizmoTransformChanged_Handler(GizmoIdentifier, NewTransform);
-
-	// TODO : This doesn't work currently it crashes the engine.
-	if (Settings)
-	{
-		/*const FVector& Loc = NewTransform.GetLocation();
-		const FVector& Offset = FVector::UpVector * 100.0f;
-	
-		FHitResult Hit;
-	
-		if (GetToolWorld()->LineTraceSingleByChannel(Hit, Loc + Offset, Loc - Offset, ECC_Visibility))
-		{
-			if (Hit.GetActor() && Hit.GetActor()->IsA(APCG_Pipe::StaticClass()))
-			{
-				SetGizmoTransform(GizmoIdentifier, FTransform(NewTransform.GetRotation(), Hit.Location, NewTransform.GetScale3D()), false);
-			}
-		}
-		*/
-
-		UpdateOpeningTransforms(GizmoIdentifier, NewTransform);
-		OutputActor->RerunConstructionScripts();
-		
-	}
-	
 }
 
 void UHandyManPipeTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
 {
 	Super::OnGizmoTransformStateChange_Handler(GizmoIdentifier, CurrentTransform, ChangeType);
-
-	if (ChangeType == EScriptableToolGizmoStateChangeType::BeginTransform)
-	{
-		if (IsCtrlDown() && !bIsCopying)
-		{
-			if (!bIsEditing)
-			{
-				// Spawn another actor in the current location of the gizmo
-				for (const auto& Opening : CachedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
-					SpawnOpeningFromReference(Opening, false);
-					//HideAllGizmos();
-					bIsCopying = true;
-					return;
-				}
-			}
-			else
-			{
-				// Spawn another actor in the current location of the gizmo
-				for (const auto& Opening : EditedOpenings.Openings)
-				{
-					if(!Opening.Mesh.GetFName().IsEqual(FName(*GizmoIdentifier))) continue;
-					SpawnOpeningFromReference(Opening, false);
-					//HideAllGizmos();
-					bIsCopying = true;
-					return;
-				}
-			}
-		}
-	}
-
-	if (ChangeType == EScriptableToolGizmoStateChangeType::EndTransform || ChangeType == EScriptableToolGizmoStateChangeType::UndoRedo)
-	{
 	
-		UpdateOpeningTransforms(GizmoIdentifier, CurrentTransform);
-		bIsCopying = false;
-		OutputActor->RerunConstructionScripts();
-	}
-	
-
-
 }
 #pragma endregion
 

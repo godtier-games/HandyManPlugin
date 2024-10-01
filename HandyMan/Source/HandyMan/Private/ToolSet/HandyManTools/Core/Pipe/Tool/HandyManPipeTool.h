@@ -62,9 +62,11 @@ class HANDYMAN_API UHandyManPipeTool : public UHandyManModularTool
 
 public:
 
+	void SetTargetActors(const TArray<AActor*>& InActors); // TODO : Add this to an interface for easier access later when building new tools
+
 	UHandyManPipeTool();
 
-	void SpawnOutputActorInstance(const UHandyManPipeToolProperties* InSettings, const FTransform& SpawnTransform);
+	void SpawnOutputActorInstance(const UHandyManPipeToolProperties* InSettings);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -136,6 +138,9 @@ protected:
 
 	UPROPERTY()
 	TArray<AActor*> TargetActors;
+
+	UPROPERTY()
+	TArray<AHandyManPipeActor*> SelectionArray;
 	
 
 	
@@ -151,7 +156,7 @@ class HANDYMAN_API UHandyManPipeToolBuilder : public UHandyManToolWithTargetBuil
 	GENERATED_BODY()
 
 public:
-	UHandyManPipeToolBuilder();
+	UHandyManPipeToolBuilder(const FObjectInitializer& ObjectInitializer);
 	/** @return true if spline component sources can be found in the active selection */
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 

@@ -40,9 +40,17 @@ void AHandyManPipeActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	Options.Spline = SplineComponent;
 	Options.bFlipOrientation = bFlipOrientation;
 	Options.bResampleCurve = true;
-	Options.SampleSize = 10;
+	Options.SampleSize = SampleSize;
+	Options.PolygroupMode = PolygroupMode;
+	Options.UVMode = UVMode;
+	Options.ShapeRadius = ShapeRadius;
+	Options.StartEndRadius = StartEndRadius;
+	Options.RotationAngleDeg = RotationAngleDeg;
+	Options.ShapeType = ESweepShapeType::Circle;
+	Options.bEndCaps = true;
 	
-	UGodtierModelingUtilities::SweepGeometryAlongSpline(Options);
+	
+	UGodtierModelingUtilities::SweepGeometryAlongSpline(Options, ESplineCoordinateSpace::Local);
 	
 	Super::RebuildGeneratedMesh(TargetMesh);
 }
