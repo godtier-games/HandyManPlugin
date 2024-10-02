@@ -3,6 +3,7 @@
 #include "HandyManEditorMode.h"
 
 #include "AssetEditorModeManager.h"
+#include "ContextObjectStore.h"
 #include "EditorAssetLibrary.h"
 #include "EditorModelingObjectsCreationAPI.h"
 #include "HandyManEditorModeToolkit.h"
@@ -35,6 +36,7 @@
 #include "ToolTargetManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/BrushComponent.h"
+#include "Engine/StreamableManager.h"
 #include "Selection/StaticMeshSelector.h"
 #include "Selection/VolumeSelector.h"
 #include "ToolSet/Core/HandyManSubsystem.h"
@@ -44,6 +46,7 @@
 #include "ToolTargets/SkeletalMeshToolTarget.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
 #include "ToolTargets/VolumeComponentToolTarget.h"
+#include "Utility/ScriptableToolContextObjects.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -72,7 +75,7 @@ UHandyManEditorMode::UHandyManEditorMode()
 {
 	Info = FEditorModeInfo(
 		EM_HandyManEditorModeId,
-		LOCTEXT("HandyManEditorModeName", "Handy Man Tools"),
+		LOCTEXT("HandyManEditorModeName", "Handy Man"),
 		FSlateIcon("HandyManEditorModeStyle", "LevelEditor.HandyManEditorMode", "LevelEditor.HandyManEditorMode.Small"),
 		true,
 		999999);
@@ -264,13 +267,10 @@ void UHandyManEditorMode::Enter()
 
 
 	ScriptableTools = NewObject<UHandyManScriptableToolSet>(this);
-	// find all the Tool Blueprints
-	ScriptableTools->ReinitializeCustomScriptableTools();
-	// register each of them with ToolManager
-	ScriptableTools->ForEachScriptableTool([&](UClass* ToolClass, UInteractiveToolBuilder* ToolBuilder) 
+
+	HandyManAPI->GetHandyManSettings()->OnSettingChanged().AddLambda([this](UObject*, FPropertyChangedEvent&)
 	{
-		FString UseName = ToolClass->GetName();
-		GetToolManager(EToolsContextScope::EdMode)->RegisterToolType(UseName, ToolBuilder);
+		RebuildScriptableToolSet();
 	});
 	
 	// todoz
@@ -284,8 +284,11 @@ void UHandyManEditorMode::Enter()
 	{
 		FHandyManEditorModeToolkit* ModeToolkit = (FHandyManEditorModeToolkit*)Toolkit.Get();
 		ModeToolkit->InitializeAfterModeSetup();
-		ModeToolkit->ForceToolPaletteRebuild();
 	}
+
+	RebuildScriptableToolSet();
+
+	InitializeModeContexts();
 }
 
 
@@ -308,6 +311,98 @@ void UHandyManEditorMode::OnBlueprintCompiled()
 		FHandyManEditorModeToolkit* ModeToolkit = (FHandyManEditorModeToolkit*)Toolkit.Get();
 		ModeToolkit->ForceToolPaletteRebuild();
 	}
+}
+
+void UHandyManEditorMode::InitializeModeContexts()
+{
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+
+	auto AddContextObject = [this, ContextStore](UScriptableToolContextObject* Object)
+	{
+		if (ensure(ContextStore->AddContextObject(Object)))
+		{
+			ContextsToShutdown.Add(Object);
+		}
+		ContextsToUpdateOnToolEnd.Add(Object);
+	};
+
+	UScriptableToolViewportWidgetAPI* ViewportWidgetAPI = NewObject<UScriptableToolViewportWidgetAPI>();
+	ViewportWidgetAPI = NewObject<UScriptableToolViewportWidgetAPI>();
+	ViewportWidgetAPI->Initialize(
+		[this](TSharedRef<SWidget> InOverlaidWidget) {
+			Toolkit->GetToolkitHost()->AddViewportOverlayWidget(InOverlaidWidget);
+		},
+		[this](TSharedRef<SWidget> InOverlaidWidget) {
+			Toolkit->GetToolkitHost()->RemoveViewportOverlayWidget(InOverlaidWidget);
+		}
+		);
+	AddContextObject(ViewportWidgetAPI);
+
+}
+
+void UHandyManEditorMode::RebuildScriptableToolSet()
+{
+	UHandyManSettings* ModeSettings = GetMutableDefault<UHandyManSettings>();
+
+	auto UnregisterTools = [this]()
+	{
+		// unregister old tools from ToolManager
+		ScriptableTools->ForEachScriptableTool([&](UClass* ToolClass, UInteractiveToolBuilder* ToolBuilder)
+			{
+				FString UseName;
+				ToolClass->GetClassPathName().ToString(UseName);
+				GetToolManager(EToolsContextScope::EdMode)->UnregisterToolType(UseName);
+			});
+
+		if (Toolkit.IsValid())
+		{
+			FHandyManEditorModeToolkit* ModeToolkit = (FHandyManEditorModeToolkit*)Toolkit.Get();
+			ModeToolkit->StartAsyncToolLoading();
+		};
+	};
+
+	auto RegisterTools = [this]()
+	{
+		// register each of them with ToolManager
+		ScriptableTools->ForEachScriptableTool([&](UClass* ToolClass, UInteractiveToolBuilder* ToolBuilder)
+		{
+			FString UseName;
+			ToolClass->GetClassPathName().ToString(UseName);
+			GetToolManager(EToolsContextScope::EdMode)->RegisterToolType(UseName, ToolBuilder);
+		});
+
+		if (Toolkit.IsValid())
+		{
+			FHandyManEditorModeToolkit* ModeToolkit = (FHandyManEditorModeToolkit*)Toolkit.Get();
+			ModeToolkit->EndAsyncToolLoading();
+			ModeToolkit->ForceToolPaletteRebuild();
+		}
+	};
+
+	auto ToolLoadingUpdate = [this](TSharedPtr<FStreamableHandle> Handle)
+	{
+		if (Toolkit.IsValid())
+		{
+			FHandyManEditorModeToolkit* ModeToolkit = (FHandyManEditorModeToolkit*)Toolkit.Get();
+			ModeToolkit->SetAsyncProgress(Handle->GetProgress());
+		}
+	};
+
+	// find all the Tool Blueprints
+	if (ModeSettings->RegisterAllTools())
+	{
+		ScriptableTools->ReinitializeScriptableTools(FToolsLoadedDelegate::CreateLambda(UnregisterTools),
+													 FToolsLoadedDelegate::CreateLambda(RegisterTools),
+			                                         FToolsLoadingUpdateDelegate::CreateLambda(ToolLoadingUpdate));
+	}
+	else
+	{
+		ScriptableTools->ReinitializeScriptableTools(FToolsLoadedDelegate::CreateLambda(UnregisterTools),
+												     FToolsLoadedDelegate::CreateLambda(RegisterTools),
+			                                         FToolsLoadingUpdateDelegate::CreateLambda(ToolLoadingUpdate),
+			                                         &ModeSettings->ToolRegistrationFilters);
+	}	
+
 }
 
 void UHandyManEditorMode::Exit()

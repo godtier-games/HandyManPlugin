@@ -6,14 +6,21 @@
 #include "DetailCustomizations/BrushSize/HandyManBrushSizeCustomization.h"
 #include "DetailCustomizations/SculptTool/HandyManSculptToolCustomizations.h"
 #include "ToolSet/HandyManTools/Core/MorphTargetCreator/Tool/MorphTargetCreator.h"
+#include "UI/HandyManGroupSetCustomization.h"
 
 #define LOCTEXT_NAMESPACE "HandyManModule"
+
+static const FName PropertyEditorModuleName("PropertyEditor");
+static const FName ScriptableToolGroupSetName("ScriptableToolGroupSet");
 
 void FHandyManModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FHandyManModule::OnPostEngineInit);
+	
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(PropertyEditorModuleName);
+	PropertyModule.RegisterCustomPropertyTypeLayout(ScriptableToolGroupSetName, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHandyManGroupSetCustomization::MakeInstance));
 }
 
 void FHandyManModule::ShutdownModule()

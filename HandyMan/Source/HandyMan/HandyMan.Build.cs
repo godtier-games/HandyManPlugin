@@ -67,7 +67,7 @@ public class HandyMan : ModuleRules
 				"GeometryScriptingEditor",
 				"DynamicMesh", 
 				"MeshModelingToolsExp",
-				"SkeletalMeshDescription"
+				"SkeletalMeshDescription", 
 
 				// ... add other public dependencies that you statically link with here ...
 			}

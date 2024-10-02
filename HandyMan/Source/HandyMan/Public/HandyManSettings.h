@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "Tags/ScriptableToolGroupSet.h"
 #include "HandyManSettings.generated.h"
 
 class UPCGAssetWrapper;
@@ -81,12 +82,18 @@ public:
 
 	virtual FName GetContainerName() const override { return FName("Project"); }
 	virtual FName GetCategoryName() const override { return FName("Godtier Games"); }
-	virtual FName GetSectionName() const override { return FName("ModelingMode"); }
+	virtual FName GetSectionName() const override { return FName("Handy Man"); }
 
 	virtual FText GetSectionText() const override;
 	virtual FText GetSectionDescription() const override;
 
 	//UHoudiniAssetWrapper* GetDigitalAssetLibrary() const;
+
+	UPROPERTY(config, EditAnywhere, Category = "Handy Man Mode|Tool Registration")
+	FScriptableToolGroupSet ToolRegistrationFilters;
+
+	bool RegisterAllTools() const {	return ToolRegistrationFilters.GetGroups().IsEmpty(); }
+
 	
 	UPCGAssetWrapper* GetPCGActorLibrary() const;
 	TArray<FName> GetToolsWithBlockedDialogs() const { return BlockedDialogsArray; }

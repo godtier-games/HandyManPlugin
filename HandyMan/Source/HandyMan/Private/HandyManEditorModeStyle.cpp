@@ -59,6 +59,8 @@ void FHandyManEditorModeStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::ProjectPluginsDir() / TEXT("Slate"));
 
 	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	
+	StyleSet->Set("ToolPalette.MenuIndicator", new IMAGE_PLUGIN_SVG("Icons/chevron-right", Icon20x20, FStyleColors::Foreground));
 
 	{
 		StyleSet->Set("LevelEditor.HandyManEditorMode", new IMAGE_PLUGIN_BRUSH("Icons/HandyManEditorMode_Icon_40x", FVector2D(20.0f, 20.0f)));
