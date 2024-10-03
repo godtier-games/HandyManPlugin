@@ -29,9 +29,6 @@ struct FAnimToTextureData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<USkeletalMesh> Source;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EAnimTextureResolution Resolution = EAnimTextureResolution::Size_8192;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TObjectPtr<UAnimSequence>> AnimationsToBake;
@@ -41,5 +38,24 @@ struct FAnimToTextureData
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UAnimToTextureDataAsset> Data;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UTexture2D> BonePositionTexture;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UTexture2D> BoneRotationTexture;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UTexture2D> BoneWeightTexture;
+
+	bool IsValid() const
+	{
+		return Source != nullptr && AnimationsToBake.Num() > 0;
+	}
+
+	bool HasCompletedBake() const
+	{
+		return Target != nullptr && Data != nullptr && BonePositionTexture != nullptr && BoneRotationTexture != nullptr && BoneWeightTexture != nullptr;
+	}
 	
 };

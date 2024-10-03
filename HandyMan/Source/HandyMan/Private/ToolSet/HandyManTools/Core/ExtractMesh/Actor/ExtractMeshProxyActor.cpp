@@ -5,13 +5,10 @@
 
 #include "EditorAssetLibrary.h"
 #include "MeshInspectorTool.h"
-#include "GeometryScript/CreateNewAssetUtilityFunctions.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
 #include "GeometryScript/MeshDecompositionFunctions.h"
 #include "GeometryScript/MeshMaterialFunctions.h"
-#include "GeometryScript/MeshModelingFunctions.h"
-#include "GeometryScript/MeshPrimitiveFunctions.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
 
 

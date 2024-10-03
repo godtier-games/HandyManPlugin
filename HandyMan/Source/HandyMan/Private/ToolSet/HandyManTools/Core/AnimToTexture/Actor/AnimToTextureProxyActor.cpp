@@ -3,6 +3,10 @@
 
 #include "AnimToTextureProxyActor.h"
 
+#include "GeometryScript/CreateNewAssetUtilityFunctions.h"
+#include "GeometryScript/MeshAssetFunctions.h"
+
+
 
 // Sets default values
 AAnimToTextureProxyActor::AAnimToTextureProxyActor()
@@ -22,5 +26,25 @@ void AAnimToTextureProxyActor::BeginPlay()
 void AAnimToTextureProxyActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+UStaticMesh* AAnimToTextureProxyActor::MakeStaticMesh(USkeletalMesh* SkeletalMesh, const FString& PackageName)
+{
+	UDynamicMesh* Copy = AllocateComputeMesh();
+
+	FGeometryScriptCopyMeshFromAssetOptions CopyOptions;
+	CopyOptions.bApplyBuildSettings = false;
+
+	FGeometryScriptMeshReadLOD CopyLod;
+	EGeometryScriptOutcomePins Outcome;
+	
+	UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMesh(SkeletalMesh, Copy, CopyOptions, CopyLod, Outcome);
+
+	FGeometryScriptCreateNewStaticMeshAssetOptions CreateNewAssetOptions;
+	CreateNewAssetOptions.bUseOriginalVertexOrder = true;
+
+	auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(Copy, PackageName, CreateNewAssetOptions, Outcome);;
+	ReleaseAllComputeMeshes();
+	return GeneratedAsset;
 }
 

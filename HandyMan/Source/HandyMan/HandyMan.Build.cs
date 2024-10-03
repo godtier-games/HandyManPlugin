@@ -68,7 +68,8 @@ public class HandyMan : ModuleRules
 				"DynamicMesh", 
 				"MeshModelingToolsExp",
 				"SkeletalMeshDescription", 
-				"AnimToTexture"
+				"AnimToTexture",
+				"AnimToTextureEditor"
 
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -139,9 +140,8 @@ public class HandyMan : ModuleRules
 				"StaticMeshDescription",
 				"SkeletalMeshDescription",
 				"MeshConversion",
-				"AnimToTexture"
-
-
+				"AnimToTexture", 
+				"AnimToTextureEditor",
 			}
 			);
 		

@@ -22,4 +22,6 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UStaticMesh* MakeStaticMesh(USkeletalMesh* SkeletalMesh, const FString& PackageName);
 };
