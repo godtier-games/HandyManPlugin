@@ -80,6 +80,10 @@
 		{
 			"Name": "GodtierGeometryScriptUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "AnimToTexture",
+			"Enabled": true
 		}
 	]
 }
