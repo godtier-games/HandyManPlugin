@@ -7,7 +7,7 @@
 #include "Components/SplineComponent.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
 #include "Helpers/PCGGraphParametersHelpers.h"
-#include "ModelingUtilities/GodtierModelingUtilities.h"
+#include "ModelingUtilities/HandyManModelingUtilities.h"
 
 
 // Sets default values
@@ -91,7 +91,7 @@ void APCG_IvyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	{
 		SweepOptions.Spline = Item;
 		SweepOptions.SampleSize = Item->GetSplineLength() / 10;
-		CombinedSplinesMesh = UGodtierModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
+		CombinedSplinesMesh = UHandyManModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
 	}
 
 	UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, CombinedSplinesMesh, FTransform::Identity);

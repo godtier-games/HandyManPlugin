@@ -6,7 +6,7 @@
 #include "GeometryScript/MeshModelingFunctions.h"
 #include "GeometryScript/MeshNormalsFunctions.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
-#include "ModelingUtilities/GodtierModelingUtilities.h"
+#include "ModelingUtilities/HandyManModelingUtilities.h"
 
 
 // Sets default values
@@ -51,7 +51,7 @@ void APCG_DynamicSplineActor::RefreshDynamicCollision()
 		SweepOptions.bFlipOrientation = false;
 		
 
-		UGodtierModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::World);
+		UHandyManModelingUtilities::SweepGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::World);
 
 		FGeometryScriptSplitNormalsOptions SplitNormalsOptions;
 		FGeometryScriptCalculateNormalsOptions CalculateNormalsOptions;
