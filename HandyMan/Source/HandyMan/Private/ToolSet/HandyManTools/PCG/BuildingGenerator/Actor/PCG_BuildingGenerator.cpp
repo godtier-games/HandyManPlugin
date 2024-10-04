@@ -18,9 +18,8 @@
 #include "Helpers/PCGGraphParametersHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "ModelingUtilities/GodtierModelingUtilities.h"
-#include "PolyPathUtilities/GodtierPolyPathUtilities.h"
-#include "SplineUtilities/GodtierSplineUtilities.h"
+#include "ModelingUtilities/HandyManModelingUtilities.h"
+#include "PolyPathUtilities/HandyManPolyPathUtilities.h"
 
 
 // Sets default values
@@ -109,7 +108,7 @@ void APCG_BuildingGenerator::CreateFloorAndRoofSplines()
 	NormalDirections.Add(FVector(0, 0, 1));
 	NormalDirections.Add(FVector(0, 0, -1));
 	
-	auto PolyPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(OriginalMesh, NormalDirections, nullptr);
+	auto PolyPaths = UHandyManPolyPathUtilities::CreatePolyPathFromPlanarFaces(OriginalMesh, NormalDirections, nullptr);
 	CreateBaseSplinesFromPolyPaths(PolyPaths);
 }
 
@@ -332,7 +331,7 @@ void APCG_BuildingGenerator::GenerateSplinesFromGeneratedMesh()
 	SelfUnionOptions.bFillHoles = false;
 	TempMesh = UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshSelfUnion(TempMesh, SelfUnionOptions);
 	
-	auto PolyPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(TempMesh, NormalDirections, nullptr);
+	auto PolyPaths = UHandyManPolyPathUtilities::CreatePolyPathFromPlanarFaces(TempMesh, NormalDirections, nullptr);
 	
 	CreateBaseSplinesFromPolyPaths(PolyPaths);
 	ReleaseAllComputeMeshes();
@@ -473,7 +472,7 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 {
 	// Duplicate the roof mesh
 	auto* ComputeMesh = AllocateComputeMesh();
-	auto FloorMesh = UGodtierModelingUtilities::GenerateMeshFromPlanarFace(ComputeMesh, OriginalMesh);
+	auto FloorMesh = UHandyManModelingUtilities::GenerateMeshFromPlanarFace(ComputeMesh, OriginalMesh);
 
 	// Move it down to ground level
 	FloorMesh = UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(FloorMesh, FVector(0, 0, -BuildingHeight));
@@ -489,7 +488,7 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 	TArray<FGeometryScriptPolyPath> ArrayOfPaths;
 	if (!bApplyAfterExtrude)
 	{
-		ArrayOfPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(
+		ArrayOfPaths = UHandyManPolyPathUtilities::CreatePolyPathFromPlanarFaces(
 		FloorMesh, {FVector(0, 0, 1)}, nullptr);
 	
 	}
@@ -503,7 +502,7 @@ TArray<FGeometryScriptPolyPath> APCG_BuildingGenerator::UseTopFaceForFloor(UDyna
 
 	if (bApplyAfterExtrude)
 	{
-		ArrayOfPaths = UGodtierPolyPathUtilities::CreatePolyPathFromPlanarFaces(
+		ArrayOfPaths = UHandyManPolyPathUtilities::CreatePolyPathFromPlanarFaces(
 		FloorMesh, {FVector(0, 0, 1)}, nullptr);
 	}
 
@@ -582,7 +581,7 @@ void APCG_BuildingGenerator::GenerateExteriorWalls(UDynamicMesh* TargetMesh)
 		SweepOptions.Height = BuildingHeight;
 		SweepOptions.Width = WallThickness;
 		SweepOptions.bOffsetFromCenter = false;
-		CombinedSplinesMesh = UGodtierModelingUtilities::GenerateCollisionGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
+		CombinedSplinesMesh = UHandyManModelingUtilities::GenerateCollisionGeometryAlongSpline(SweepOptions, ESplineCoordinateSpace::Local, nullptr);
 	}
 
 	AppendOpeningToMesh(CombinedSplinesMesh);
@@ -641,7 +640,7 @@ void APCG_BuildingGenerator::AppendOpeningToMesh(UDynamicMesh* TargetMesh)
 
 			const float Offset = Opening.bShouldCutHoleInTargetMesh ? ScaleOffset : 0.f;
 		
-			ComputeMesh = UGodtierModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BooleanShape, Offset , nullptr);
+			ComputeMesh = UHandyManModelingUtilities::CreateDynamicBooleanMesh(ComputeMesh, Opening.Mesh, Opening.BooleanShape, Offset , nullptr);
 
 			const auto RelativeTransform = UKismetMathLibrary::MakeRelativeTransform(Opening.Mesh->GetActorTransform(), GetActorTransform());
 			UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(ComputeMesh, RelativeTransform, false);

@@ -3,7 +3,7 @@
 
 #include "HandyManPipeActor.h"
 
-#include "ModelingUtilities/GodtierModelingUtilities.h"
+#include "ModelingUtilities/HandyManModelingUtilities.h"
 
 
 
@@ -50,7 +50,7 @@ void AHandyManPipeActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	Options.bEndCaps = true;
 	
 	
-	UGodtierModelingUtilities::SweepGeometryAlongSpline(Options, ESplineCoordinateSpace::Local);
+	UHandyManModelingUtilities::SweepGeometryAlongSpline(Options, ESplineCoordinateSpace::Local);
 	
 	Super::RebuildGeneratedMesh(TargetMesh);
 }
