@@ -5,6 +5,7 @@
 
 #include "AnimToTextureBPLibrary.h"
 #include "AssetToolsModule.h"
+#include "EditorAssetLibrary.h"
 #include "HandyManSettings.h"
 #include "IAssetTools.h"
 #include "Selection.h"
@@ -37,7 +38,7 @@ void UBakeAnimToTexture::Setup()
 			(
 				"UBakeAnimToTexture",
 				"ErrorMessage",
-				"This tool will automatically initialize the mesh"
+				"Pass this tool a skeletal mesh and an array of animations then hit accept and it will automatically bake them into textures. [Disable this popup by adding it to the list of disable dialogs in the Handy Man project settings.]"
 			));
 	}
 
@@ -61,11 +62,27 @@ void UBakeAnimToTexture::Setup()
 	
 	Settings->WatchProperty(Settings->Source, [this](TObjectPtr<USkeletalMesh>)
 	{
-		if (IsValid(Settings->Data) && IsValid(Settings->Source))
+		if (IsValid(Settings->Source))
 		{
 			Initialize();
 		}
 	});
+	
+	Settings->WatchProperty(Settings->bEnforcePowerOfTwo, [this](bool)
+	{
+		if (IsValid(Settings->Data))
+		{
+			Settings->Data->bEnforcePowerOfTwo = Settings->bEnforcePowerOfTwo;
+		}
+	});
+
+	Settings->WatchProperty(Settings->Precision, [this](EAnimToTexturePrecision)
+{
+	if (IsValid(Settings->Data))
+	{
+		Settings->Data->Precision = Settings->Precision;
+	}
+});
 	
 
 	
@@ -96,7 +113,7 @@ void UBakeAnimToTexture::Shutdown(EToolShutdownType ShutdownType)
 
 			if (Settings->Target)
 			{
-				UAnimToTextureBPLibrary::AnimationToTexture(Settings->Data);
+				AnimationToTexture(Settings->Data);
 
 				for (const auto&  Item : Settings->Target->GetStaticMaterials())
 				{
@@ -106,7 +123,7 @@ void UBakeAnimToTexture::Shutdown(EToolShutdownType ShutdownType)
 
 					if(!MaterialInstance) continue;
 
-					UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(Settings->Data, MaterialInstance);
+					UpdateMaterialInstanceFromDataAsset(Settings->Data, MaterialInstance);
 				}
 			}
 			
@@ -116,6 +133,11 @@ void UBakeAnimToTexture::Shutdown(EToolShutdownType ShutdownType)
 		if (OutputActor)
 		{
 			OutputActor->Destroy();
+			// TODO: Find all created assets and destroy them.
+			FAssetData AssetData = FAssetData(Settings->Source, false);
+
+			const FString FolderPath = FString::Printf(TEXT("%s/%s"), *AssetData.PackagePath.ToString(), *Settings->FolderName);
+			UEditorAssetLibrary::DeleteDirectory(FolderPath);
 		}
 		break;
 	}
@@ -213,8 +235,6 @@ void UBakeAnimToTexture::CreateStaticMesh()
 	const FString NewSavePath = FString::Printf(TEXT("%s/%s/SM_%s"), *AssetData.PackagePath.ToString(), *Settings->FolderName, *AssetData.AssetName.ToString());
 	if (OutputActor)
 	{
-		UAnimToTextureBPLibrary::ConvertSkeletalMeshToStaticMesh(Settings->Source, NewSavePath, 0);
-		
 		if (UStaticMesh* MeshToBake = OutputActor->MakeStaticMesh(Settings->Source, NewSavePath))
 		{
 			Settings->Target = MeshToBake;
@@ -277,6 +297,8 @@ void UBakeAnimToTexture::CreateDataAsset()
 		}
 
 		DataAsset->SkeletalMesh = Settings->Source;
+		DataAsset->Precision = Settings->Precision;
+		DataAsset->bEnforcePowerOfTwo = Settings->bEnforcePowerOfTwo;
 		DataAsset->Mode = EAnimToTextureMode::Bone;
 		
 		Settings->Data = DataAsset;

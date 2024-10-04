@@ -45,6 +45,11 @@ UStaticMesh* AAnimToTextureProxyActor::MakeStaticMesh(USkeletalMesh* SkeletalMes
 
 	auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(Copy, PackageName, CreateNewAssetOptions, Outcome);;
 	ReleaseAllComputeMeshes();
+
+	for (int i = 0; i < SkeletalMesh->GetMaterials().Num(); ++i)
+	{
+		GeneratedAsset->SetMaterial(i, SkeletalMesh->GetMaterials()[i].MaterialInterface);
+	}
 	return GeneratedAsset;
 }
 

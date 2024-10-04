@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AnimToTextureDataAsset.h"
 #include "ToolSet/HandyManBaseClasses/HandyManSingleClickTool.h"
 #include "ToolSet/HandyManTools/Core/AnimToTexture/Data/AnimToTextureDataTypes.h"
 #include "ToolSet/PropertySet/HandyManToolPropertySet.h"
@@ -26,6 +27,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BakeAnimToTexture")
 	FString FolderName = TEXT("VAT");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	bool bEnforcePowerOfTwo = true;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	EAnimToTexturePrecision Precision = EAnimToTexturePrecision::EightBits;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EAnimTextureResolution TextureResolution = EAnimTextureResolution::Size_8192;
@@ -51,7 +58,7 @@ public:
 	
 	bool HasDataToBake() const
 	{
-		return Target != nullptr && Data != nullptr && BonePositionTexture != nullptr && BoneRotationTexture != nullptr && BoneWeightTexture != nullptr;
+		return Target != nullptr && Data != nullptr && BonePositionTexture != nullptr && BoneRotationTexture != nullptr && BoneWeightTexture != nullptr && AnimationsToBake.Num() > 0;
 	}
 };
 
@@ -78,6 +85,15 @@ public:
 	
 	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform) override;
 	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void UpdateMaterialInstanceFromDataAsset(const UAnimToTextureDataAsset* DataAsset, UMaterialInstanceConstant* MaterialInstance,
+		const EMaterialParameterAssociation MaterialParameterAssociation = LayerParameter);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void AnimationToTexture(UAnimToTextureDataAsset* DataAsset);
+
+
 	
 	UPROPERTY()
 	AAnimToTextureProxyActor* OutputActor = nullptr;
