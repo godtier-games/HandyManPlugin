@@ -1,33 +1,33 @@
-# HANDY MAN TOOLS
+# ![Icon](../HandyMan/Content/Icons/HandyManEditorMode_Icon_40x.png) HANDY MAN TOOLS
 
 ---
 
 ### SKELETAL MESH
 
-- [Anim To Texture](doc/tools/skeletal/AnimToTexture.md)
-- [Skeletal Mesh Cutter](doc/tools/skeletal/SkeletalMeshCutter.md)
-- [Morph Target Creator](doc/tools/skeletal/MorphTargetCreator.md)
-- [Skeletal Mesh Extractor](doc/tools/skeletal/SkeletalMeshExtractor.md)
+- ![Icon](../HandyMan/Content/Icons/animation.png) [Anim To Texture (Alpha)](tools/skeletal/AnimToTexture.md)
+- ![Icon](../HandyMan/Content/Icons/cutter.png) [Skeletal Mesh Cutter (Beta)](tools/skeletal/SkeletalMeshCutter.md)
+- ![Icon](../HandyMan/Content/Icons/morphtarget.png) [Morph Target Creator (Alpha)](tools/skeletal/MorphTargetCreator.md)
+- ![Icon](../HandyMan/Content/Icons/extractor.png) [Skeletal Mesh Extractor (Alpha)](tools/skeletal/SkeletalMeshExtractor.md)
 
 ### SPLINES
 
-- [Draw Spline](doc/tools/splines/DrawSpline.md)
-- [Pipe](doc/tools/splines/Pipe.md)
-- [Rail](doc/tools/splines/Rail.md)
-- [Fence](doc/tools/splines/Fence.md)
+- ![Icon](../HandyMan/Content/Icons/drawspline.png) [Draw Spline (Beta)](tools/splines/DrawSpline.md)
+- ![Icon](../HandyMan/Content/Icons/pipe.png) [Pipe (Beta)](tools/splines/Pipe.md)
+- ![Icon](../HandyMan/Content/Icons/rail.png) [Rail (Alpha)](tools/splines/Rail.md)
+- ![Icon](../HandyMan/Content/Icons/fence.png) [Fence (Beta)](tools/splines/Fence.md)
 
 ### WORLD BUILDING
 
-- [Island Generator](doc/tools/world/IslandGenerator.md)
-- [Building Generator](doc/tools/world/BuildingGenerator.md)
+- ![Icon](../HandyMan/Content/Icons/island.png) [Island Generator (Alpha)](tools/world/IslandGenerator.md)
+- ![Icon](../HandyMan/Content/Icons/building.png) [Building Generator (Alpha)](tools/world/BuildingGenerator.md)
 
 
 ### MESH PLACEMENT
 
-- [Grid Scatter](doc/tools/placement/GridScatter.md)
-- [Mesh Scatter](doc/tools/placement/MeshScatter.md)
-- [Physics Scatter](doc/tools/placement/PhysicsScatter.md)
+- ![Icon](../HandyMan/Content/Icons/gridscatter.png) [Grid Scatter (Alpha)](tools/placement/GridScatter.md)
+- ![Icon](../HandyMan/Content/Icons/meshscatter.png) [Mesh Scatter (Beta)](tools/placement/MeshScatter.md)
+- ![Icon](../HandyMan/Content/Icons/drop.png) [Physics Scatter (Beta)](tools/placement/PhysicsScatter.md)
 
 ### FLORA
 
-- [Vines](doc/tools/flora/Vines.md)
+- ![Icon](../HandyMan/Content/Icons/vine.png) [Vines (Alpha)](tools/flora/Vines.md)

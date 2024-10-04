@@ -177,9 +177,11 @@ FInputRayHit USkeletalMeshCutter::TestIfHitByClick_Implementation(FInputDeviceRa
 	{
 		if (Hit.Component.IsValid() && Hit.Component->IsA(UShapeComponent::StaticClass()))
 		{
-			return UScriptableToolsUtilityLibrary::MakeInputRayHit(Hit.Distance, nullptr);
+			return UScriptableToolsUtilityLibrary::MakeInputRayHit_MaxDepth();
 		}
 	}
+
+	GEditor->GetSelectedActors()->DeselectAll();
 	
 	return UScriptableToolsUtilityLibrary::MakeInputRayHit_Miss();
 }
@@ -202,6 +204,8 @@ void USkeletalMeshCutter::OnHitByClick_Implementation(FInputDeviceRay ClickPos, 
 			}
 		}
 	}
+
+	GEditor->GetSelectedActors()->DeselectAll();
 }
 
 void USkeletalMeshCutter::OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform)
@@ -278,6 +282,16 @@ void USkeletalMeshCutterPropertySet::PostEditChangeChainProperty(struct FPropert
 			{
 				Cast<USkeletalMeshCutter>(ParentTool.Get())->OutputActor->Initialize(MeshData);
 			}
+		}
+
+		if (MeshData.SectionName.IsEmpty())
+		{
+			MeshData.SectionName = "PART";
+		}
+
+		if (MeshData.FolderName.IsEmpty())
+		{
+			MeshData.SectionName = "GENERATED";
 		}
 	}
 }
