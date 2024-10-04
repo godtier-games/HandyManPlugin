@@ -31,8 +31,8 @@ struct FSkeletalMeshAssetData
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear)
 	FString FolderName = TEXT("GENERATED");
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FString SectionName;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear)
+	FString SectionName = TEXT("PART");
 
 	bool IsValid() const
 	{

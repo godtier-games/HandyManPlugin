@@ -22,22 +22,22 @@ public:
 #endif
 	
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters")
 	TObjectPtr<USkeletalMesh> InputMesh;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters")
 	bool bMergeMeshes = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition= "!bMergeMeshes", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters", meta=(EditCondition= "!bMergeMeshes", EditConditionHides))
 	float MeshDisplayOffset = 65.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Parameters", NoClear)
 	TArray<FExtractedMeshInfo> MeshInfo;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters", NoClear)
 	FString FolderName = TEXT("GENERATED");
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear, meta=(EditCondition= "bMergeMeshes", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters", NoClear, meta=(EditCondition= "bMergeMeshes", EditConditionHides))
 	FString MergedAssetName = TEXT("MERGED");
 	
 	

@@ -229,7 +229,13 @@ void ASkeletalMeshCutterActor::Initialize(const FSkeletalMeshAssetData& MeshData
 	// cache it as the last skeletal mesh
 	LastSkeletalMesh = MeshData.InputMesh;
 	CacheMeshData = MeshData;
-	
+
+	GetDynamicMeshComponent()->SetNumMaterials(MeshData.InputMesh->GetMaterials().Num());
+	for (int i = 0; i < MeshData.InputMesh->GetMaterials().Num(); ++i)
+	{
+		const auto& Material = MeshData.InputMesh->GetMaterials()[i].MaterialInterface;
+		GetDynamicMeshComponent()->SetMaterial(i, Material);
+	}
 	RerunConstructionScripts();
 }
 
