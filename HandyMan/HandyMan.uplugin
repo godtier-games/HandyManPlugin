@@ -30,10 +30,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "HoudiniEngine",
-			"Enabled": true
-		},
-		{
 			"Name": "GeometryScripting",
 			"Enabled": true
 		},
@@ -83,6 +79,10 @@
 		},
 		{
 			"Name": "GodtierGeometryScriptUtils",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimToTexture",
 			"Enabled": true
 		}
 	]

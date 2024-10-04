@@ -5,7 +5,14 @@
 #include "CoreMinimal.h"
 #include "Toolkits/BaseToolkit.h"
 #include "HandyManEditorMode.h"
+#include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "StatusBarSubsystem.h"
+
+class IDetailsView;
+class SButton;
+class STextBlock;
+class UBlueprint;
 
 /**
  * This FModeToolkit just creates a basic UI panel that allows various InteractiveTools to
@@ -19,6 +26,13 @@ public:
 
 	/** FModeToolkit interface */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+
+	// Async Tool Loading
+	void StartAsyncToolLoading();
+	void SetAsyncProgress(float PercentLoaded);
+	void EndAsyncToolLoading();
+	bool AreToolsLoading() const;
+	TOptional<float> GetToolPercentLoaded() const;
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
@@ -44,6 +58,8 @@ public:
 	virtual bool HasIntegratedToolPalettes() const override { return false; }
 	virtual bool HasExclusiveToolPalettes() const override { return false; }
 
+	
+
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 	virtual FText GetActiveToolMessage() const override { return ActiveToolMessage; }
 
@@ -59,6 +75,15 @@ public:
 	virtual void InvokeUI() override;
 
 	virtual void ForceToolPaletteRebuild();
+
+protected:
+
+	/** FModeToolkit interface */
+	virtual void RebuildModeToolBar() override;
+	virtual bool ShouldShowModeToolbar() const override;
+
+	void RebuildModeToolPaletteWidgets();
+
 
 private:
 	const static TArray<FName> PaletteNames_Standard;
@@ -81,6 +106,13 @@ private:
 	TSharedPtr<SButton> CancelButton;
 	TSharedPtr<SButton> CompletedButton;
 
+	// Palette
+	bool bAsyncLoadInProgress = false;
+	float AsyncLoadProgress;
+
+	TSharedPtr<SVerticalBox> ToolBoxVBox;
+	FDelegateHandle SettingsUpdateHandle;
+
 	bool bShowRealtimeWarning = false;
 	void UpdateShowWarnings();
 
@@ -90,5 +122,7 @@ private:
 	bool bFirstInitializeAfterModeSetup = true;
 
 	bool bShowActiveSelectionActions = false;
+
+
 
 };

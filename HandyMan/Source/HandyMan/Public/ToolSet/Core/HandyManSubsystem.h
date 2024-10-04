@@ -28,24 +28,24 @@ public:
 	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	/** Returns the Houdini Public API instance. */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Houdini Engine"), Category = "Houdini Engine")
-	const UHoudiniPublicAPI* GetHoudiniAPI() const {return HoudiniPublicAPI;}
+	/*UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Houdini Engine"), Category = "Houdini Engine")
+	const UHoudiniPublicAPI* GetHoudiniAPI() const {return HoudiniPublicAPI;}*/
 
 	UHandyManSettings* GetHandyManSettings() const;
 	
-	UHoudiniPublicAPI* GetMutableHoudiniAPI() const {return HoudiniPublicAPI;}
+	//UHoudiniPublicAPI* GetMutableHoudiniAPI() const {return HoudiniPublicAPI;}
 
-	UHoudiniAsset* GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const;
+	//UHoudiniAsset* GetHoudiniDigitalAsset(const EHandyManToolName& ToolName) const;
 
-	TSubclassOf<AActor> GetPCGActorClass(const EHandyManToolName& ToolName) const;
+	TSubclassOf<AActor> GetPCGActorClass(const FName& ToolName) const;
 	
-	UFUNCTION(BlueprintCallable, Category = "Houdini")
-	void InitializeHoudiniApi();
+	/*UFUNCTION(BlueprintCallable, Category = "Houdini")
+	void InitializeHoudiniApi();*/
 
 	UFUNCTION(BlueprintCallable, Category = "Houdini")
 	void CleanUp();
 private:
-	UPROPERTY()
-	UHoudiniPublicAPI* HoudiniPublicAPI;
+	/*UPROPERTY()
+	UHoudiniPublicAPI* HoudiniPublicAPI;*/
 	
 };

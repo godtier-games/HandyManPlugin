@@ -2,3 +2,65 @@
 
 
 #include "ToolSet/HandyManBaseClasses/HandyManClickDragTool.h"
+
+#include "HandyManSettings.h"
+#include "ToolSet/Core/HandyManSubsystem.h"
+
+#if WITH_EDITOR
+
+void UHandyManClickDragTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	/*if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, ToolName) && !ToolName.IsEmpty())
+	{
+		// Update Our setting
+
+		if (UHandyManSettings* HandyMan = GetMutableDefault<UHandyManSettings>())
+		{
+			if (!LastKnownName.IsEmpty())
+			{
+				// Remove this from the array
+				HandyMan->RemoveToolName(FName(LastKnownName.ToString()));
+			}
+
+			// Add new name to the Array
+			HandyMan->AddToolName(FName(ToolName.ToString()));
+
+			// Update LastKnownName
+			LastKnownName = ToolName;
+		}
+	}*/
+}
+
+
+#endif
+
+void UHandyManClickDragTool::Setup()
+{
+	
+	if (UHandyManSettings* HandyMan = GetMutableDefault<UHandyManSettings>())
+	{
+		if (!HandyMan->GetToolsNames().Contains(FName(ToolName.ToString())))
+		{
+			HandyMan->AddToolName(FName(ToolName.ToString()));
+		}
+	}
+	
+	Super::Setup();
+
+	HandyManAPI = GEditor->GetEditorSubsystem<UHandyManSubsystem>();
+
+}
+
+
+bool UHandyManClickDragTool::Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos)
+{
+	return false;
+}
+
+UBaseScriptableToolBuilder* UHandyManClickDragTool::GetHandyManToolBuilderInstance(UObject* Outer)
+{
+	return GetNewCustomToolBuilderInstance(Outer);
+}
+

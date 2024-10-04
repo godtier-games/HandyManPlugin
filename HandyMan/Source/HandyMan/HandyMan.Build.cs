@@ -26,6 +26,7 @@ public class HandyMan : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"AssetRegistry",
 				"Slate",
 				"SlateCore",
 				"Engine",
@@ -39,13 +40,14 @@ public class HandyMan : ModuleRules
 				"PropertyEditor",
 				"StatusBar",
 				"Projects",
-
 				"Core",
+				"LevelEditor",
 				"PhysicsCore",
 				"RenderCore",
 				"GameplayTags",
 				"GeometryCore",
 				"GeometryAlgorithms",
+				"GeometryCollectionEngine",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"ScriptableToolsFramework",
@@ -59,12 +61,16 @@ public class HandyMan : ModuleRules
 				"PCGWaterInterop",
 				"PCGGeometryScriptInterop",
 				"ModelingComponents",
-				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime",
 				"Landscape",
 				"MeshModelingTools",
 				"GodtierGeometryScriptUtils",
-				"GeometryScriptingEditor"
+				"GeometryScriptingEditor",
+				"DynamicMesh", 
+				"MeshModelingToolsExp",
+				"SkeletalMeshDescription", 
+				"AnimToTexture",
+				"AnimToTextureEditor"
+
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -74,12 +80,12 @@ public class HandyMan : ModuleRules
 			new string[]
 			{
 				"Engine", 
-				"HoudiniEngineEditor",
-				"HoudiniEngineRuntime",
+				"AssetRegistry",
 				"CoreUObject",
 				"Slate",
 				"SlateCore",
 				"Engine",
+				"LevelEditor",
 				"InputCore",
 				"EditorFramework",
 				"UnrealEd",
@@ -91,6 +97,7 @@ public class HandyMan : ModuleRules
 				"EditorInteractiveToolsFramework",
 				"GeometryFramework",
 				"GeometryCore",
+				"GeometryCollectionEngine",
 				"GeometryProcessingInterfaces",
 				"DynamicMesh",
 				"ModelingComponents",
@@ -121,6 +128,20 @@ public class HandyMan : ModuleRules
 				"GodtierGeometryScriptUtils",
 				"GeometryScriptingEditor",
 				"GeometryScriptingCore",
+				"EditorStyle",
+				"MeshMergeUtilities",
+				"ChaosCore",
+				"Chaos",
+				"PhysicsCore",
+				"GeometryCollectionEngine", 
+				"ModelingEditorUI",
+				"SkeletalMeshDescription",
+				"MeshDescription",
+				"StaticMeshDescription",
+				"SkeletalMeshDescription",
+				"MeshConversion",
+				"AnimToTexture", 
+				"AnimToTextureEditor",
 			}
 			);
 		

@@ -19,6 +19,6 @@ class HANDYMAN_API UPCGAssetWrapper : public UPrimaryDataAsset
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Houdini")
-	TMap<EHandyManToolName, TSubclassOf<AActor>> ActorClasses;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PCG", meta=(GetOptions="HandyMan.HandyManStatics.GetToolNames"))
+	TMap<FName, TSubclassOf<AActor>> ActorClasses;
 };

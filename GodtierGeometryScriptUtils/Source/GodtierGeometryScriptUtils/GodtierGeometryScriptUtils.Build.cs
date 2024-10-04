@@ -28,7 +28,14 @@ public class GodtierGeometryScriptUtils : ModuleRules
 				"Core",
 				"GeometryFramework",
 				"GeometryScriptingCore",
-				"GeometryCore"
+				"GeometryCore",
+				"ModelingOperators", 
+				"MeshModelingTools",
+				"DynamicMesh",
+				"ModelingComponents",
+				"ModelingOperators",
+
+
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -43,7 +50,14 @@ public class GodtierGeometryScriptUtils : ModuleRules
 				"SlateCore",
 				"GeometryFramework",
 				"GeometryScriptingCore",
-				"GeometryCore"
+				"GeometryCore", 
+				"ModelingOperators",
+				"MeshModelingTools",
+				"DynamicMesh",
+				"ModelingComponents",
+				"ModelingOperators",
+
+
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

@@ -19,4 +19,9 @@ public:
 
 protected:
 	void OnPostEngineInit();
+
+private:
+	/** StaticClass is not safe on shutdown, so we cache the name, and use this to unregister on shut down */
+	TArray<FName> ClassesToUnregisterOnShutdown;
+	TArray<FName> PropertiesToUnregisterOnShutdown;
 };

@@ -10,8 +10,7 @@
 #include "HandyManEditorMode.generated.h"
 
 
-
-
+class UScriptableToolContextObject;
 /**
  * This class provides an example of how to extend a UEdMode to add some simple tools
  * using the InteractiveTools framework. The various UEdMode input event handlers (see UEdMode.h)
@@ -49,6 +48,7 @@ public:
 	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const override;
 
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
+	
 
 
 	/*
@@ -90,18 +90,31 @@ protected:
 
 	void OnBlueprintCompiled();
 	FDelegateHandle BlueprintCompiledHandle;
+	
+	void InitializeModeContexts();
 
-	FDelegateHandle MeshCreatedEventHandle;
+	void RebuildScriptableToolSet();
+
+#pragma region MODELING DELEGATES
+  	FDelegateHandle MeshCreatedEventHandle;
 	FDelegateHandle TextureCreatedEventHandle;
 	FDelegateHandle MaterialCreatedEventHandle;
 	FDelegateHandle SelectionModifiedEventHandle;
+#pragma endregion 
+
 
 	FDelegateHandle EditorClosedEventHandle;
 	void OnEditorClosed();
 
+
+private:
+
+	TArray<TWeakObjectPtr<UScriptableToolContextObject>> ContextsToUpdateOnToolEnd;
+	TArray<TWeakObjectPtr<UScriptableToolContextObject>> ContextsToShutdown;
+	
 protected:
 	UPROPERTY()
 	TObjectPtr<UHandyManScriptableToolSet> ScriptableTools;
 public:
-	virtual UScriptableToolSet* GetActiveScriptableTools() { return Cast<UScriptableToolSet>(ScriptableTools); }
+	virtual UHandyManScriptableToolSet* GetActiveScriptableTools() { return (ScriptableTools); }
 };
