@@ -1,7 +1,5 @@
 ﻿# INTRODUCTION
 
----
-
 Handy Man is a suite of tools meant to speed up different parts of development. 
 The current focus of the tools were built around my project needs but the tools ended up having generic enough foundations to share. 
 These tools are still in their early stages and will need improvements as I battle test them.
@@ -23,7 +21,7 @@ This is a small library of helper functions that combine 2 or more different fun
 # POP UP DIALOGS
 Most tools have a dialog box that pops up before the tool startup phase. These usually have information about input parameters and requirements.
 Once you feel like you have that tool's workflow down you can disable it by adding it to the Blocked Popup Dialogs Array in the project settings.
-They are found in in Project Settings → Godtier Games → Handy Man → Blocked Popup Dialogs.
+This is found in Project Settings → Godtier Games → Handy Man → Blocked Popup Dialogs.
 ![Popup](doc/screenshots/core/projectsettings.png)
 
 
