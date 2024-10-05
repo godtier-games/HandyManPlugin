@@ -178,6 +178,7 @@ class USingleClickOrDragInputBehavior;
 class UConstructionPlaneMechanic;
 class USplineComponent;
 
+// TODO : Add enum to designate what type of tool this is. Then use inheritance to override that value through a contructor in child tools.
 
 UCLASS()
 class HANDYMAN_API USplineToolProperties : public UInteractiveToolPropertySet
@@ -208,10 +209,16 @@ public:
 
 	/**
 	 * The output geometry will use the same scale for all axes.
-	 * To insure collision consistency, this must be true in order to auto generate a simple collision geometry.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bUseUnifiedScaling = true;
+
+	/* For the fence tool this variable will add randomized scale to the fence geometry
+	 * For the rail tool this will alter the width and height of auto generated collider geometry
+	 *
+	 */
+	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0.1, UIMax = 10, EditCondition = "!bUseUnifiedScaling", EditConditionHides))
+	FVector2D MeshScaleRange = FVector2D(1.0f, 1.0f);
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings")
 	bool bProjectGizmoToSurfacePlane = false;
@@ -221,10 +228,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0))
 	float ZOffset = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( UIMin = 0.1, UIMax = 10, EditCondition = "!bUseUnifiedScaling", EditConditionHides))
-	FVector2D MeshScaleRange = FVector2D(1.0f, 1.0f);
-
+	
 	UPROPERTY(EditAnywhere, Category = "Geometry Settings", meta = ( EditCondition = "bUseUnifiedScaling", EditConditionHides))
 	bool bAutoGenerateSimpleCollision = true;
 

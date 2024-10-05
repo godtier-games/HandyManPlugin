@@ -11,7 +11,7 @@ This tool does not change the vert count on the input mesh. To put it simply you
 However, it is very flexible.
 
 
-![Screenshot](../../screenshots/skeletal/morph.png)
+![Screenshot](../../screenshots/skeletal/morph.jpg)
 
 
 

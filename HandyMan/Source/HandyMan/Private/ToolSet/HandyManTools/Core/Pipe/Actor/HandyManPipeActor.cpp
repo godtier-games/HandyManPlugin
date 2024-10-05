@@ -51,6 +51,11 @@ void AHandyManPipeActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 	
 	
 	UHandyManModelingUtilities::SweepGeometryAlongSpline(Options, ESplineCoordinateSpace::Local);
+
+	if(PipeMaterial)
+	{
+		DynamicMeshComponent->SetMaterial(0, PipeMaterial);
+	}
 	
 	Super::RebuildGeneratedMesh(TargetMesh);
 }

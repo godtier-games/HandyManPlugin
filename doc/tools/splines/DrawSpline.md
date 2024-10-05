@@ -8,50 +8,92 @@
 Interactive tool that allows the user to draw a spline into the world that can be used with other tools.
 This is a carbon copy of the Draw Spline tool in the Modeling Mode, just thought it would be convenient to have one built in.
 
+![Icon](../../screenshots/splines/drawspline.jpg)
 
 
 # BEHAVIOR
 
 - Draw a spline into the world using 3 different modes (Tangent Drag, Auto-Tangent, Free Draw)
-- 
+- Store spline in an empty actor, existing actor or generate a new blueprint.
 
 
 ## PARAMETERS
 
-**INPUT MESH**
+### LOOP
 
-- Select any USkeletalMesh Asset you want to cut up.
+- Determines whether the created spline is a loop. This can be toggled using "Closed Loop" in
+the detail panel after spline creation.
 
-**APPLY CHANGES TO ALL LODS**
+### OUTPUT MODE
+ 
+**Empty Actor**
+- Create a new empty actor with the spline inside it
 
-- Will force the tool to copy the final geo into every LOD of the mesh. If false it will only be copied into LOD 0
+**Existing Actor**
+- Attach the spline to an existing actor, or replace a spline inside that
+actor if Existing Spline Index To Replace is valid.
 
-**FOLDER NAME**
+**Create Blueprint**
+- Create the blueprint specified by Blueprint To Create, and either attach
+the spline to that, or replace an existing spline if Existing Spline Index
+To Replace is valid.
 
-- The sub folder name where the generated assets will be saved.
 
-**SECTION NAME**
+### DRAW MODE
 
-- The sub name of the mesh this will be part of the final object name (SKM_Manny_SECTIONNAME)
+**Tangent Drag**
+* Click to place a point and then drag to set its tangent. Clicking without dragging will create sharp corners.
 
-**CUTTERS**
+**Click Auto Tangent**
+* Click and drag new points, with the tangent set automatically
 
-- An array of Enums designating which shape to use. Currently there are only 2 shapes Sphere & Box.
+**Free Draw**
+* Drag to place multiple points, with spacing controlled by Min Point Spacing
+
+### CLICK OFFSET
+
+- How far to offset spline points from the clicked surface, along the surface normal
+
+### UP VECTOR MODE
+
+**Align To Previous**
+
+* Pick the first up vector based on the hit normal, and then align subsequent up vectors with the previous ones.
+
+**Use Hit Normal**
+
+* Base the up vector off the hit normal.
+
+### WORLD OBJECTS
+
+- Whether to place spline points on the surface of objects in the world
+
+### CUSTOM PLANE
+
+- Whether to place spline points on a custom, user-adjustable plane
+
+### GROUND PLANES
+
+- Whether to place spline points on a plane through the origin aligned with the Z axis in perspective views, or facing the camera in othographic views
+
 
 ## HOW TO USE
 
-1. Invoke the tool and you will get a prompt just letting you know that this tool requires a Skeletal Mesh as its input. You can disable this by adding the tools name to the blocked popup dialogs array located in Project Settings → Handy Man → Blocked Popup Dialogs
-2. Once you set your skeletal mesh the tool will spawn the display actor with the premade cutter volumes
-3. Move, Scale & Rotate each cutter to encapsulate the geometry you want to cut
-4. Once complete hit the accept button and the tool will create an asset in you project files next to the input skeletal mesh using the folder name you provide.
+1. Invoke the tool. 
+2. Choose the preferred draw mode
+3. Click & Drag to place points on valid raycast targets
+4. Once complete hit the accept button and the tool will an empty spline actor into the world that can be used in other spline based tools.
+
+
+# FUTURE FEATURES
+1. After the spline is drawn the user is presented with an actions window that will run the requested command
+
 
 # LIMITATIONS
 
-At this time, the cut only affects the first LOD. I have it on my TODO list to support the final operation cutting each LOD using the provided cutter volumes.
 
 # KNOWN ISSUES
 
-- Undo past the initial undo buffer will actually undo opening the tool. Just be care how fast you are hitting Ctrl+Z and you should be fine
-- Removing cutters from the array has not been tested fully. If you feel a cutter is not working how you envisioned then move it out of the bounds of the character mesh.
+- At this time undo/redo functionality is not working as expected. The transaction is sent and you can see the message push to the screen however the spline points remain the same.
 
 
