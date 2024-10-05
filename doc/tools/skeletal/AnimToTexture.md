@@ -42,7 +42,16 @@ One click tool that wraps the AnimToTexture plugin functionality and presents an
 - How many bits per pixel. This will increase overall texture sizes but will offer a much cleaner looking end result.
 
 # SETTING UP THE MATERIALS (ALPHA)
-1. 
+At this time you need to manually add the custom material functions to your mesh's base materials. 
+There is an example material that has the nodes you need to copy into your base materials.
+To view it you must enable plugin content then navigate to Handy Man Content → Tools → Core → AnimToTexture → Materials  
+![Material Nodes](../../screenshots/skeletal/animmaterial.png)
+You only need to copy the nodes wrapped in green comments
+1. Copy the material functions into your base material
+2. Plug your normal texture into the base normal
+3. Plug the output Normal & WPO into the correct pins
+4. If you have existing WPO then use an **Add** node to add the results of your WPO to the output of the custom nodes.
+5. Repeat for all base materials.
 
 
 # HOW TO USE
@@ -55,12 +64,12 @@ This is currently reliant on you setting the materials up correctly beforehand. 
 
 # LIMITATIONS
 
-At this time, the baked textures only affect LOD 0. 
+- At this time, the baked textures only affect LOD 0. 
 This tool is also listed as **Alpha** because it requires WAY too much work outside the tool.
 I need to make the process more streamlined. 
-There is currently no way to update baked assets other than restarting the process.
+- There is currently no way to update baked assets other than restarting the process.
 There are a few more parameters that will need to be added and most importantly I would prefer the tool to auto generate the materials.
-This tool will still produce VAT properly just a bit clunky right now.
+This tool will still produce VAT properly, it's just a bit clunky right now.
 
 # KNOWN ISSUES
 
