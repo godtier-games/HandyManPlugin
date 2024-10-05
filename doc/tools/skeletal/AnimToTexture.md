@@ -5,7 +5,7 @@
 One click tool that wraps the AnimToTexture plugin functionality and presents an integrated interface. This tool is heavily based on [this tutorial](https://www.youtube.com/watch?v=65nDfqEhKMQ)
 
 
-![Screenshot](../../screenshots/skeletal/vat.png)
+![Screenshot](../../screenshots/skeletal/vat.jpg)
 
 
 
@@ -45,7 +45,7 @@ One click tool that wraps the AnimToTexture plugin functionality and presents an
 At this time you need to manually add the custom material functions to your mesh's base materials. 
 There is an example material that has the nodes you need to copy into your base materials.
 To view it you must enable plugin content then navigate to Handy Man Content → Tools → Core → AnimToTexture → Materials  
-![Material Nodes](../../screenshots/skeletal/animmaterial.png)
+![Material Nodes](../../screenshots/skeletal/animmaterial.jpg)
 You only need to copy the nodes wrapped in green comments
 1. Copy the material functions into your base material
 2. Plug your normal texture into the base normal

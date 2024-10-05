@@ -230,8 +230,8 @@ private:
 		virtual void Apply(UObject* Object) override;
 		virtual void Revert(UObject* Object) override;
 
-		virtual void Apply(USplineComponent& Object) override {};
-		virtual void Revert(USplineComponent& Object) override {};
+		virtual void Apply(USplineComponent& Object) override = 0;
+		virtual void Revert(USplineComponent& Object) override = 0;
 	};
 
 };

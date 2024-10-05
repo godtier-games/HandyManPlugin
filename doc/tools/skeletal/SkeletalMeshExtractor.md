@@ -5,7 +5,7 @@
 One click solution to take a mesh that has multiple material IDs and make it modular by splitting each different material ID into a separate skeletal mesh. This tool also handles merging meshes together. This tool is helpful for extracting meshes bound to a skeletal mesh and making them separate assets or merging a few parts of a mesh together for something like a first person rig.
 
 
-![Screenshot](../../screenshots/skeletal/extractor.png)
+![Screenshot](../../screenshots/skeletal/extractor.jpg)
 
 
 # BEHAVIOR

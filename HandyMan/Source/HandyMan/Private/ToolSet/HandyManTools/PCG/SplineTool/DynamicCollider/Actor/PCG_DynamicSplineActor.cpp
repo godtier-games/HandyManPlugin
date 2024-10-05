@@ -32,14 +32,7 @@ void APCG_DynamicSplineActor::RefreshDynamicCollision()
 	if (DynamicMeshComponent)
 	{
 		FVector2D MeshScale = FVector2D(10 * ColliderAdditiveScale.Y, SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Y * ColliderAdditiveScale.X : 0);
-		FSimpleCollisionOptions Options;
-		Options.Height = 10 * ColliderAdditiveScale.Y;
-		Options.Width = SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Y * ColliderAdditiveScale.X : 0;
-		Options.ErrorTolerance = 1.f;
-		Options.TargetMesh = DynamicMeshComponent->GetDynamicMesh();
-		Options.Spline = SplineComponent;
-		Options.ZOffset = -1.0; /*SplineMesh ? SplineMesh->GetExtendedBounds().BoxExtent.Z * 2.f : 0.f;*/
-
+		
 		FSweepOptions SweepOptions;
 		SweepOptions.SampleSize = SplineComponent->GetSplineLength() / 10;
 		SweepOptions.bProjectPointsToSurface = false;

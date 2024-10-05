@@ -45,7 +45,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pipe Options", meta = (DisplayName = "PolyGroup Mode"))
 	EGeometryScriptPrimitivePolygroupMode PolygroupMode = EGeometryScriptPrimitivePolygroupMode::PerFace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pipe Options")
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pipe Options")
 	bool bFlipOrientation = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pipe Options")

@@ -104,7 +104,7 @@ void UHandyManPipeTool::SpawnOutputActorInstance(const UHandyManPipeToolProperti
 					// This is also editor-only: it's the label that shows up in the hierarchy
 					FActorLabelUtilities::SetActorLabelUnique(SpawnedActor, UniqueName.ToString());
 					// Initalize the actor
-					SpawnedActor->SetActorTransform(Target->GetActorTransform());
+					SpawnedActor->SetActorTransform(TargetSpline->GetComponentTransform());
 					SpawnedActor->GetDynamicMeshComponent()->SetMaterial(0, InSettings->PipeMaterial);
 					SpawnedActor->PipeMaterial = InSettings->PipeMaterial;
 					SpawnedActor->bFlipOrientation = InSettings->bFlipOrientation;

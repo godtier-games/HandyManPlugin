@@ -5,7 +5,7 @@
 Interactive tool that allows the user to add cutter volumes, shape them and each triangle within those volumes will be deleted. This is a helpful tool to cull unnecessary geometry for something like an invisible skeleton or just chopping up a mesh to get only the arms for a first person view model.
 
 
-![Screenshot](../../screenshots/skeletal/cutter.png)
+![Screenshot](../../screenshots/skeletal/cutter.jpg)
 
 
 
