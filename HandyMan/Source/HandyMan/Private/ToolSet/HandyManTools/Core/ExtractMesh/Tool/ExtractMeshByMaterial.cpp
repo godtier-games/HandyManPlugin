@@ -74,7 +74,7 @@ void UExtractMeshByMaterial::Shutdown(EToolShutdownType ShutdownType)
 	case EToolShutdownType::Accept:
 		if (OutputActor)
 		{
-			OutputActor->SaveObjects(Settings->MeshInfo, Settings->FolderName, Settings->MergedAssetName, Settings->bMergeMeshes);
+			OutputActor->SaveObjects(Settings->MeshInfo, Settings->FolderName, Settings->MergedAssetName, Settings->bMergeMeshes, Settings->bSaveMeshesAsStaticMesh);
 		}
 		break;
 	case EToolShutdownType::Cancel:

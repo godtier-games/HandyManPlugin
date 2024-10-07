@@ -15,9 +15,13 @@ struct HANDYMAN_API FExtractedMeshInfo
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FName CustomMeshName;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bVisible = true;
+
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
 	TObjectPtr<UMaterialInterface> MaterialID;
 	
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
 	TArray<TObjectPtr<UDynamicMesh>> MeshLods;
+	
 };

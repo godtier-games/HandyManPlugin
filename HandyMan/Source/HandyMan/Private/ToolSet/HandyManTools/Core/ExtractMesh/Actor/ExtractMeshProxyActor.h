@@ -32,10 +32,11 @@ public:
 
 	void UpdateExtractedInfo(const TArray<FExtractedMeshInfo>& NewInfo);
 
-	void SaveObjects(const TArray<FExtractedMeshInfo>& Meshes, const FString& FolderName, const FString& MergedAssetName = "MERGED", const bool MergeMeshes = false);
+	void SaveObjects(const TArray<FExtractedMeshInfo>& Meshes, const FString& FolderName, const FString& MergedAssetName = "MERGED", const bool MergeMeshes = false, const bool bExtractAsStaticMesh = false);
 
 
 	void ExtractMeshInfo(USkeletalMesh* Mesh, TArray<FExtractedMeshInfo>& OutExtractedMeshes);
+
 
 	
 protected:
@@ -44,6 +45,7 @@ protected:
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	float MeshOffset = 65.0f;
+	
 
 
 private:
@@ -56,5 +58,8 @@ private:
 		int32 Original = 0;
 		int32 Remap = 0;
 	};
+
+	UStaticMesh* MakeStaticMesh(USkeletalMesh* SkeletalMesh, const FString& PackageName);
+
 
 };

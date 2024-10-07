@@ -5,6 +5,7 @@
 
 #include "EditorAssetLibrary.h"
 #include "MeshInspectorTool.h"
+#include "GeometryScript/CreateNewAssetUtilityFunctions.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "GeometryScript/MeshBasicEditFunctions.h"
 #include "GeometryScript/MeshDecompositionFunctions.h"
@@ -82,7 +83,7 @@ void AExtractMeshProxyActor::UpdateExtractedInfo(const TArray<FExtractedMeshInfo
 	RerunConstructionScripts();
 }
 
-void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshes, const FString& FolderName, const FString& MergedAssetName, const bool MergeMeshes)
+void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshes, const FString& FolderName, const FString& MergedAssetName, const bool MergeMeshes, const bool bExtractAsStaticMesh)
 {
 	// Iterate over the input meshes, create a new asset with the asset name
 	if(!InputMesh) return;
@@ -123,35 +124,68 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 		
 			const FString AssetSourcePath = AssetData.GetSoftObjectPath().ToString();
 			const FString NewSavePath = FString::Printf(TEXT("%s/%s/%s_%s"), *AssetData.PackagePath.ToString(), *FolderName, *AssetData.AssetName.ToString(), *Mesh.CustomMeshName.ToString());
-		
-			if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
+
+			FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
+			CopyToMeshOptions.bEnableRecomputeNormals = true;
+			CopyToMeshOptions.bEnableRecomputeTangents = true;
+			CopyToMeshOptions.bUseOriginalVertexOrder = true;
+			CopyToMeshOptions.bReplaceMaterials = true;
+			CopyToMeshOptions.NewMaterials = {Mesh.MaterialID};
+
+			EGeometryScriptOutcomePins Outcome;
+			if (!bExtractAsStaticMesh)
 			{
-	
-				UEditorAssetLibrary::SaveAsset(NewSavePath, false);
-			
-				FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
-				CopyToMeshOptions.bEnableRecomputeNormals = true;
-				CopyToMeshOptions.bEnableRecomputeTangents = true;
-				CopyToMeshOptions.bUseOriginalVertexOrder = true;
-				CopyToMeshOptions.bReplaceMaterials = true;
-				CopyToMeshOptions.NewMaterials = {Mesh.MaterialID};
-				EGeometryScriptOutcomePins CopyToMeshOutcome;
-
-			
-			
-				// Copy this dynamic mesh into this new asset
-				for (int i = 0; i < Mesh.MeshLods.Num(); ++i)
+				if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
 				{
+	
+					UEditorAssetLibrary::SaveAsset(NewSavePath, false);
+					
+					// Copy this dynamic mesh into this new asset
+					for (int i = 0; i < Mesh.MeshLods.Num(); ++i)
+					{
 				
-					auto& LOD = Mesh.MeshLods[i];
+						auto& LOD = Mesh.MeshLods[i];
 
-					UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(LOD, IdRemap.Original, IdRemap.Remap);
+						UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(LOD, IdRemap.Original, IdRemap.Remap);
 				
-					FGeometryScriptMeshWriteLOD LodSettings;
-					LodSettings.LODIndex = i;
-					UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(LOD, DuplicatedMesh, CopyToMeshOptions, LodSettings, CopyToMeshOutcome);
-				}
+						FGeometryScriptMeshWriteLOD LodSettings;
+						LodSettings.LODIndex = i;
+						UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(LOD, DuplicatedMesh, CopyToMeshOptions, LodSettings, Outcome);
+					}
 			
+				}
+			}
+			else
+			{
+				
+				FGeometryScriptCreateNewStaticMeshAssetOptions CreateNewAssetOptions;
+				CreateNewAssetOptions.bUseOriginalVertexOrder = true;
+				CreateNewAssetOptions.bEnableRecomputeNormals = true;
+				CreateNewAssetOptions.bEnableRecomputeTangents = true;
+				
+				auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(Mesh.MeshLods[0], NewSavePath, CreateNewAssetOptions, Outcome );
+
+				UEditorAssetLibrary::SaveAsset(NewSavePath, false);
+
+				if (GeneratedAsset)
+				{
+					for (int i = 0; i < Mesh.MeshLods.Num(); ++i)
+					{
+				
+						auto& LOD = Mesh.MeshLods[i];
+
+						UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(LOD, IdRemap.Original, IdRemap.Remap);
+
+						FGeometryScriptMeshWriteLOD LodSettings;
+						LodSettings.LODIndex = i;
+
+						UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(LOD, GeneratedAsset, CopyToMeshOptions, LodSettings, Outcome, false);
+					
+					}
+				}
+				
+				ReleaseAllComputeMeshes();
+				
 			}
 		
 		}
@@ -219,35 +253,51 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			
 		UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletalMeshAssetFromMeshLODs(MeshLODs, InputMesh->GetSkeleton(), NewSavePath, CreateNewOptions, CreateNewMeshOutcome);*/
 
-		if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
+		EGeometryScriptOutcomePins Outcome;
+		
+		if (!bExtractAsStaticMesh)
 		{
-	
-			UEditorAssetLibrary::SaveAsset(NewSavePath, false);
-
-			TArray<UMaterialInterface*> Materials;
-			MaterialIDRemap.GetKeys(Materials);
-			FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
-			CopyToMeshOptions.bEnableRecomputeNormals = true;
-			CopyToMeshOptions.bEnableRecomputeTangents = true;
-			CopyToMeshOptions.bUseOriginalVertexOrder = true;
-			CopyToMeshOptions.bReplaceMaterials = true;
-			CopyToMeshOptions.NewMaterials = Materials;
-			EGeometryScriptOutcomePins CopyToMeshOutcome;
-
-			
-			
-			// Copy this dynamic mesh into this new asset
-			for (int i = 0; i < MeshLODs.Num(); ++i)
+			if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
 			{
+	
+				UEditorAssetLibrary::SaveAsset(NewSavePath, false);
+
+				TArray<UMaterialInterface*> Materials;
+				MaterialIDRemap.GetKeys(Materials);
+				FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
+				CopyToMeshOptions.bEnableRecomputeNormals = true;
+				CopyToMeshOptions.bEnableRecomputeTangents = true;
+				CopyToMeshOptions.bUseOriginalVertexOrder = true;
+				CopyToMeshOptions.bReplaceMaterials = true;
+				CopyToMeshOptions.NewMaterials = Materials;
 				
-				auto& LOD = MeshLODs[i];
-				
-				
-				FGeometryScriptMeshWriteLOD LodSettings;
-				LodSettings.LODIndex = i;
-				UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(LOD, DuplicatedMesh, CopyToMeshOptions, LodSettings, CopyToMeshOutcome);
-			}
+
 			
+			
+				// Copy this dynamic mesh into this new asset
+				for (int i = 0; i < MeshLODs.Num(); ++i)
+				{
+				
+					auto& LOD = MeshLODs[i];
+				
+				
+					FGeometryScriptMeshWriteLOD LodSettings;
+					LodSettings.LODIndex = i;
+					UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh(LOD, DuplicatedMesh, CopyToMeshOptions, LodSettings, Outcome);
+				}
+			
+			}
+		}
+		else
+		{
+			FGeometryScriptCreateNewStaticMeshAssetOptions CreateNewAssetOptions;
+			CreateNewAssetOptions.bUseOriginalVertexOrder = true;
+			CreateNewAssetOptions.bEnableRecomputeNormals = true;
+			CreateNewAssetOptions.bEnableRecomputeTangents = true;
+
+			auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMeshLODs(MeshLODs, NewSavePath, CreateNewAssetOptions, Outcome );
+			ReleaseAllComputeMeshes();
+				
 		}
 	}
 
@@ -298,5 +348,30 @@ void AExtractMeshProxyActor::ExtractMeshInfo(USkeletalMesh* Mesh, TArray<FExtrac
 	}
 
 	RerunConstructionScripts();
+}
+
+UStaticMesh* AExtractMeshProxyActor::MakeStaticMesh(USkeletalMesh* SkeletalMesh, const FString& PackageName)
+{
+	UDynamicMesh* Copy = AllocateComputeMesh();
+
+	FGeometryScriptCopyMeshFromAssetOptions CopyOptions;
+	CopyOptions.bApplyBuildSettings = false;
+
+	FGeometryScriptMeshReadLOD CopyLod;
+	EGeometryScriptOutcomePins Outcome;
+	
+	UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMesh(SkeletalMesh, Copy, CopyOptions, CopyLod, Outcome);
+
+	FGeometryScriptCreateNewStaticMeshAssetOptions CreateNewAssetOptions;
+	CreateNewAssetOptions.bUseOriginalVertexOrder = true;
+
+	auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(Copy, PackageName, CreateNewAssetOptions, Outcome);;
+	ReleaseAllComputeMeshes();
+
+	for (int i = 0; i < SkeletalMesh->GetMaterials().Num(); ++i)
+	{
+		GeneratedAsset->SetMaterial(i, SkeletalMesh->GetMaterials()[i].MaterialInterface);
+	}
+	return GeneratedAsset;
 }
 
