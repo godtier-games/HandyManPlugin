@@ -84,6 +84,10 @@
 		{
 			"Name": "AnimToTexture",
 			"Enabled": true
+		},
+		{
+			"Name": "SkeletalMeshModelingTools",
+			"Enabled": true
 		}
 	]
 }

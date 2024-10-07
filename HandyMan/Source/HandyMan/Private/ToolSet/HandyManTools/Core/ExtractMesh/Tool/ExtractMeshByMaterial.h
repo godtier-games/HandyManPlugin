@@ -24,6 +24,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters")
 	TObjectPtr<USkeletalMesh> InputMesh;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bSaveMeshesAsStaticMesh = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters")
 	bool bMergeMeshes = false;
