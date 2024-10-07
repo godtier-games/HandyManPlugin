@@ -253,7 +253,16 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			
 		UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletalMeshAssetFromMeshLODs(MeshLODs, InputMesh->GetSkeleton(), NewSavePath, CreateNewOptions, CreateNewMeshOutcome);*/
 
+		TArray<UMaterialInterface*> Materials;
+		MaterialIDRemap.GetKeys(Materials);
+		FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
+		CopyToMeshOptions.bEnableRecomputeNormals = true;
+		CopyToMeshOptions.bEnableRecomputeTangents = true;
+		CopyToMeshOptions.bUseOriginalVertexOrder = true;
+		CopyToMeshOptions.bReplaceMaterials = true;
+		CopyToMeshOptions.NewMaterials = Materials;
 		EGeometryScriptOutcomePins Outcome;
+		
 		
 		if (!bExtractAsStaticMesh)
 		{
@@ -261,19 +270,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			{
 	
 				UEditorAssetLibrary::SaveAsset(NewSavePath, false);
-
-				TArray<UMaterialInterface*> Materials;
-				MaterialIDRemap.GetKeys(Materials);
-				FGeometryScriptCopyMeshToAssetOptions CopyToMeshOptions;
-				CopyToMeshOptions.bEnableRecomputeNormals = true;
-				CopyToMeshOptions.bEnableRecomputeTangents = true;
-				CopyToMeshOptions.bUseOriginalVertexOrder = true;
-				CopyToMeshOptions.bReplaceMaterials = true;
-				CopyToMeshOptions.NewMaterials = Materials;
 				
-
-			
-			
 				// Copy this dynamic mesh into this new asset
 				for (int i = 0; i < MeshLODs.Num(); ++i)
 				{
@@ -294,8 +291,25 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			CreateNewAssetOptions.bUseOriginalVertexOrder = true;
 			CreateNewAssetOptions.bEnableRecomputeNormals = true;
 			CreateNewAssetOptions.bEnableRecomputeTangents = true;
+				
+			auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(MeshLODs[0], NewSavePath, CreateNewAssetOptions, Outcome );
 
-			auto GeneratedAsset = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMeshLODs(MeshLODs, NewSavePath, CreateNewAssetOptions, Outcome );
+			UEditorAssetLibrary::SaveAsset(NewSavePath, false);
+
+			if (GeneratedAsset)
+			{
+				for (int i = 0; i < MeshLODs.Num(); ++i)
+				{
+				
+					auto& LOD = MeshLODs[i];
+					
+					FGeometryScriptMeshWriteLOD LodSettings;
+					LodSettings.LODIndex = i;
+
+					UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(LOD, GeneratedAsset, CopyToMeshOptions, LodSettings, Outcome, false);
+				}
+			}
+				
 			ReleaseAllComputeMeshes();
 				
 		}
