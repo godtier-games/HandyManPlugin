@@ -51,7 +51,7 @@ void AExtractMeshProxyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 		UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(ExtractedMesh.MeshLods[0], Copy, OutMesh);
 
 		UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(TargetMesh, Copy, FTransform(FVector(i * MeshOffset * multiplier, 0, 0)));
-
+		
 		if (ExtractedMesh.MaterialID)
 		{
 			GetDynamicMeshComponent()->SetMaterial(i, ExtractedMesh.MaterialID);
@@ -89,19 +89,40 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 	
 	const auto AssetData = FAssetData(InputMesh, false);
 
+	TMap<UMaterialInterface*, FMaterialIDRemap> MaterialIDRemap;
+	
 	if (!MergeMeshes)
 	{
+
 		for (int j = 0; j < Meshes.Num(); ++j)
 		{
-			const auto& Item = Meshes[j];
-			if(!Item.MaterialID) continue;
-			if(Item.CustomMeshName.IsNone()) continue;
+			const auto& Mesh = Meshes[j];
+			if(!Mesh.MaterialID) continue;
+			if(Mesh.CustomMeshName.IsNone()) continue;
+
+			for (int32 Idx = 0; Idx < InputMesh->GetMaterials().Num(); ++Idx)
+			{
+				const auto& Material = InputMesh->GetMaterials()[Idx].MaterialInterface;
+				if (Mesh.MaterialID != Material)
+				{
+					continue;
+				}
+				FMaterialIDRemap Remap;
+				Remap.Original = Idx;
+				Remap.Remap = 0;
+				MaterialIDRemap.Add(Mesh.MaterialID, Remap);
+				break;
+			}
+
+			if(!MaterialIDRemap.Contains(Mesh.MaterialID)) continue;
+
+			const auto& IdRemap = MaterialIDRemap[Mesh.MaterialID];
 
 			// Create a new asset
 			// Duplicate this asset in the same file path its in
 		
 			const FString AssetSourcePath = AssetData.GetSoftObjectPath().ToString();
-			const FString NewSavePath = FString::Printf(TEXT("%s/%s/%s_%s"), *AssetData.PackagePath.ToString(), *FolderName, *AssetData.AssetName.ToString(), *Item.CustomMeshName.ToString());
+			const FString NewSavePath = FString::Printf(TEXT("%s/%s/%s_%s"), *AssetData.PackagePath.ToString(), *FolderName, *AssetData.AssetName.ToString(), *Mesh.CustomMeshName.ToString());
 		
 			if (USkeletalMesh* DuplicatedMesh = Cast<USkeletalMesh>(UEditorAssetLibrary::DuplicateAsset(AssetSourcePath, NewSavePath)))
 			{
@@ -113,18 +134,18 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 				CopyToMeshOptions.bEnableRecomputeTangents = true;
 				CopyToMeshOptions.bUseOriginalVertexOrder = true;
 				CopyToMeshOptions.bReplaceMaterials = true;
-				CopyToMeshOptions.NewMaterials = {Item.MaterialID};
+				CopyToMeshOptions.NewMaterials = {Mesh.MaterialID};
 				EGeometryScriptOutcomePins CopyToMeshOutcome;
 
 			
 			
 				// Copy this dynamic mesh into this new asset
-				for (int i = 0; i < Item.MeshLods.Num(); ++i)
+				for (int i = 0; i < Mesh.MeshLods.Num(); ++i)
 				{
 				
-					auto& LOD = Item.MeshLods[i];
+					auto& LOD = Mesh.MeshLods[i];
 
-					UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(LOD, j, 0);
+					UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(LOD, IdRemap.Original, IdRemap.Remap);
 				
 					FGeometryScriptMeshWriteLOD LodSettings;
 					LodSettings.LODIndex = i;
@@ -142,13 +163,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 		
 		TArray<UDynamicMesh*> MeshLODs;
 
-		struct FMaterialIDRemap
-		{
-			int32 Original = 0;
-			int32 Remap = 0;
-		};
-
-		TMap<UMaterialInterface*, FMaterialIDRemap> MaterialIDRemap;
+	
 
 		for (int i = 0; i < Meshes.Num(); ++i)
 		{
@@ -156,7 +171,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			// get the original mesh ID and map it to the index of the query
 			for (int32 Idx = 0; Idx < InputMesh->GetMaterials().Num(); ++Idx)
 			{
-				const auto& Material =InputMesh->GetMaterials()[Idx].MaterialInterface;
+				const auto& Material = InputMesh->GetMaterials()[Idx].MaterialInterface;
 				if (Mesh.MaterialID != Material)
 				{
 					continue;

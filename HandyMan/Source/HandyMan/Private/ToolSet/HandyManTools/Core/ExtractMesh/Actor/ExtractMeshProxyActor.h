@@ -50,4 +50,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<USkeletalMesh> InputMesh;
+
+	struct FMaterialIDRemap
+	{
+		int32 Original = 0;
+		int32 Remap = 0;
+	};
+
 };
