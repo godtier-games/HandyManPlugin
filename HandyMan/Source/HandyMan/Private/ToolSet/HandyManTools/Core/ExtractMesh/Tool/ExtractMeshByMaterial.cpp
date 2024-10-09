@@ -190,6 +190,7 @@ void UExtractMeshByMaterialPropertySet::PostEditChangeChainProperty(struct FProp
 		}
 		
 		OutputActor->ExtractMeshInfo(InputMesh, MeshInfo);
+		MeshInfoCache = MeshInfo;
 		
 	}
 
@@ -202,11 +203,16 @@ void UExtractMeshByMaterialPropertySet::PostEditChangeChainProperty(struct FProp
 				MeshInfo.RemoveAt(MeshInfo.Num() - 1);
 			}
 		}
-
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+		else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+		{
+			MeshInfo = MeshInfoCache;
+		}
+		else
 		{
 			OutputActor->UpdateExtractedInfo(MeshInfo);
 		}
+
+		
 	}
 }
 

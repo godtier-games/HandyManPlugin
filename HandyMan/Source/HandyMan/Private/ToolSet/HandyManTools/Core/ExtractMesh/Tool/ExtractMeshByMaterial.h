@@ -43,6 +43,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Parameters", NoClear, meta=(EditCondition= "bMergeMeshes", EditConditionHides))
 	FString MergedAssetName = TEXT("MERGED");
 	
+	UPROPERTY()
+	TArray<FExtractedMeshInfo> MeshInfoCache;
+	
 	
 };
 

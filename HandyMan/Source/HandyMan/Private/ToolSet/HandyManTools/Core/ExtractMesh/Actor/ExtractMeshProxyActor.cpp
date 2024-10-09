@@ -42,6 +42,7 @@ void AExtractMeshProxyActor::RebuildGeneratedMesh(UDynamicMesh* TargetMesh)
 		const auto& ExtractedMesh = ExtractedMeshes[i];
 
 		if(ExtractedMesh.MeshLods.Num() == 0) continue;
+		if(!ExtractedMesh.bVisible) continue;
 
 		bShouldOffsetToRight = !bShouldOffsetToRight;
 		const float multiplier = bShouldOffsetToRight ? 1.0f : -1.0f;
@@ -100,6 +101,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			const auto& Mesh = Meshes[j];
 			if(!Mesh.MaterialID) continue;
 			if(Mesh.CustomMeshName.IsNone()) continue;
+			if(!Mesh.bVisible) continue;
 
 			for (int32 Idx = 0; Idx < InputMesh->GetMaterials().Num(); ++Idx)
 			{
@@ -206,7 +208,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			for (int32 Idx = 0; Idx < InputMesh->GetMaterials().Num(); ++Idx)
 			{
 				const auto& Material = InputMesh->GetMaterials()[Idx].MaterialInterface;
-				if (Mesh.MaterialID != Material)
+				if (Mesh.MaterialID != Material || !Mesh.bVisible)
 				{
 					continue;
 				}
@@ -225,6 +227,7 @@ void AExtractMeshProxyActor::SaveObjects(const TArray<FExtractedMeshInfo>& Meshe
 			UDynamicMesh* CombinedLOD = NewObject<UDynamicMesh>();
 			for (const auto& Mesh : Meshes)
 			{
+				if(!Mesh.bVisible) continue;
 				UDynamicMesh* MeshLod = Mesh.MeshLods[i];
 				if(!MeshLod) continue;
 				if(!MaterialIDRemap.Contains(Mesh.MaterialID)) continue;
