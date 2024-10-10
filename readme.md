@@ -37,5 +37,12 @@ The best way to support this project is PRs with cool tools and improvements so 
 With a ton of high costing marketplace assets and now even SUBSCRIPTION based marketplace assets we have to come together and build our own.
 If you want to support me directly there are a few ways to do so.
 - **Star This Project**
-- [YouTube](https://www.youtube.com/@DevGods)
-- [Patreon](https://www.patreon.com/DevGods)
+
+[![Patreon](doc/icons/patreon.svg)](https://www.patreon.com/DevGods)
+
+[![YouTube](doc/icons/youtube.png)](https://www.youtube.com/@DevGods)
+
+[![Discord](doc/icons/discord.svg)](https://discord.gg/bjDy2hjy3C)
+
+
+
