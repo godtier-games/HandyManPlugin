@@ -134,13 +134,13 @@ protected:
 	TObjectPtr<UHandyManPipeToolProperties> Settings;
 
 	UPROPERTY()
-	TMap<FName, AHandyManPipeActor*> OutputActorMap;
+	TMap<FName, TObjectPtr<AHandyManPipeActor>> OutputActorMap;
 
 	UPROPERTY()
-	TArray<AActor*> TargetActors;
+	TArray<TObjectPtr<AActor>> TargetActors;
 
 	UPROPERTY()
-	TArray<AHandyManPipeActor*> SelectionArray;
+	TArray<TObjectPtr<AHandyManPipeActor>> SelectionArray;
 	
 
 	

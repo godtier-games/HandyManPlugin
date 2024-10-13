@@ -279,7 +279,7 @@ void UScatterGeometryTool::HighlightSelectedActor(const FScriptableToolModifierS
 
 	const AActor* HitActor = HitResult.GetActor();
 
-	TArray<AActor*> OutKeys;
+	TArray<TObjectPtr<AActor>> OutKeys;
 	SelectedActors.GetKeys(OutKeys);
 
 	// this instance we are on is in the selected actors list check if this actor we are selecting is in the list

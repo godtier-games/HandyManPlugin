@@ -741,14 +741,14 @@ FBox UMorphTargetCreator::GetWorldSpaceFocusBox()
 	return Super::GetWorldSpaceFocusBox();
 }
 
-TMap<FName, UDynamicMesh*> UMorphTargetCreator::GetMorphTargetMeshMap() const
+TMap<FName, TObjectPtr<UDynamicMesh>> UMorphTargetCreator::GetMorphTargetMeshMap() const
 {
 	if (TargetActor)
 	{
 		return TargetActor->GetMorphTargetMeshMap();
 	}
 
-	return TMap<FName, UDynamicMesh*>();
+	return TMap<FName, TObjectPtr<UDynamicMesh>>();
 }
 
 void UMorphTargetCreator::RemoveMorphTargetMesh(const FName MorphTargetMeshName)

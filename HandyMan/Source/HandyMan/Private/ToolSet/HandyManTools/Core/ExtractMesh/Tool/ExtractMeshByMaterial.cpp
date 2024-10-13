@@ -178,7 +178,7 @@ void UExtractMeshByMaterialPropertySet::PostEditChangeChainProperty(struct FProp
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
 	if (!ParentTool.Get() || !ParentTool->IsA(UExtractMeshByMaterial::StaticClass())) return;
-	auto* OutputActor = GetParentTool<UExtractMeshByMaterial>()->OutputActor;
+	auto OutputActor = GetParentTool<UExtractMeshByMaterial>()->OutputActor;
 
 	if(!OutputActor) return;
 

@@ -97,10 +97,10 @@ public:
 	FVector LatestPosition = FVector::Zero();
 
 	UPROPERTY()
-	AActor* TargetActor;
+	TObjectPtr<AActor> TargetActor;
 
 	UPROPERTY()
-	APCG_BuildingGenerator* OutputActor;
+	TObjectPtr<APCG_BuildingGenerator> OutputActor;
 
 	FInputRayHit LastHit;
 
@@ -116,7 +116,7 @@ public:
 	bool UpdateBrush(const FInputDeviceRay& DevicePos);
 
 	UPROPERTY()
-	AActor* LastHoveredOpening = nullptr;
+	TObjectPtr<AActor> LastHoveredOpening = nullptr;
 	
 	virtual void OnTick(float DeltaTime) override;
 	
@@ -169,18 +169,18 @@ private:
 	
 	/** Last selected actor list */
 	UPROPERTY()
-	AActor* LastSelectedActor;
+	TObjectPtr<AActor> LastSelectedActor;
 	
 	/** Last placed acotr list */
 	UPROPERTY()
-	TArray<AActor*> LastSpawnedActors;
+	TArray<TObjectPtr<AActor>> LastSpawnedActors;
 
 	UPROPERTY()
-	class UBuildingGeneratorPropertySet* Settings;
+	TObjectPtr<UBuildingGeneratorPropertySet> Settings;
 
 	/** Brush actor's material */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* BrushMI = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> BrushMI = nullptr;
 	
 	/** Brush actor */
 	UPROPERTY()
@@ -205,7 +205,7 @@ private:
 	FLinearColor BrushColor = FLinearColor::Blue;
 
 	UPROPERTY()
-	UStaticMesh* PaintingMesh = nullptr;
+	TObjectPtr<UStaticMesh> PaintingMesh = nullptr;
 
 	bool bIsPainting = false;
 	bool bIsEditing = false;
@@ -223,10 +223,10 @@ private:
 
 	/** Last placed acotr list */
 	UPROPERTY()
-	TArray<AActor*> SpawnedActorsToDestroy;
+	TArray<TObjectPtr<AActor>> SpawnedActorsToDestroy;
 	
 	UPROPERTY()
-	TArray<AActor*> EditModeSpawnedActors;
+	TArray<TObjectPtr<AActor>> EditModeSpawnedActors;
 
 	UPROPERTY()
 	FVector CopiedScale = FVector::ZeroVector;

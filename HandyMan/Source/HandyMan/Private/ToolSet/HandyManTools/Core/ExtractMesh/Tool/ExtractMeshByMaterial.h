@@ -74,12 +74,12 @@ public:
 	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType) override;
 	
 	UPROPERTY()
-	AExtractMeshProxyActor* OutputActor = nullptr;
+	TObjectPtr<AExtractMeshProxyActor> OutputActor = nullptr;
 	
 
 private:
 	UPROPERTY()
-	UExtractMeshByMaterialPropertySet* Settings = nullptr;
+	TObjectPtr<UExtractMeshByMaterialPropertySet> Settings = nullptr;
 
 	void SaveDuplicate();
 

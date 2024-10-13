@@ -41,16 +41,16 @@ public:
 private:
 
 	UPROPERTY()
-	TMap<FName, UDynamicMesh*> MorphTargetMeshMap;
+	TMap<FName, TObjectPtr<UDynamicMesh>> MorphTargetMeshMap;
 
 	UPROPERTY()
-	USkeletalMesh* MorphTargetMesh;
+	TObjectPtr<USkeletalMesh> MorphTargetMesh;
 
 
 public:
 
 	void CacheBaseMesh(USkeletalMesh* InputMesh);
-	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() { return MorphTargetMeshMap; }
+	TMap<FName, TObjectPtr<UDynamicMesh>> GetMorphTargetMeshMap() { return MorphTargetMeshMap; }
 	void RemoveMorphTargetMesh(const FName& MorphTargetMeshName);
 	void RemoveAllMorphTargetMeshes(const bool bShouldRestoreMesh = false);
 	void CreateMorphTargetMesh(const FName& MorphTargetMeshName);
@@ -64,7 +64,7 @@ public:
 
 private:
 	UPROPERTY()
-	UDynamicMesh* BaseMesh = nullptr;
+	TObjectPtr<UDynamicMesh> BaseMesh = nullptr;
 
 	bool bShouldStoreMeshIntoAsset = false;
 

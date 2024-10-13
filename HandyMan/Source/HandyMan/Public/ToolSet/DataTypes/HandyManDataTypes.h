@@ -62,7 +62,7 @@ struct FObjectSelections
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UObject*> Selected;
+	TArray<TObjectPtr<UObject>> Selected;
 
 	FObjectSelections()
 	{
@@ -109,7 +109,7 @@ struct FObjectSelection
 	GENERATED_BODY()
 
 	UPROPERTY()
-	AActor* Selected;
+	TObjectPtr<AActor> Selected;
 
 	FObjectSelection()
 	{

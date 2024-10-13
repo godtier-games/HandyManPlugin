@@ -44,10 +44,10 @@ private:
 	AActor* SpawnNewScatterWorldActor(const AActor* ActorToSpawnOn);
 	
 	UPROPERTY()
-	class UScatterGeometryTool_PropertySet* PropertySet;
+	TObjectPtr<class UScatterGeometryTool_PropertySet> PropertySet;
 
 	UPROPERTY()
-	TMap<AActor*, FObjectSelection> SelectedActors;
+	TMap<TObjectPtr<AActor>, FObjectSelection> SelectedActors;
 
 	void HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection = false);
 	void HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult);
@@ -67,7 +67,7 @@ public:
 	UScatterGeometryTool_PropertySet();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (Tooltip = "Change the global mesh data of the entire PCG Graph instance for each tool in the level."))
-	class UHM_ScatterToolGeometryData* MeshData = nullptr;
+	TObjectPtr<class UHM_ScatterToolGeometryData> MeshData = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (Tooltip = "If it seems your Ivy is not generating it may be due to a small amount of triangles in the mesh. Toggle voxelization to generate more points."))
 	bool bVoxelizeMesh = false;
@@ -98,8 +98,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (EditCondition = "bUseRandomOffset"))
 	FVector MaxRandomOffset = FVector();
-
-	
-
-	
 };

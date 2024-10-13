@@ -19,7 +19,7 @@ public:
 	UHandyManToolWithTargetBuilder(const FObjectInitializer& ObjectInitializer);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HandyMan")
-	TArray<UClass*> AcceptedClasses;
+	TArray<TObjectPtr<UClass>> AcceptedClasses;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HandyMan")
 	int32 MinRequiredMatches = 1;

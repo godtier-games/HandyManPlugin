@@ -54,13 +54,13 @@ protected:
 	TObjectPtr<USkeletalMeshLODSettings> CutMeshSettings;
 	
 	UPROPERTY()
-	USkeletalMesh* InputMesh = nullptr;
+	TObjectPtr<USkeletalMesh> InputMesh = nullptr;
 
 	UPROPERTY()
-	USkeletalMesh* SavedSkeletalMesh = nullptr;
+	TObjectPtr<USkeletalMesh> SavedSkeletalMesh = nullptr;
 
 	UPROPERTY()
-	USkeletalMesh* LastSkeletalMesh = nullptr;
+	TObjectPtr<USkeletalMesh> LastSkeletalMesh = nullptr;
 
 	UPROPERTY()
 	FSkeletalMeshAssetData CacheMeshData;

@@ -20,7 +20,7 @@ struct FHandyManBuildingMeshComponent
 	FGameplayTag MeshNameTag;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
 	float MeshWidth = 0.0f;
@@ -73,7 +73,7 @@ struct FHandyManBuildingLayout
 	}
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	AActor* TargetBlockoutMesh = nullptr;
+	TObjectPtr<AActor> TargetBlockoutMesh = nullptr;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
 	TArray<FHandyManFloorModule> FloorLayout;
@@ -98,7 +98,7 @@ struct FHandyManHoudiniMeshModule : public FTableRowBase
 	FString MeshName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Mesh Component")
 	float MeshWidth = 0.0f;
@@ -121,7 +121,7 @@ struct FHandyManBuildingModule
 	FString BuildingName;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
-	TArray<AActor*> TargetBlockoutMesh;
+	TArray<TObjectPtr<AActor>> TargetBlockoutMesh;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Handy Man Building Component")
 	TArray<FHandyManFloorModule> FloorModules;

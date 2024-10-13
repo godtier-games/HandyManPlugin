@@ -524,7 +524,9 @@ void UPhysicBasedScatterTool::OnTick(float DeltaTime)
 					}
 				}
 
-				UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), LevelActors);
+				TArray<AActor*> TempActors;
+				LevelActors = TempActors;
+				UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), TempActors);
 				if (LevelActors.Num() > 0)
 				{
 					for (int i = 0; i < LevelActors.Num(); ++i)
@@ -1241,12 +1243,13 @@ void UPhysicBasedScatterTool::AddSelectedActor(AActor* InActor)
 
 void UPhysicBasedScatterTool::CachePhysics()
 {
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), LevelActors);
+	TArray<AActor*> TempActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), TempActors);
+	LevelActors = TempActors;
 	for (auto& actor : LevelActors)
 	{
 		if (!actor->IsA<AGeometryCollectionActor>())
 		{
-
 			auto Prims = GetPrimitives(actor);
 			for (auto& Prim : Prims)
 			{
@@ -1337,7 +1340,7 @@ TArray<UPrimitiveComponent*> UPhysicBasedScatterTool::GetSpawnedComponents()
 
 void UPhysicBasedScatterTool::ResetPhysics()
 {
-	TArray<UPrimitiveComponent*> Prims;
+	TArray<TObjectPtr<UPrimitiveComponent>> Prims;
 	Mobilities.GetKeys(Prims);
 
 	for (auto& Prim : Prims)

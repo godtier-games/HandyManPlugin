@@ -114,10 +114,10 @@ public:
 private:
 	
 	UPROPERTY()
-	class UPhysicsDropPropertySet* PropertySet;
+	TObjectPtr<class UPhysicsDropPropertySet> PropertySet;
 
 	UPROPERTY()
-	TArray<AActor*> SpawnedActors;
+	TArray<TObjectPtr<AActor>> SpawnedActors;
 
 #pragma region DELEGATES
 
@@ -195,11 +195,11 @@ private:
 	
 	/** Brush actor's material */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* BrushMI = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> BrushMI = nullptr;
 	
 	/** Brush actor */
 	UPROPERTY()
-	TObjectPtr<class UStaticMeshComponent> Brush = nullptr;
+	TObjectPtr<UStaticMeshComponent> Brush = nullptr;
 	
 	/** Is painting enable */
 	bool bIsPainting = false;
@@ -230,35 +230,35 @@ private:
 	
 	/** Last selected actor list */
 	UPROPERTY()
-	TArray<AActor*> LastSelectedActors;
+	TArray<TObjectPtr<AActor>> LastSelectedActors;
 	
 	/** Last placed acotr list */
 	UPROPERTY()
-	TArray<AActor*> LastSpawnedActors;
+	TArray<TObjectPtr<AActor>> LastSpawnedActors;
 	
 	
 	/** All map's actors */
 	UPROPERTY()
-	TArray<AActor*> LevelActors;
+	TArray<TObjectPtr<AActor>> LevelActors;
 	
 	/** Physics dictionary for all map's actors */
 	UPROPERTY()
-	TMap<UPrimitiveComponent*, bool> Physics;
+	TMap<TObjectPtr<UPrimitiveComponent>, bool> Physics;
 	
 	/** Gravity dictionary for all map's actors */
 	UPROPERTY()
-	TMap<UPrimitiveComponent*, bool> Gravities;
+	TMap<TObjectPtr<UPrimitiveComponent>, bool> Gravities;
 	
 	/** Position dictionary for all map's actors */
 	UPROPERTY()
-	TMap<UPrimitiveComponent*, FVector> Positions;
+	TMap<TObjectPtr<UPrimitiveComponent>, FVector> Positions;
 	
 	/** Rotation dictionary for all map's actors */
 	UPROPERTY()
-	TMap<UPrimitiveComponent*, FRotator> Rotations;
+	TMap<TObjectPtr<UPrimitiveComponent>, FRotator> Rotations;
 	
 	/** Mobility dictionary for all map's actors */
-	TMap<UPrimitiveComponent*, EComponentMobility::Type> Mobilities;
+	TMap<TObjectPtr<UPrimitiveComponent>, EComponentMobility::Type> Mobilities;
 	
 	/** Returns primitive components of an actor */
 	TArray<UPrimitiveComponent*> GetPrimitives(const AActor* InActor);
@@ -470,7 +470,7 @@ private:
 	TArray<FReferenceMeshData> GetReferenceMeshes() const;
 	
 	UPROPERTY()
-	UStaticMesh* PickedMesh = nullptr;
+	TObjectPtr<UStaticMesh> PickedMesh = nullptr;
 
 	int32 LastReferenceMeshCount = 0;
 

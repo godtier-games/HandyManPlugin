@@ -34,11 +34,11 @@ private:
 
 	/** Last selected actor list */
 	UPROPERTY()
-	ARuntimeIslandGenerator* OutputActor;
+	TObjectPtr<ARuntimeIslandGenerator> OutputActor;
 	
 
 	UPROPERTY()
-	class UIslandGeneratorPropertySet* Settings;
+	TObjectPtr<UIslandGeneratorPropertySet> Settings;
 };
 
 

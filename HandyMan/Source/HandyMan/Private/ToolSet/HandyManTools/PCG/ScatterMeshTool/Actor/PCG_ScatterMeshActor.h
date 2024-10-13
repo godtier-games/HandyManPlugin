@@ -39,7 +39,7 @@ public:
 protected:
 
 	UPROPERTY(BlueprintReadWrite, Category="Inputs")
-	TArray<AActor*> TargetActors;
+	TArray<TObjectPtr<AActor>> TargetActors;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UPCGComponent> PCG;

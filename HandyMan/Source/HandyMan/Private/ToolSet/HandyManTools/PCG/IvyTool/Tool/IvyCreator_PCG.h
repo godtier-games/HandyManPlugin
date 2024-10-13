@@ -44,10 +44,10 @@ private:
 	AActor* SpawnNewIvyWorldActor(const AActor* ActorToSpawnOn);
 	
 	UPROPERTY()
-	class UIvyCreator_PCG_PropertySet* PropertySet;
+	TObjectPtr<class UIvyCreator_PCG_PropertySet> PropertySet;
 
 	UPROPERTY()
-	TMap<AActor*, FObjectSelection> SelectedActors;
+	TMap<TObjectPtr<AActor>, FObjectSelection> SelectedActors;
 
 	void HighlightActors(FInputDeviceRay ClickPos, const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection = false);
 	void HighlightSelectedActor(const FScriptableToolModifierStates& Modifiers, bool bShouldEditSelection, const FHitResult& HitResult);
@@ -67,7 +67,7 @@ public:
 	UIvyCreator_PCG_PropertySet();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (Tooltip = "Change the global mesh data of the entire PCG Graph instance for each tool in the level."))
-	class UHM_IvyToolMeshData* MeshData = nullptr;
+	TObjectPtr<class UHM_IvyToolMeshData> MeshData = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (Tooltip = "Show a visual representation of the points being generated on the mesh"))
 	bool bDebugMeshPoints = false;
@@ -119,8 +119,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (EditCondition = "bUseRandomLeafOffset"))
 	FVector MaxRandomOffset = FVector();
-
-	
-
-	
 };

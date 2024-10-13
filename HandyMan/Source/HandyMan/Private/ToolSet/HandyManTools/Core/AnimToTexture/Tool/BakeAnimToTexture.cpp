@@ -372,7 +372,7 @@ void UBakeAnimToTexturePropertySet::PostEditChangeChainProperty(struct FProperty
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
 	if (!ParentTool.Get() || !ParentTool->IsA(UBakeAnimToTexture::StaticClass())) return;
-	auto* OutputActor = GetParentTool<UBakeAnimToTexture>()->OutputActor;
+	auto OutputActor = GetParentTool<UBakeAnimToTexture>()->OutputActor;
 
 	if(!OutputActor) return;
 	

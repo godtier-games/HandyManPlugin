@@ -32,5 +32,5 @@ public:
 
 private:
 	UPROPERTY()
-	UHandyManSubsystem* HandyManAPI;
+	TObjectPtr<UHandyManSubsystem> HandyManAPI;
 };

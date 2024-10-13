@@ -96,14 +96,14 @@ public:
 
 	
 	UPROPERTY()
-	AAnimToTextureProxyActor* OutputActor = nullptr;
+	TObjectPtr<AAnimToTextureProxyActor> OutputActor = nullptr;
 
 	void Initialize();
 	
 
 private:
 	UPROPERTY()
-	UBakeAnimToTexturePropertySet* Settings = nullptr;
+	TObjectPtr<UBakeAnimToTexturePropertySet> Settings = nullptr;
 
 	
 	void CreateStaticMesh();

@@ -61,7 +61,7 @@ protected:
 	bool bRefreshDelegates = false;
 
 	UPROPERTY(BlueprintReadWrite, Category="Inputs")
-	TArray<AActor*> TargetActors;
+	TArray<TObjectPtr<AActor>> TargetActors;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UPCGComponent> PCG;
@@ -78,7 +78,7 @@ protected:
 private:
 
 	UPROPERTY()
-	TArray<class USplineMeshComponent*> Vines;
+	TArray<TObjectPtr<class USplineMeshComponent>> Vines;
 
 	bool bHasGeneratedFromVineUpdate = false;
 

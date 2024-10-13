@@ -185,7 +185,7 @@ private:
 	TArray<FGeometryScriptPolyPath> FloorPolyPaths;
 
 	UPROPERTY()
-	UDynamicMesh* OriginalMesh = nullptr;
+	TObjectPtr<UDynamicMesh> OriginalMesh = nullptr;
 	
 	UPROPERTY()
 	TMap<TObjectPtr<UObject>, FGeneratedOpeningArray> GeneratedOpenings;

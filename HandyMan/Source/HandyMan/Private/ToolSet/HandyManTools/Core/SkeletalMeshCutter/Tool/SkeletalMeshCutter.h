@@ -34,12 +34,12 @@ public:
 
 
 	UPROPERTY()
-	ASkeletalMeshCutterActor* OutputActor = nullptr;
+	TObjectPtr<ASkeletalMeshCutterActor> OutputActor = nullptr;
 	
 
 private:
 	UPROPERTY()
-	USkeletalMeshCutterPropertySet* Settings = nullptr;
+	TObjectPtr<USkeletalMeshCutterPropertySet> Settings = nullptr;
 
 	void SaveDuplicate();
 

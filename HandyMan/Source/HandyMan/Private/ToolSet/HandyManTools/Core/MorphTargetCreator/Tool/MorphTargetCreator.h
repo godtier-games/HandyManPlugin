@@ -48,7 +48,7 @@ public:
 	TArray<FName> MorphTargets;
 	
 	UPROPERTY(VisibleAnywhere, Category = Morphs)
-	TMap<FName, UDynamicMesh*> Meshes;
+	TMap<FName, TObjectPtr<UDynamicMesh>> Meshes;
 
 
 	UFUNCTION()
@@ -223,7 +223,7 @@ private:
 
 public:
 
-	TMap<FName, UDynamicMesh*> GetMorphTargetMeshMap() const;
+	TMap<FName, TObjectPtr<UDynamicMesh>> GetMorphTargetMeshMap() const;
 	void RemoveMorphTargetMesh(FName MorphTargetMeshName);
 	FName CurrentMorphEdit = NAME_None;
 	void RemoveAllMorphTargetMeshes(const bool bShouldRestoreLastMorph = false);

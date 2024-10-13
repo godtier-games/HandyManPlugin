@@ -52,10 +52,10 @@ public:
 protected:
 
 	/** Traces the actor under cursor */
-	bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos);
+	virtual bool Trace(FHitResult& OutHit, const FInputDeviceRay& DevicePos) override;
 
 	UPROPERTY()
-	TArray<AActor*> SelectedActors;
+	TArray<TObjectPtr<AActor>> SelectedActors;
 
 public:
 
